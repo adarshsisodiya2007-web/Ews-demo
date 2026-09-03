@@ -1,0 +1,56 @@
+:root {
+  /* ── BASE SURFACES ─────────────────────────────── */
+  --color-base-900: #161B22;   /* Darkest: body bg, map chrome */
+  --color-base-800: #1B222C;   /* Primary panel backgrounds */
+  --color-base-700: #212B38;   /* Elevated cards, side panel */
+  --color-base-600: #2A3547;   /* Hover states, inputs */
+  --color-base-400: #4A5A70;   /* Dividers, disabled */
+  --color-base-200: #8A9BB5;   /* Secondary text, muted labels */
+  --color-base-100: #C5D1E0;   /* Primary text on dark */
+  --color-base-000: #E8EDF2;   /* High-emphasis text, headings */
+
+  /* ── RISK SEVERITY (NEVER use decoratively) ────── */
+  --color-risk-low:             #4A7C59;
+  --color-risk-moderate:        #C4873A;
+  --color-risk-high:            #B84A39;
+  --color-risk-critical:        #8B2315;
+  --color-risk-critical-glow:   rgba(139, 35, 21, 0.45);
+  --color-risk-high-glow:       rgba(184, 74, 57, 0.30);
+
+  /* ── INTERACTIVE ACCENT (links, active filters, focus rings ONLY) */
+  --color-accent:         #5B8DB8;
+  --color-accent-muted:   #3D6A8A;
+
+  /* ── CITIZEN SCREEN (lighter, calmer variant) ────── */
+  --color-citizen-base:    #243040;
+  --color-citizen-card:    #2C3A4A;
+  --color-citizen-confirm: #4A7C59;
+
+  /* ── TYPOGRAPHY ──────────────────────────────────── */
+  --font-heading: 'IBM Plex Sans Condensed', system-ui, sans-serif;
+  --font-body:    'Inter', system-ui, sans-serif;
+  --font-mono:    'IBM Plex Mono', 'Courier New', monospace;
+  --font-regional: 'Hind Siliguri', serif;
+
+  /* ── TYPE SCALE ──────────────────────────────────── */
+  --text-xs:   0.70rem;
+  --text-sm:   0.80rem;
+  --text-base: 0.875rem;
+  --text-md:   1.00rem;
+  --text-lg:   1.25rem;
+  --text-xl:   1.75rem;
+  --text-2xl:  2.50rem;
+
+  /* ── SPACING ─────────────────────────────────────── */
+  --space-1: 4px;  --space-2: 8px;  --space-3: 12px;
+  --space-4: 16px; --space-5: 24px; --space-6: 32px;
+  --space-7: 48px; --space-8: 64px;
+
+  /* ── RADIUS ──────────────────────────────────────── */
+  --radius-sm: 3px; --radius-md: 6px; --radius-lg: 10px;
+
+  /* ── TRANSITIONS ─────────────────────────────────── */
+  --transition-fast: 150ms ease;
+  --transition-base: 300ms ease-out;
+  --transition-slow: 500ms ease-out;
+}

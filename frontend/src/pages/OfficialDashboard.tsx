@@ -1,0 +1,211 @@
+import React, { useState, useEffect } from 'react';
+import { TopBar } from '../components/layout/TopBar';
+import { RiskHeatmap } from '../components/map/RiskHeatmap';
+import { RegionDetailPanel } from '../components/panels/RegionDetailPanel';
+import { LiveAlertTicker } from '../components/feed/LiveAlertTicker';
+import { RegionRisk, Severity } from '../types';
+import { fetchHeatmap } from '../services/api';
+import { OfflineStatusHeader } from '../components/layout/OfflineStatusHeader';
+import { AIPriorityPanel } from '../components/AIPriorityPanel';
+
+/** Read role safely from localStorage (set during login) */
+function getStoredRole(): string {
+  return localStorage.getItem('ews_role') || 'GUEST';
+}
+
+const OfficialDashboard = () => {
+  const [heatmapData, setHeatmapData]       = useState<RegionRisk[]>([]);
+  const [selectedRegionId, setSelectedRegionId] = useState<string | null>(null);
+  const [severityFilter, setSeverityFilter]  = useState<Severity | 'ALL'>('ALL');
+  const [selectedDistrict, setSelectedDistrict] = useState('ALL');
+  const [lang, setLang]                     = useState(localStorage.getItem('ews_lang') || 'en');
+  const [alertCount]                        = useState(0);
+  const [lastUpdated, setLastUpdated]        = useState<Date | null>(null);
+  const [loading, setLoading]               = useState(true);
+  const [viewMode, setViewMode]             = useState<'map' | 'ai_priority'>('map');
+
+  const role = getStoredRole();
+
+  useEffect(() => {
+    const load = () =>
+      fetchHeatmap()
+        .then(data => { setHeatmapData(data); setLastUpdated(new Date()); setLoading(false); })
+        .catch(() => setLoading(false));
+    load();
+    const iv = setInterval(load, 60000);
+    return () => clearInterval(iv);
+  }, []);
+
+  const handleLangToggle = () => {
+    const next = lang === 'en' ? 'as' : 'en';
+    setLang(next);
+    localStorage.setItem('ews_lang', next);
+  };
+
+  const districts = ['ALL', ...Array.from(new Set(heatmapData.map(d => d.district)))];
+
+  // Live "X min ago" counter
+  const [, forceUpdate] = useState(0);
+  useEffect(() => {
+    const iv = setInterval(() => forceUpdate(n => n + 1), 30000);
+    return () => clearInterval(iv);
+  }, []);
+  const minAgo = lastUpdated
+    ? Math.floor((Date.now() - lastUpdated.getTime()) / 60000)
+    : null;
+
+  const gridCols = selectedRegionId ? '1fr 340px' : '1fr 0px';
+
+  const filteredRegions = heatmapData.filter(r =>
+    selectedDistrict === 'ALL' || r.district === selectedDistrict
+  );
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
+      <OfflineStatusHeader />
+      <div style={{
+        display: 'grid',
+        gridTemplateRows: '52px 28px 1fr 44px',
+        gridTemplateColumns: gridCols,
+        flex: 1,
+        overflow: 'hidden',
+        background: '#161B22',
+        transition: 'grid-template-columns 300ms ease-out',
+      }}>
+
+        {/* ── TopBar ── */}
+        <div style={{ gridColumn: '1 / -1' }}>
+        <TopBar
+          districts={districts}
+          selectedDistrict={selectedDistrict}
+          onDistrictChange={setSelectedDistrict}
+          severityFilter={severityFilter}
+          onSeverityChange={setSeverityFilter}
+          alertCount={alertCount}
+          lang={lang}
+          onLangToggle={handleLangToggle}
+        />
+      </div>
+
+      {/* ── Stat bar ── */}
+      <div style={{
+        gridColumn: '1 / -1',
+        background: '#1B222C',
+        borderBottom: '1px solid #2A3547',
+        display: 'flex', alignItems: 'center', gap: '24px',
+        padding: '0 16px',
+        fontFamily: 'var(--font-mono)', fontSize: '0.68rem', color: '#4A5A70',
+        overflow: 'hidden', whiteSpace: 'nowrap',
+      }}>
+        <span><span className="status-dot green" style={{ marginRight: 5 }} />
+          {heatmapData.length} regions monitored
+        </span>
+        <span>|</span>
+        <span><span className="status-dot amber" style={{ marginRight: 5 }} />
+          Risk engine active
+        </span>
+        <span>|</span>
+        <span><span className="status-dot blue" style={{ marginRight: 5 }} />
+          {heatmapData.filter(r => r.severity === 'CRITICAL').length} CRITICAL &nbsp;
+          {heatmapData.filter(r => r.severity === 'HIGH').length} HIGH &nbsp;
+          {heatmapData.filter(r => r.severity === 'MODERATE').length} MOD &nbsp;
+          {heatmapData.filter(r => r.severity === 'LOW').length} LOW
+        </span>
+        <span>|</span>
+        <span>🔄 {minAgo === null ? 'Loading...' : minAgo === 0 ? 'Just updated' : `Updated ${minAgo}m ago`}</span>
+        <span>|</span>
+        <span>📡 SACHET-ready CAP 1.2 feed</span>
+
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: '6px' }}>
+          <button
+            onClick={() => setViewMode('map')}
+            style={{
+              padding: '3px 10px', borderRadius: '4px', border: 'none',
+              background: viewMode === 'map' ? '#2563eb' : '#2A3547',
+              color: viewMode === 'map' ? '#fff' : '#94a3b8',
+              fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer'
+            }}
+          >
+            🗺️ GIS Risk Map
+          </button>
+          <button
+            onClick={() => setViewMode('ai_priority')}
+            style={{
+              padding: '3px 10px', borderRadius: '4px', border: 'none',
+              background: viewMode === 'ai_priority' ? '#ea580c' : '#2A3547',
+              color: viewMode === 'ai_priority' ? '#fff' : '#94a3b8',
+              fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer'
+            }}
+          >
+            🤖 AI Response Priority
+          </button>
+        </div>
+      </div>
+
+      {viewMode === 'ai_priority' ? (
+        <div style={{ gridRow: 3, gridColumn: '1 / -1', overflowY: 'auto', padding: '16px 20px', background: '#0a0f1e' }}>
+          <AIPriorityPanel
+            regions={heatmapData}
+            onSelectRegion={(rId) => {
+              setSelectedRegionId(rId);
+              setViewMode('map');
+            }}
+          />
+        </div>
+      ) : (
+        <>
+          {/* ── Map ── */}
+          <div style={{ gridRow: 3, gridColumn: 1, position: 'relative', overflow: 'hidden' }}>
+            {loading ? (
+              <div style={{
+                position: 'absolute', inset: 0, display: 'flex',
+                alignItems: 'center', justifyContent: 'center',
+                background: '#161B22', flexDirection: 'column', gap: '12px',
+              }}>
+                <div style={{ width: 32, height: 32, border: '3px solid #2A3547',
+                  borderTopColor: '#5B8DB8', borderRadius: '50%',
+                  animation: 'spin 0.8s linear infinite' }} />
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8rem', color: '#4A5A70' }}>
+                  Loading risk data…
+                </div>
+              </div>
+            ) : (
+              <RiskHeatmap
+                regions={filteredRegions}
+                selectedRegionId={selectedRegionId}
+                onRegionSelect={setSelectedRegionId}
+                severityFilter={severityFilter}
+              />
+            )}
+          </div>
+
+          {/* ── Detail panel ── */}
+          <div style={{
+            gridRow: 3, gridColumn: 2,
+            borderLeft: selectedRegionId ? '1px solid #2A3547' : 'none',
+            overflow: 'hidden', overflowY: 'auto',
+            transition: 'opacity 300ms ease',
+            opacity: selectedRegionId ? 1 : 0,
+          }}>
+            <RegionDetailPanel
+              regionId={selectedRegionId}
+              onClose={() => setSelectedRegionId(null)}
+              userRole={role}
+              lang={lang}
+            />
+          </div>
+        </>
+      )}
+
+      {/* ── Live ticker ── */}
+      <div style={{ gridRow: 4, gridColumn: '1 / -1' }}>
+        <LiveAlertTicker />
+      </div>
+
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    </div>
+  );
+};
+
+export default OfficialDashboard;
