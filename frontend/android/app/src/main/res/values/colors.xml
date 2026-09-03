@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- EWS-NER dark topographic theme colors -->
+    <color name="colorPrimary">#1B222C</color>
+    <color name="colorPrimaryDark">#0D1117</color>
+    <color name="colorAccent">#5B8DB8</color>
+    <color name="colorBackground">#161B22</color>
+</resources>

@@ -1,0 +1,29 @@
+# Node / Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/android/.gradle/
+frontend/android/app/build/
+frontend/android/local.properties
+
+# Java / Backend
+backend/target/
+*.class
+*.jar
+*.war
+
+# Python / AI Engine
+ai_engine/__pycache__/
+ai_engine/venv/
+ai_engine/.pytest_cache/
+*.pyc
+
+# IDE & OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Large binaries (kept locally)
+*.apk
+*.pdf

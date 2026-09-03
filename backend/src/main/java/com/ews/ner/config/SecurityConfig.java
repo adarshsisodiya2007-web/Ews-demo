@@ -34,7 +34,7 @@ public class SecurityConfig {
             .cors(c -> c.configurationSource(corsConfigurationSource()))
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/auth/**", "/api/risk/**", "/actuator/health", "/api/regions/**", "/api/v1/**", "/api/weather/**", "/ws/**").permitAll()
+                .requestMatchers("/api/auth/**", "/api/risk/**", "/actuator/health", "/api/regions/**", "/api/v1/**", "/api/weather/**", "/api/alerts/**", "/ws/**").permitAll()
                 .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/reports", "/api/reports/", "/api/reports/upload").permitAll()
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/reports/recent", "/api/reports/region/**").permitAll()
                 .requestMatchers(org.springframework.http.HttpMethod.DELETE, "/api/reports/**").hasAnyRole("ADMIN", "DISTRICT_OFFICIAL", "FIELD_OFFICER")

@@ -45,13 +45,27 @@ const notifyCacheUsed = (timestamp: number | null) => {
   }));
 };
 
-const RENDER_BASE_URL = (typeof window !== 'undefined' && window.location.hostname !== 'localhost')
-  ? 'https://ews-ai-engine.onrender.com'
-  : 'http://localhost:8080';
+export const resolveApiBaseUrl = (): string => {
+  const env = (import.meta as any).env || {};
+  const customUrl = env.VITE_API_BASE_URL || env.VITE_API_URL || env.VITE_BACKEND_URL;
+  if (customUrl && typeof customUrl === 'string' && customUrl.trim().length > 0) {
+    let clean = customUrl.trim();
+    if (clean.endsWith('/')) clean = clean.slice(0, -1);
+    return clean;
+  }
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname;
+    if (host === 'localhost' || host === '127.0.0.1') {
+      return 'http://localhost:8080';
+    }
+  }
+  // In production (Vercel), default to relative API root unless an external backend is specified
+  return '';
+};
 
 export const api = axios.create({
-  baseURL: (import.meta as any).env?.VITE_API_BASE_URL || RENDER_BASE_URL,
-  timeout: 5000,
+  baseURL: resolveApiBaseUrl(),
+  timeout: 15000,
 });
 
 api.interceptors.request.use((config) => {
@@ -71,7 +85,9 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('ews_token');
-      window.location.href = '/login';
+      if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }

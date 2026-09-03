@@ -2,6 +2,29 @@ import { useState, useEffect } from 'react';
 import { Client } from '@stomp/stompjs';
 import { AlertItem, CitizenReport } from '../types';
 
+const resolveBrokerUrl = (): string | null => {
+  const env = (import.meta as any).env || {};
+  const customWs = env.VITE_WS_URL;
+  if (customWs && typeof customWs === 'string' && customWs.trim()) {
+    return customWs.trim();
+  }
+
+  const customHttp = env.VITE_API_BASE_URL || env.VITE_API_URL || env.VITE_BACKEND_URL;
+  if (customHttp && typeof customHttp === 'string' && customHttp.trim()) {
+    const url = customHttp.trim();
+    if (url.startsWith('https://')) return url.replace('https://', 'wss://') + '/ws';
+    if (url.startsWith('http://')) return url.replace('http://', 'ws://') + '/ws';
+  }
+
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname;
+    if (host === 'localhost' || host === '127.0.0.1') {
+      return 'ws://localhost:8080/ws';
+    }
+  }
+  return null;
+};
+
 export function useLiveFeed(
   onAlert: (alert: AlertItem) => void,
   onReport: (report: CitizenReport) => void
@@ -9,8 +32,13 @@ export function useLiveFeed(
   const [connected, setConnected] = useState(false);
 
   useEffect(() => {
+    const brokerURL = resolveBrokerUrl();
+    if (!brokerURL) {
+      return;
+    }
+
     const client = new Client({
-      brokerURL: 'ws://localhost:8080/ws',
+      brokerURL,
       reconnectDelay: 5000,
       onConnect: () => {
         setConnected(true);
