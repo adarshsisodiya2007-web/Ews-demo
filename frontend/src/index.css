@@ -1,0 +1,99 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500&family=Hind+Siliguri:wght@400;500&display=swap');
+@import './tokens/design-tokens.css';
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body, #root { height: 100%; }
+body { background: var(--color-base-900); color: var(--color-base-100); font-family: var(--font-body); font-size: var(--text-base); line-height: 1.5; }
+h1, h2, h3, h4, h5, h6 { font-family: var(--font-heading); color: var(--color-base-000); }
+.mono { font-family: var(--font-mono) !important; }
+
+/* Focus rings */
+:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+
+/* Severity color utilities */
+.sev-low { color: var(--color-risk-low); }
+.sev-moderate { color: var(--color-risk-moderate); }
+.sev-high { color: var(--color-risk-high); }
+.sev-critical { color: var(--color-risk-critical); }
+
+/* Ticker animation */
+@keyframes tickerScroll {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+@keyframes criticalPulse {
+  0%, 100% { filter: drop-shadow(0 0 0px rgba(139,35,21,0)); }
+  50% { filter: drop-shadow(0 0 8px rgba(139,35,21,0.9)); }
+}
+@keyframes chipFlash {
+  0% { background: rgba(139,35,21,0.6); }
+  100% { background: rgba(139,35,21,0.2); }
+}
+.critical-pulse { animation: criticalPulse 2s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .critical-pulse { animation: none; }
+  @keyframes tickerScroll { 0%, 100% { transform: none; } }
+}
+
+/* Leaflet override for dark theme */
+.leaflet-container { background: #161B22 !important; }
+
+/* ── Skeleton shimmer ─────────────────────── */
+@keyframes shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: calc(400px + 100%) 0; }
+}
+.skeleton-line {
+  background: linear-gradient(90deg, #212B38 25%, #2A3547 50%, #212B38 75%);
+  background-size: 400px 100%;
+  animation: shimmer 1.5s infinite linear;
+  border-radius: 4px;
+  height: 12px;
+}
+
+/* ── Animated status dots ─────────────────── */
+@keyframes statusPulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.35; }
+}
+.status-dot {
+  display: inline-block;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  vertical-align: middle;
+  animation: statusPulse 2.2s ease-in-out infinite;
+}
+.status-dot.green { background: #4A7C59; box-shadow: 0 0 5px #4A7C59; }
+.status-dot.amber { background: #C4873A; box-shadow: 0 0 5px #C4873A; }
+.status-dot.blue  { background: #5B8DB8; box-shadow: 0 0 5px #5B8DB8; }
+
+/* ── Panel slide in ───────────────────────── */
+.panel-enter { animation: slideInRight 280ms ease-out; }
+@keyframes slideInRight {
+  from { transform: translateX(30px); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+
+/* ── Button hover lift ────────────────────── */
+.btn-lift { transition: transform 140ms ease, box-shadow 140ms ease; }
+.btn-lift:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.35); }
+
+/* ── Leaflet dark popup ───────────────────── */
+.leaflet-popup-content-wrapper {
+  background: #212B38 !important;
+  color: #C5D1E0 !important;
+  border: 1px solid #2A3547 !important;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.5) !important;
+  border-radius: 6px !important;
+}
+.leaflet-popup-tip { background: #212B38 !important; }
+.leaflet-popup-content { margin: 10px 14px !important; font-size: 0.82rem !important; }
+.leaflet-control-zoom a {
+  background: #212B38 !important; color: #C5D1E0 !important;
+  border-color: #2A3547 !important;
+}
+.leaflet-control-attribution {
+  background: rgba(22,27,34,0.85) !important; color: #4A5A70 !important;
+  font-size: 0.65rem !important;
+}
+
