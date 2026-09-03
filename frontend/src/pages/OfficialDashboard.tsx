@@ -54,7 +54,14 @@ const OfficialDashboard = () => {
     ? Math.floor((Date.now() - lastUpdated.getTime()) / 60000)
     : null;
 
-  const gridCols = selectedRegionId ? '1fr 340px' : '1fr 0px';
+  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth <= 768);
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const gridCols = isMobile ? '1fr' : (selectedRegionId ? '1fr 340px' : '1fr 0px');
 
   const filteredRegions = heatmapData.filter(r =>
     selectedDistrict === 'ALL' || r.district === selectedDistrict
@@ -116,14 +123,34 @@ const OfficialDashboard = () => {
         <span>|</span>
         <span>📡 SACHET-ready CAP 1.2 feed</span>
 
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: '6px' }}>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: '6px', flexShrink: 0 }}>
+          <a
+            href="/responder"
+            style={{
+              padding: '3px 9px',
+              borderRadius: '4px',
+              border: '1px solid #ea580c',
+              background: 'rgba(234, 88, 12, 0.25)',
+              color: '#fb923c',
+              fontSize: '0.72rem',
+              fontWeight: 700,
+              textDecoration: 'none',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            🛡️ Responder Mode
+          </a>
           <button
             onClick={() => setViewMode('map')}
             style={{
               padding: '3px 10px', borderRadius: '4px', border: 'none',
               background: viewMode === 'map' ? '#2563eb' : '#2A3547',
               color: viewMode === 'map' ? '#fff' : '#94a3b8',
-              fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer'
+              fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer',
+              whiteSpace: 'nowrap'
             }}
           >
             🗺️ GIS Risk Map
@@ -134,10 +161,11 @@ const OfficialDashboard = () => {
               padding: '3px 10px', borderRadius: '4px', border: 'none',
               background: viewMode === 'ai_priority' ? '#ea580c' : '#2A3547',
               color: viewMode === 'ai_priority' ? '#fff' : '#94a3b8',
-              fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer'
+              fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer',
+              whiteSpace: 'nowrap'
             }}
           >
-            🤖 AI Response Priority
+            🤖 AI Priority
           </button>
         </div>
       </div>
@@ -179,21 +207,58 @@ const OfficialDashboard = () => {
             )}
           </div>
 
-          {/* ── Detail panel ── */}
-          <div style={{
-            gridRow: 3, gridColumn: 2,
-            borderLeft: selectedRegionId ? '1px solid #2A3547' : 'none',
-            overflow: 'hidden', overflowY: 'auto',
-            transition: 'opacity 300ms ease',
-            opacity: selectedRegionId ? 1 : 0,
-          }}>
-            <RegionDetailPanel
-              regionId={selectedRegionId}
-              onClose={() => setSelectedRegionId(null)}
-              userRole={role}
-              lang={lang}
-            />
-          </div>
+          {/* ── Detail panel (Desktop sidebar or Mobile bottom drawer) ── */}
+          {!isMobile && (
+            <div style={{
+              gridRow: 3, gridColumn: 2,
+              borderLeft: selectedRegionId ? '1px solid #2A3547' : 'none',
+              overflow: 'hidden', overflowY: 'auto',
+              transition: 'opacity 300ms ease',
+              opacity: selectedRegionId ? 1 : 0,
+            }}>
+              <RegionDetailPanel
+                regionId={selectedRegionId}
+                onClose={() => setSelectedRegionId(null)}
+                userRole={role}
+                lang={lang}
+              />
+            </div>
+          )}
+
+          {isMobile && selectedRegionId && (
+            <div
+              onClick={() => setSelectedRegionId(null)}
+              style={{
+                position: 'fixed',
+                inset: 0,
+                background: 'rgba(0,0,0,0.75)',
+                backdropFilter: 'blur(4px)',
+                zIndex: 1000,
+                display: 'flex',
+                justifyContent: 'flex-end',
+                flexDirection: 'column'
+              }}
+            >
+              <div
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  background: '#0f172a',
+                  borderTop: '2px solid #38bdf8',
+                  borderRadius: '16px 16px 0 0',
+                  maxHeight: '80vh',
+                  overflowY: 'auto',
+                  padding: '16px'
+                }}
+              >
+                <RegionDetailPanel
+                  regionId={selectedRegionId}
+                  onClose={() => setSelectedRegionId(null)}
+                  userRole={role}
+                  lang={lang}
+                />
+              </div>
+            </div>
+          )}
         </>
       )}
 

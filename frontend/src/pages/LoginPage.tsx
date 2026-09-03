@@ -293,6 +293,25 @@ const LoginPage: React.FC = () => {
           >
             🗺️ 3D GIS Map
           </button>
+
+          <button
+            onClick={() => navigate('/responder')}
+            style={{
+              background: 'rgba(234, 88, 12, 0.2)',
+              border: '1px solid #ea580c',
+              color: '#fb923c',
+              borderRadius: '20px',
+              padding: '6px 14px',
+              fontSize: '0.8rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px'
+            }}
+          >
+            🛡️ Responder
+          </button>
         </div>
       </header>
 
@@ -818,6 +837,38 @@ const LoginPage: React.FC = () => {
                       {u}
                     </button>
                   ))}
+                </div>
+
+                {/* Direct 1-Tap Responder Portal Shortcut */}
+                <div style={{ marginTop: '14px' }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      localStorage.setItem('ews_token', 'demo-responder-jwt-direct');
+                      localStorage.setItem('ews_role', 'FIELD_OFFICER');
+                      localStorage.setItem('ews_user', 'field_responder');
+                      navigate('/responder');
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '10px 14px',
+                      background: 'rgba(234, 88, 12, 0.15)',
+                      border: '1px solid #ea580c',
+                      borderRadius: '8px',
+                      color: '#fb923c',
+                      fontWeight: 700,
+                      fontSize: '0.84rem',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                      boxShadow: '0 2px 8px rgba(234, 88, 12, 0.2)'
+                    }}
+                  >
+                    <span>🛡️</span>
+                    <span>Enter Field Responder Portal Directly →</span>
+                  </button>
                 </div>
               </div>
             </div>
