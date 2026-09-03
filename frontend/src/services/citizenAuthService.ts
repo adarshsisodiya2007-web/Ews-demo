@@ -1,4 +1,4 @@
-import { api } from './api';
+import { api, isBackendAvailableOrConfigured } from './api';
 import {
   CitizenProfile,
   CitizenProfileInput,
@@ -49,6 +49,18 @@ export const sendCitizenOtp = async (phone: string): Promise<SendOtpResponse> =>
     throw new Error('Please enter a valid 10-digit mobile number.');
   }
 
+  // When no public backend is configured in production, immediately provide the SIH demo OTP
+  // with zero network delay or hanging timeout.
+  if (!isBackendAvailableOrConfigured()) {
+    return {
+      success: true,
+      message: 'Demo OTP sent successfully (SIH 2026 Presentation Mode)',
+      demoMode: true,
+      demoOtp: DEMO_OTP_CODE,
+      cooldownSeconds: 60
+    };
+  }
+
   try {
     const res = await api.post<SendOtpResponse>('/api/auth/citizen/send-otp', { phone: normalized });
     if (res.data && typeof res.data === 'object' && res.data.success !== undefined) {
@@ -73,6 +85,40 @@ export const sendCitizenOtp = async (phone: string): Promise<SendOtpResponse> =>
 export const verifyCitizenOtp = async (phone: string, otp: string): Promise<CitizenAuthResponse> => {
   const normalized = normalizePhone(phone);
   const cleanOtp = (otp || '').trim();
+
+  // If no backend is configured, immediately verify via SIH demo mode
+  if (!isBackendAvailableOrConfigured()) {
+    if (cleanOtp !== DEMO_OTP_CODE) {
+      throw new Error(`Invalid OTP. For SIH demo mode, enter ${DEMO_OTP_CODE}.`);
+    }
+
+    const cachedProfile = getCachedCitizenProfile();
+    const demoToken = `demo-citizen-jwt-${Date.now()}`;
+    const demoUser = {
+      id: `demo-usr-${normalized.slice(-4)}`,
+      username: normalized,
+      phone: normalized,
+      role: 'CITIZEN'
+    };
+
+    localStorage.setItem('ews_token', demoToken);
+    localStorage.setItem('ews_role', 'CITIZEN');
+    localStorage.setItem('ews_user', normalized);
+    localStorage.setItem(CITIZEN_PHONE_KEY, normalized);
+    if (cachedProfile?.preferredLanguage) {
+      localStorage.setItem('ews_lang', cachedProfile.preferredLanguage);
+    }
+
+    const fallbackResponse: CitizenAuthResponse = {
+      token: demoToken,
+      user: demoUser,
+      profileExists: !!cachedProfile,
+      profile: cachedProfile
+    };
+
+    window.dispatchEvent(new CustomEvent('satark-auth-changed', { detail: fallbackResponse }));
+    return fallbackResponse;
+  }
 
   try {
     const res = await api.post<CitizenAuthResponse>('/api/auth/citizen/verify-otp', { phone: normalized, otp: cleanOtp });
@@ -132,6 +178,9 @@ export const verifyCitizenOtp = async (phone: string, otp: string): Promise<Citi
 };
 
 export const getCitizenProfile = async (): Promise<CitizenProfile | null> => {
+  if (!isBackendAvailableOrConfigured()) {
+    return getCachedCitizenProfile();
+  }
   try {
     const res = await api.get<CitizenProfile>('/api/citizen/profile');
     if (res.data && typeof res.data === 'object' && res.data.fullName) {
@@ -148,6 +197,30 @@ export const getCitizenProfile = async (): Promise<CitizenProfile | null> => {
 };
 
 export const createCitizenProfile = async (input: CitizenProfileInput): Promise<CitizenProfile> => {
+  if (!isBackendAvailableOrConfigured()) {
+    const phone = getStoredCitizenPhone() || '+919876543210';
+    const localProfile: CitizenProfile = {
+      id: `demo-prof-${Date.now()}`,
+      userId: `demo-usr-${Date.now()}`,
+      fullName: input.fullName.trim(),
+      phone,
+      gender: input.gender,
+      ageGroup: input.ageGroup,
+      preferredLanguage: input.preferredLanguage || 'en',
+      bloodGroup: input.bloodGroup,
+      emergencyContactName: input.emergencyContactName,
+      emergencyContactPhone: input.emergencyContactPhone,
+      accessibilityNeeds: input.accessibilityNeeds,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    setCachedCitizenProfile(localProfile);
+    if (localProfile.preferredLanguage) {
+      localStorage.setItem('ews_lang', localProfile.preferredLanguage);
+    }
+    window.dispatchEvent(new CustomEvent('satark-profile-updated', { detail: localProfile }));
+    return localProfile;
+  }
   try {
     const res = await api.post<CitizenProfile>('/api/citizen/profile', input);
     if (res.data && typeof res.data === 'object' && res.data.fullName) {
@@ -190,6 +263,30 @@ export const createCitizenProfile = async (input: CitizenProfileInput): Promise<
 };
 
 export const updateCitizenProfile = async (input: CitizenProfileInput): Promise<CitizenProfile> => {
+  if (!isBackendAvailableOrConfigured()) {
+    const existing = getCachedCitizenProfile();
+    const updated: CitizenProfile = {
+      id: existing?.id || `demo-prof-${Date.now()}`,
+      userId: existing?.userId || `demo-usr-${Date.now()}`,
+      fullName: input.fullName.trim(),
+      phone: existing?.phone || getStoredCitizenPhone() || '+919876543210',
+      gender: input.gender ?? existing?.gender,
+      ageGroup: input.ageGroup ?? existing?.ageGroup,
+      preferredLanguage: input.preferredLanguage || existing?.preferredLanguage || 'en',
+      bloodGroup: input.bloodGroup ?? existing?.bloodGroup,
+      emergencyContactName: input.emergencyContactName ?? existing?.emergencyContactName,
+      emergencyContactPhone: input.emergencyContactPhone ?? existing?.emergencyContactPhone,
+      accessibilityNeeds: input.accessibilityNeeds ?? existing?.accessibilityNeeds,
+      createdAt: existing?.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    setCachedCitizenProfile(updated);
+    if (updated.preferredLanguage) {
+      localStorage.setItem('ews_lang', updated.preferredLanguage);
+    }
+    window.dispatchEvent(new CustomEvent('satark-profile-updated', { detail: updated }));
+    return updated;
+  }
   try {
     const res = await api.put<CitizenProfile>('/api/citizen/profile', input);
     if (res.data && typeof res.data === 'object' && res.data.fullName) {

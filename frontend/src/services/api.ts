@@ -63,6 +63,10 @@ export const resolveApiBaseUrl = (): string => {
   return '';
 };
 
+export const isBackendAvailableOrConfigured = (): boolean => {
+  return resolveApiBaseUrl().length > 0;
+};
+
 export const api = axios.create({
   baseURL: resolveApiBaseUrl(),
   timeout: 15000,
@@ -202,6 +206,15 @@ export const uploadPhoto = async (file: File | Blob, filename = 'hazard.jpg'): P
 export const login = async (username: string, password: string): Promise<{
   token: string; role: string; district: string | null; languagePref: string; username: string;
 }> => {
+  if (!isBackendAvailableOrConfigured()) {
+    const user = MOCK_USERS[username];
+    if (user && password === 'demo1234') {
+      setDemoMode(true);
+      return user;
+    }
+    throw new Error('Invalid credentials');
+  }
+
   try {
     const res = await api.post('/api/auth/login', { username, password });
     setDemoMode(false);
