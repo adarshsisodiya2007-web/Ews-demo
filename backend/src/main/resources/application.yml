@@ -1,0 +1,161 @@
+# ─────────────────────────────────────────────────────────────────────────────
+#  SIH 26001 — EWS-NER Spring Boot Application Configuration
+#  application.yml — default profile (dev/demo)
+# ─────────────────────────────────────────────────────────────────────────────
+
+spring:
+  application:
+    name: ews-ner-backend
+
+  # ── Database ───────────────────────────────────────────────────────────────
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/ews_ner}
+    username: ${SPRING_DATASOURCE_USERNAME:ews_user}
+    password: ${SPRING_DATASOURCE_PASSWORD:ews_secure_pass}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 3
+      connection-timeout: 30000
+
+  # ── JPA / Hibernate ────────────────────────────────────────────────────────
+  jpa:
+    hibernate:
+      ddl-auto: validate        # Flyway manages DDL; Hibernate only validates
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        globally_quoted_identifiers: false
+        jdbc:
+          batch_size: 25
+        order_inserts: true
+        order_updates: true
+
+  # ── Flyway Migrations ──────────────────────────────────────────────────────
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    validate-on-migrate: true
+
+  # ── File Upload (citizen photos) ───────────────────────────────────────────
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 20MB
+      max-request-size: 25MB
+
+  # ── Jackson ───────────────────────────────────────────────────────────────
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+    time-zone: Asia/Kolkata
+
+  # ── WebSocket (for live ticker) ────────────────────────────────────────────
+  websocket:
+    enabled: true
+
+# ── Server ────────────────────────────────────────────────────────────────────
+server:
+  port: ${PORT:8080}
+  servlet:
+    context-path: /
+  compression:
+    enabled: true
+    mime-types: application/json,application/javascript,text/css
+  error:
+    include-message: always
+    include-binding-errors: always
+
+# ── Actuator (health checks for Docker) ──────────────────────────────────────
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+# ── Application-Specific Config ───────────────────────────────────────────────
+app:
+
+  # JWT Auth
+  jwt:
+    secret: ${APP_JWT_SECRET:ews-ner-sih26001-jwt-demo-secret-key-2026-hackathon-minimum-256-bits}
+    expiry-ms: ${APP_JWT_EXPIRY_MS:86400000}   # 24 hours
+
+  # Citizen Phone OTP Auth
+  otp:
+    demo-mode: ${APP_OTP_DEMO_MODE:true}
+    demo-code: ${APP_OTP_DEMO_CODE:123456}
+    expiry-seconds: ${APP_OTP_EXPIRY_SECONDS:300}
+    cooldown-seconds: ${APP_OTP_COOLDOWN_SECONDS:60}
+    max-attempts: ${APP_OTP_MAX_ATTEMPTS:5}
+
+  # MinIO (S3-compatible object storage)
+  minio:
+    endpoint: ${APP_MINIO_ENDPOINT:http://localhost:9000}
+    access-key: ${APP_MINIO_ACCESS_KEY:ews_minio_user}
+    secret-key: ${APP_MINIO_SECRET_KEY:ews_minio_pass}
+    bucket: ${APP_MINIO_BUCKET:ews-uploads}
+
+  # Alerting
+  alert:
+    sms:
+      enabled: ${APP_ALERT_SMS_ENABLED:false}   # Set true + add Twilio vars to enable real SMS
+    thresholds:
+      moderate: 25.0
+      high: 50.0
+      critical: 75.0
+
+  # Twilio (only used when app.alert.sms.enabled=true)
+  twilio:
+    account-sid: ${TWILIO_ACCOUNT_SID:DEMO_SID}
+    auth-token: ${TWILIO_AUTH_TOKEN:DEMO_TOKEN}
+    from-number: ${TWILIO_FROM_NUMBER:+15005550006}
+
+  # Synthetic data seeder
+  seed:
+    enabled: ${APP_SEED_ENABLED:true}    # Disable after first run if needed
+
+  # Risk engine weights (must sum to 1.0 — validated at startup)
+  risk:
+    weights:
+      rainfall: 0.35
+      soil-moisture: 0.25
+      slope: 0.20
+      history: 0.12
+      citizen-reports: 0.08
+
+  # Weather & Topography APIs configuration
+  weather:
+    openweather:
+      api-key: ${OPENWEATHER_API_KEY:}
+      base-url: https://api.openweathermap.org/data/2.5
+    openmeteo:
+      base-url: https://api.open-meteo.com/v1/forecast
+    opentopography:
+      api-key: ${OPENTOPOGRAPHY_API_KEY:}
+      base-url: https://portal.opentopography.org/API/v1/elevation
+
+  # CORS — allow frontend dev and Vercel production
+  cors:
+    allowed-origins:
+      - "http://localhost:5173"
+      - "http://localhost:3000"
+      - "http://localhost:4173"
+      - "https://frontend-eta-rouge-44.vercel.app"
+      - "https://*.vercel.app"
+
+# ── Logging ──────────────────────────────────────────────────────────────────
+logging:
+  level:
+    com.ews.ner: DEBUG
+    org.springframework.security: WARN
+    org.flywaydb: INFO
+    org.hibernate.SQL: WARN
+  pattern:
+    console: "%d{HH:mm:ss} [%thread] %-5level %logger{36} — %msg%n"

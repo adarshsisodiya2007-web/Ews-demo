@@ -1,0 +1,21 @@
+{
+  "alert": {
+    "MODERATE": {
+      "title": "⚠️ MODERATE Landslide Risk — {district}",
+      "body": "Risk level MODERATE ({score}/100) detected at {regionName}, {district}, {state}. Cause: {summary}. Stay alert and avoid steep slopes during heavy rain. Emergency: 1070"
+    },
+    "HIGH": {
+      "title": "🔴 HIGH Landslide Risk — {district}",
+      "body": "URGENT: HIGH landslide risk ({score}/100) at {regionName}, {district}. {summary}. Evacuate low-lying areas near slopes. Do NOT use road segments marked AT_RISK. Emergency: 1070"
+    },
+    "CRITICAL": {
+      "title": "🚨 CRITICAL ALERT — Landslide Imminent — {district}",
+      "body": "CRITICAL landslide risk ({score}/100) at {regionName}, {district}, {state}. IMMEDIATE EVACUATION ADVISED. {summary}. Emergency services alerted. Call 1070 NOW."
+    }
+  },
+  "sms": {
+    "MODERATE": "MODERATE landslide risk at {regionName}, {district}. Score:{score}/100. {smsSummary}. Stay alert. EWS-NER",
+    "HIGH": "HIGH RISK at {regionName}, {district}. Score:{score}/100. {smsSummary}. Avoid slopes. Emergency:1070. EWS-NER",
+    "CRITICAL": "CRITICAL ALERT {regionName}, {district}. Score:{score}/100. EVACUATE NOW. Call 1070. EWS-NER"
+  }
+}

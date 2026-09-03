@@ -1,0 +1,21 @@
+{
+  "alert": {
+    "MODERATE": {
+      "title": "⚠️ মধ্যম ভূস্খলনৰ আশংকা — {district}",
+      "body": "{regionName}, {district}ত মধ্যম ভূস্খলনৰ বিপদ ({score}/100) চিহ্নিত হৈছে। কাৰণ: {summary}। জগৰীয়া ঢালনিৰ ওচৰ পৰিহাৰ কৰক। জৰুৰী: 1070"
+    },
+    "HIGH": {
+      "title": "🔴 উচ্চ ভূস্খলনৰ বিপদ — {district}",
+      "body": "জৰুৰী: {regionName}, {district}ত উচ্চ ভূস্খলনৰ বিপদ ({score}/100)। {summary}। নিম্নাঞ্চল পৰিত্যাগ কৰক। জৰুৰী: 1070"
+    },
+    "CRITICAL": {
+      "title": "🚨 গুৰুতৰ সতৰ্কবাৰ্তা — ভূস্খলন আসন্ন — {district}",
+      "body": "{regionName}, {district}ত গুৰুতৰ ভূস্খলনৰ বিপদ ({score}/100)। তৎক্ষণাৎ স্থানান্তৰিত হওক। ১০৭০ত ফোন কৰক।"
+    }
+  },
+  "sms": {
+    "MODERATE": "মধ্যম বিপদ: {regionName}। বিপদ মাত্ৰা: {score}/100। {smsSummary}। সতৰ্ক থাকক। EWS-NER",
+    "HIGH": "উচ্চ বিপদ: {regionName}। {score}/100। ঢালনি এৰক। জৰুৰী: 1070। EWS-NER",
+    "CRITICAL": "গুৰুতৰ সতৰ্কবাৰ্তা {regionName}। তৎক্ষণাৎ স্থানান্তৰিত হওক। 1070। EWS-NER"
+  }
+}

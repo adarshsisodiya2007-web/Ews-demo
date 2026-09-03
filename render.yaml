@@ -1,0 +1,56 @@
+# ─────────────────────────────────────────────────────────────────────────────
+#  SIH 2026 EWS-NER — Render Infrastructure as Code Blueprint
+#  Deploys:
+#   1. PostgreSQL + PostGIS Spatial Database
+#   2. Spring Boot Java Backend API Gateway
+#   3. Python FastAPI XGBoost AI & NetworkX Evacuation Microservice
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+  # ── 1. Python FastAPI AI Engine (XGBoost + NetworkX) ─────────────────────
+  - type: web
+    name: ews-ai-engine
+    env: python
+    region: oregon
+    plan: free
+    rootDir: ai_engine
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: OPENWEATHER_API_KEY
+        value: 248691ae6b30abce7f3cf5a4319520d2
+      - key: OPENTOPOGRAPHY_API_KEY
+        value: 619ea4b33002a569b3ac0b851e8b51d2
+
+  # ── 2. Java Spring Boot Backend API Gateway ──────────────────────────────
+  - type: web
+    name: ews-backend-gateway
+    env: docker
+    region: oregon
+    plan: free
+    rootDir: backend
+    dockerfilePath: Dockerfile
+    envVars:
+      - key: PORT
+        value: 8080
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      - key: OPENWEATHER_API_KEY
+        value: 248691ae6b30abce7f3cf5a4319520d2
+      - key: OPENTOPOGRAPHY_API_KEY
+        value: 619ea4b33002a569b3ac0b851e8b51d2
+      - key: SPRING_DATASOURCE_URL
+        fromDatabase:
+          name: ews-postgres-db
+          property: connectionString
+
+databases:
+  # ── 3. PostgreSQL Database with PostGIS ──────────────────────────────────
+  - name: ews-postgres-db
+    databaseName: ews_ner
+    user: ews_admin
+    region: oregon
+    plan: free
+    ipAllowList: [] # Allow all internal services

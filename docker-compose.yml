@@ -1,0 +1,95 @@
+# docker-compose.yml — SIH 26001 EWS-NER local dev stack
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  SIH 26001 — AI-Based Landslide Early Warning System (NER)
+#  docker-compose.yml — local dev / demo stack
+#  Run with: docker-compose up -d
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  # ── PostgreSQL 16 + PostGIS 3.4 ────────────────────────────────────────────
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: ews-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ews_ner
+      POSTGRES_USER: ews_user
+      POSTGRES_PASSWORD: ews_secure_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ews_user -d ews_ner"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  # ── MinIO (S3-compatible object storage for citizen photo uploads) ──────────
+  minio:
+    image: minio/minio:latest
+    container_name: ews-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ews_minio_user
+      MINIO_ROOT_PASSWORD: ews_minio_pass
+    ports:
+      - "9000:9000"   # S3 API
+      - "9001:9001"   # Web console  →  http://localhost:9001
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  # ── Spring Boot Backend ─────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ews-backend
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      # Database
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/ews_ner
+      SPRING_DATASOURCE_USERNAME: ews_user
+      SPRING_DATASOURCE_PASSWORD: ews_secure_pass
+      # MinIO
+      APP_MINIO_ENDPOINT: http://minio:9000
+      APP_MINIO_ACCESS_KEY: ews_minio_user
+      APP_MINIO_SECRET_KEY: ews_minio_pass
+      APP_MINIO_BUCKET: ews-uploads
+      # JWT — change this to a real secret in production
+      APP_JWT_SECRET: ews-ner-sih26001-jwt-demo-secret-key-2026-hackathon
+      APP_JWT_EXPIRY_MS: 86400000
+      # Alerting — set to true and add TWILIO_* vars to enable real SMS
+      APP_ALERT_SMS_ENABLED: "false"
+      TWILIO_ACCOUNT_SID: DEMO_ACCOUNT_SID
+      TWILIO_AUTH_TOKEN: DEMO_AUTH_TOKEN
+      TWILIO_FROM_NUMBER: "+15005550006"
+      # Seed data on first startup
+      APP_SEED_ENABLED: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+
+volumes:
+  postgres_data:
+  minio_data:
