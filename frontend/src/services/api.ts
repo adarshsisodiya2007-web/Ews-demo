@@ -82,6 +82,16 @@ api.interceptors.request.use((config) => {
 
 api.interceptors.response.use(
   (response) => {
+    // Detect Vercel HTML rewrite on API routes (prevent treating 404-as-index.html as success)
+    if (
+      typeof response.data === 'string' &&
+      (response.data.includes('<!DOCTYPE') || response.data.includes('<html'))
+    ) {
+      const err: any = new Error('Endpoint not found (Vercel SPA fallback)');
+      err.code = 'ERR_SPA_FALLBACK';
+      err.response = response;
+      return Promise.reject(err);
+    }
     setDemoMode(false);
     notifyCacheUsed(null);
     return response;
@@ -252,36 +262,42 @@ export const fetchRiskAssessment = async (
   slope: number = 38.5,
   regionName: string = 'Meppadi, Wayanad (Testbed)'
 ): Promise<RiskAssessmentResponse> => {
-  try {
-    const res = await api.get<RiskAssessmentResponse>('/api/v1/risk-assessment', {
-      params: { lat, lon, slope, regionName }
-    });
-    setDemoMode(false);
-    notifyCacheUsed(null);
-    // Cache to IndexedDB
-    await cacheTelemetry(regionName, res.data).catch(() => {});
-    return res.data;
-  } catch {
-    setDemoMode(true);
-
-    // Try reading cached telemetry from IndexedDB
+  if (isBackendAvailableOrConfigured()) {
     try {
-      const cached = await getCachedTelemetry(regionName);
-      if (cached && cached.data) {
-        notifyCacheUsed(cached.timestamp);
-        return cached.data;
+      const res = await api.get<RiskAssessmentResponse>('/api/v1/risk-assessment', {
+        params: { lat, lon, slope, regionName }
+      });
+      if (res.data && typeof res.data === 'object' && res.data.assessment) {
+        setDemoMode(false);
+        notifyCacheUsed(null);
+        await cacheTelemetry(regionName, res.data).catch(() => {});
+        return res.data;
       }
-    } catch {}
+    } catch {
+      // Fall through to offline cache or honest MCDA calculation
+    }
+  }
 
-    notifyCacheUsed(null);
+  setDemoMode(true);
 
-    // Honest MCDA multi-factor mathematical calculation based on slope, rainfall, and topsoil saturation
-    const profile = ZONE_PROFILES[regionName] || {
-      r24: Math.min(180, Math.max(20, slope * 2.8)),
-      r72: Math.min(320, Math.max(50, slope * 5.5)),
-      soil: Math.min(0.65, Math.max(0.20, slope / 70.0)),
-      elev: 800.0
-    };
+  // Try reading cached telemetry from IndexedDB
+  try {
+    const cached = await getCachedTelemetry(regionName);
+    if (cached && cached.data && cached.data.assessment) {
+      notifyCacheUsed(cached.timestamp);
+      return cached.data;
+    }
+  } catch {}
+
+  notifyCacheUsed(null);
+
+  // Honest MCDA multi-factor mathematical calculation based on slope, rainfall, and topsoil saturation
+  const profile = ZONE_PROFILES[regionName] || {
+    r24: Math.min(180, Math.max(20, slope * 2.8)),
+    r72: Math.min(320, Math.max(50, slope * 5.5)),
+    soil: Math.min(0.65, Math.max(0.20, slope / 70.0)),
+    elev: 800.0
+  };
 
     const norm_slope = Math.min(1.0, slope / 50.0);
     const norm_r24 = Math.min(1.0, profile.r24 / 200.0);
@@ -343,8 +359,7 @@ export const fetchRiskAssessment = async (
         estimated_evacuation_time_min: isRed ? 42 : 25
       }
     };
-  }
-};
+  };
 
 export const fetchLiveWeather = async (
   lat: number = 11.5534,

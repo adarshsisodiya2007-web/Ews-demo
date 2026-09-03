@@ -262,8 +262,8 @@ export const CitizenPortal: React.FC = () => {
     }
   }[lang];
 
-  const isRed   = data?.assessment.level === 'RED';
-  const isAmber = data?.assessment.level === 'AMBER';
+  const isRed   = data?.assessment?.level === 'RED';
+  const isAmber = data?.assessment?.level === 'AMBER';
 
   const bg   = theme === 'dark' ? '#0b1329' : '#f8fafc';
   const fg   = theme === 'dark' ? '#f1f5f9' : '#0f172a';
@@ -359,7 +359,7 @@ export const CitizenPortal: React.FC = () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
           {/* Voice Assistant Button */}
           <button
-            onClick={() => isSpeaking ? stopSpeaking() : speakAlert(selectedZone.name, data?.assessment.level || 'GREEN', data?.assessment.action_protocol || '')}
+            onClick={() => isSpeaking ? stopSpeaking() : speakAlert(selectedZone.name, data?.assessment?.level || 'GREEN', data?.assessment?.action_protocol || '')}
             style={{
               padding: '6px 12px', borderRadius: '8px', border: '1px solid #3b82f640',
               background: isSpeaking ? '#3b82f6' : 'rgba(59,130,246,0.15)',
@@ -638,7 +638,7 @@ export const CitizenPortal: React.FC = () => {
                 <div>
                   <div style={{ fontSize: '0.8rem', fontWeight: 700, color: muted, textTransform: 'uppercase' }}>{t.aiScore}</div>
                   <div style={{ fontSize: '2rem', fontWeight: 900, color: isRed ? '#ef4444' : isAmber ? '#f59e0b' : '#22c55e', marginTop: '4px' }}>
-                    {loading ? 'Analyzing…' : `${data?.assessment.level} RISK (${(data?.assessment.score ?? 0.84).toFixed(2)})`}
+                    {loading ? 'Analyzing…' : `${data?.assessment?.level || 'MODERATE'} RISK (${(data?.assessment?.score ?? 0.42).toFixed(2)})`}
                   </div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
@@ -651,7 +651,7 @@ export const CitizenPortal: React.FC = () => {
               <div style={{ marginTop: '16px', padding: '12px 16px', background: 'rgba(0,0,0,0.2)', borderRadius: '8px' }}>
                 <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#f8fafc' }}>{t.action}:</div>
                 <div style={{ fontSize: '1.05rem', fontWeight: 800, color: isRed ? '#fca5a5' : isAmber ? '#fcd34d' : '#86efac', marginTop: '4px' }}>
-                  {data?.assessment.action_protocol || 'Normal Monitoring Active'}
+                  {data?.assessment?.action_protocol || 'Normal Monitoring Active'}
                 </div>
               </div>
             </div>
@@ -659,9 +659,9 @@ export const CitizenPortal: React.FC = () => {
             {/* Telemetry Grid */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px', marginBottom: '24px' }}>
               {[
-                { icon: '🌧️', label: t.rain24, value: `${data?.weather.rain_24h_mm ?? 142.0} mm`, sub: 'Open-Meteo & OpenWeather', color: (data?.weather.rain_24h_mm ?? 0) > 100 ? '#ef4444' : '#38bdf8' },
-                { icon: '📊', label: t.rain72, value: `${data?.weather.rain_72h_mm ?? 285.0} mm`, sub: '3-Day Antecedent Rain', color: '#f8fafc' },
-                { icon: '🌱', label: t.soil, value: `${data?.weather.soil_moisture ?? 0.52} m³/m³`, sub: 'Topsoil 0-1cm Layer', color: '#f8fafc' },
+                { icon: '🌧️', label: t.rain24, value: `${data?.weather?.rain_24h_mm ?? 142.0} mm`, sub: 'Open-Meteo & OpenWeather', color: (data?.weather?.rain_24h_mm ?? 0) > 100 ? '#ef4444' : '#38bdf8' },
+                { icon: '📊', label: t.rain72, value: `${data?.weather?.rain_72h_mm ?? 285.0} mm`, sub: '3-Day Antecedent Rain', color: '#f8fafc' },
+                { icon: '🌱', label: t.soil, value: `${data?.weather?.soil_moisture ?? 0.52} m³/m³`, sub: 'Topsoil 0-1cm Layer', color: '#f8fafc' },
                 { icon: '🛰️', label: t.elevation, value: '876.5 m', sub: 'NASA SRTM 30m DEM', color: '#38bdf8' },
               ].map(({ icon, label, value, sub, color }) => (
                 <div key={label} style={{ background: card, border: `1px solid ${brd}`, borderRadius: '12px', padding: '16px' }}>
@@ -679,9 +679,9 @@ export const CitizenPortal: React.FC = () => {
               </h3>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '14px' }}>
                 {[
-                  { label: t.roadStatus, value: data?.evacuation_plan.primary_corridor || 'NH-766 Blocked', color: '#f87171', prefix: '⛔' },
-                  { label: t.safeRoute, value: data?.evacuation_plan.safe_evacuation_route || 'Active via SH-59 Bypass', color: '#4ade80', prefix: '✅' },
-                  { label: t.estTime, value: `${data?.evacuation_plan.estimated_evacuation_time_min ?? 42} Minutes`, color: '#f8fafc', prefix: '⏱️' },
+                  { label: t.roadStatus, value: data?.evacuation_plan?.primary_corridor || 'NH-766 Blocked', color: '#f87171', prefix: '⛔' },
+                  { label: t.safeRoute, value: data?.evacuation_plan?.safe_evacuation_route || 'Active via SH-59 Bypass', color: '#4ade80', prefix: '✅' },
+                  { label: t.estTime, value: `${data?.evacuation_plan?.estimated_evacuation_time_min ?? 42} Minutes`, color: '#f8fafc', prefix: '⏱️' },
                 ].map(({ label, value, color, prefix }) => (
                   <div key={label} style={{ background: theme === 'dark' ? '#1e293b' : '#f8fafc', padding: '14px', borderRadius: '10px' }}>
                     <div style={{ fontSize: '0.75rem', color: muted }}>{label}:</div>
