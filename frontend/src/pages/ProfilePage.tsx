@@ -123,7 +123,7 @@ export const ProfilePage: React.FC = () => {
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <img
-            src="/satark_logo.png"
+            src="/satark_emblem.png"
             alt="SATARK Logo"
             style={{
               width: '40px',

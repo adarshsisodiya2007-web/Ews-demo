@@ -44,6 +44,79 @@ const defaultIcon = L.icon({
   iconAnchor: [12, 41]
 });
 
+const officerIcon = L.divIcon({
+  className: 'officer-live-gps-marker',
+  html: `<div style="background: #0284c7; border: 2.5px solid #ffffff; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 16px rgba(2, 132, 199, 0.9); color: white; font-size: 12px; font-weight: 900;">📍</div>`,
+  iconSize: [26, 26],
+  iconAnchor: [13, 13]
+});
+
+// Official geographic centroids and optimal zoom levels for Assam and NER districts
+const DISTRICT_COORDINATES: Record<string, { lat: number; lng: number; zoom: number }> = {
+  'Kamrup Metropolitan': { lat: 26.1445, lng: 91.7362, zoom: 11 },
+  'Kamrup': { lat: 26.3134, lng: 91.6022, zoom: 10 },
+  'Darrang': { lat: 26.4525, lng: 92.0298, zoom: 10 },
+  'Morigaon': { lat: 26.2588, lng: 92.3421, zoom: 10 },
+  'Nagaon': { lat: 26.3452, lng: 92.6840, zoom: 10 },
+  'Sonitpur': { lat: 26.6528, lng: 92.7926, zoom: 10 },
+  'Lakhimpur': { lat: 27.2368, lng: 94.1037, zoom: 10 },
+  'Dhemaji': { lat: 27.4812, lng: 94.5779, zoom: 10 },
+  'Tinsukia': { lat: 27.4922, lng: 95.3468, zoom: 10 },
+  'Dibrugarh': { lat: 27.4728, lng: 94.9120, zoom: 10 },
+  'Sivasagar': { lat: 26.9826, lng: 94.6322, zoom: 10 },
+  'Jorhat': { lat: 26.7509, lng: 94.2037, zoom: 10 },
+  'Golaghat': { lat: 26.5168, lng: 93.9666, zoom: 10 },
+  'Karbi Anglong': { lat: 25.8450, lng: 93.4379, zoom: 10 },
+  'Dima Hasao': { lat: 25.1764, lng: 93.0245, zoom: 10 },
+  'Cachar': { lat: 24.8333, lng: 92.7789, zoom: 10 },
+  'Hailakandi': { lat: 24.6833, lng: 92.5667, zoom: 10 },
+  'Karimganj': { lat: 24.8667, lng: 92.3500, zoom: 10 },
+  'Kokrajhar': { lat: 26.4014, lng: 90.2714, zoom: 10 },
+  'Chirang': { lat: 26.5414, lng: 90.4950, zoom: 10 },
+  'Baksa': { lat: 26.6855, lng: 91.5984, zoom: 10 },
+  'Udalguri': { lat: 26.7453, lng: 92.0962, zoom: 10 },
+  'Barpeta': { lat: 26.3211, lng: 91.0065, zoom: 10 },
+  'Bongaigaon': { lat: 26.4789, lng: 90.5583, zoom: 10 },
+  'Goalpara': { lat: 26.1738, lng: 90.6222, zoom: 10 },
+  'Dhubri': { lat: 26.0208, lng: 89.9740, zoom: 10 },
+  'Nalbari': { lat: 26.4439, lng: 91.4402, zoom: 10 },
+  'Bajali': { lat: 26.4891, lng: 91.2291, zoom: 10 },
+  'Biswanath': { lat: 26.7329, lng: 93.1492, zoom: 10 },
+  'Charaideo': { lat: 26.9388, lng: 94.9142, zoom: 10 },
+  'Majuli': { lat: 26.9536, lng: 94.2185, zoom: 11 },
+  'South Salmara-Mankachar': { lat: 25.6800, lng: 89.8600, zoom: 10 },
+  'Hojai': { lat: 26.0022, lng: 92.8622, zoom: 10 },
+  'East Khasi Hills': { lat: 25.5788, lng: 91.8933, zoom: 10 },
+  'Aizawl': { lat: 23.7271, lng: 92.7176, zoom: 10 },
+  'Kohima': { lat: 25.6751, lng: 94.1086, zoom: 10 },
+  'East Sikkim': { lat: 27.3389, lng: 88.6065, zoom: 10 },
+  'Papum Pare': { lat: 27.0900, lng: 93.6200, zoom: 10 }
+};
+
+// Leaflet Map Controller: handles invalidateSize on Android and smooth flyTo navigation
+const MapController: React.FC<{
+  center: [number, number];
+  zoom: number;
+  invalidateKey: number;
+}> = ({ center, zoom, invalidateKey }) => {
+  const map = useMap();
+  useEffect(() => {
+    map.invalidateSize();
+    const t1 = setTimeout(() => map.invalidateSize(), 100);
+    const t2 = setTimeout(() => map.invalidateSize(), 400);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+  }, [map, invalidateKey]);
+
+  useEffect(() => {
+    map.flyTo(center, zoom, { duration: 1.0 });
+  }, [center, zoom, map]);
+
+  return null;
+};
+
 interface Props {
   onSwitchToCitizen?: () => void;
 }
@@ -144,10 +217,109 @@ export const SatarkOfficerApp: React.FC<Props> = ({ onSwitchToCitizen }) => {
     return () => clearInterval(iv);
   }, []);
 
-  // Districts list
-  const districts = ['ALL', ...Array.from(new Set(regions.map(r => r.district).filter(Boolean)))];
+  // Map Modes, Live GPS, and Navigation State
+  const [mapMode, setMapMode] = useState<'live_gps' | 'area_map'>('area_map');
+  const [mapCenter, setMapCenter] = useState<[number, number]>([26.1445, 91.7362]);
+  const [mapZoom, setMapZoom] = useState<number>(10);
+  const [liveCoords, setLiveCoords] = useState<{ lat: number; lng: number; accuracy?: number } | null>(null);
+  const [gpsStatus, setGpsStatus] = useState<'IDLE' | 'SEARCHING' | 'LIVE' | 'LAST_KNOWN' | 'DENIED'>('IDLE');
+  const [gpsNotice, setGpsNotice] = useState<string | null>(null);
+  const [invalidateKey, setInvalidateKey] = useState<number>(0);
 
-  // Filtered regions
+  // Invalidate map on tab switch and window resize/orientationchange
+  useEffect(() => {
+    if (activeTab === 'map') {
+      setInvalidateKey(k => k + 1);
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    const handleResize = () => setInvalidateKey(k => k + 1);
+    window.addEventListener('resize', handleResize);
+    window.addEventListener('orientationchange', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('orientationchange', handleResize);
+    };
+  }, []);
+
+  // Handlers for Live GPS, Area Map, District, and Severity
+  const handleTriggerLiveGps = () => {
+    setMapMode('live_gps');
+    setGpsStatus('SEARCHING');
+    setGpsNotice('Acquiring high-precision GPS lock…');
+
+    if (typeof navigator !== 'undefined' && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const { latitude, longitude, accuracy } = pos.coords;
+          setLiveCoords({ lat: latitude, lng: longitude, accuracy });
+          setGpsStatus('LIVE');
+          setGpsNotice(`GPS Locked (±${Math.round(accuracy)}m accuracy)`);
+          setMapCenter([latitude, longitude]);
+          setMapZoom(14);
+          setInvalidateKey(k => k + 1);
+        },
+        (err) => {
+          console.warn('Geolocation error:', err);
+          if (officerLocation) {
+            setLiveCoords({ lat: officerLocation.lat, lng: officerLocation.lng });
+            setGpsStatus('LAST_KNOWN');
+            setGpsNotice('Showing last known location (Live GPS signal unavailable)');
+            setMapCenter([officerLocation.lat, officerLocation.lng]);
+            setMapZoom(13);
+            setInvalidateKey(k => k + 1);
+          } else {
+            setGpsStatus('DENIED');
+            setGpsNotice('GPS permission denied or unavailable on device.');
+          }
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 }
+      );
+    } else if (officerLocation) {
+      setLiveCoords({ lat: officerLocation.lat, lng: officerLocation.lng });
+      setGpsStatus('LAST_KNOWN');
+      setGpsNotice('Showing last known location');
+      setMapCenter([officerLocation.lat, officerLocation.lng]);
+      setMapZoom(13);
+      setInvalidateKey(k => k + 1);
+    } else {
+      setGpsStatus('DENIED');
+      setGpsNotice('Geolocation not supported on this device.');
+    }
+  };
+
+  const handleTriggerAreaMap = () => {
+    setMapMode('area_map');
+    setGpsNotice(null);
+    const target = DISTRICT_COORDINATES[selectedDistrict] || { lat: 26.1445, lng: 91.7362, zoom: 9 };
+    setMapCenter([target.lat, target.lng]);
+    setMapZoom(selectedDistrict === 'ALL' ? 8 : target.zoom);
+    setInvalidateKey(k => k + 1);
+  };
+
+  const handleSelectDistrict = (d: string) => {
+    setSelectedDistrict(d);
+    setMapMode('area_map');
+    const target = DISTRICT_COORDINATES[d] || { lat: 26.1445, lng: 91.7362, zoom: 9 };
+    setMapCenter([target.lat, target.lng]);
+    setMapZoom(d === 'ALL' ? 8 : target.zoom);
+    setInvalidateKey(k => k + 1);
+  };
+
+  const handleSelectSeverity = (sev: Severity | 'ALL') => {
+    setSeverityFilter(sev);
+    setInvalidateKey(k => k + 1);
+  };
+
+  // Complete available districts merging official coordinates and backend regions
+  const availableDistricts = Array.from(new Set([
+    'ALL',
+    ...Object.keys(DISTRICT_COORDINATES),
+    ...regions.map(r => r.district).filter(Boolean)
+  ]));
+
+  // Jointly filtered regions (District AND Severity)
   const filteredRegions = regions.filter(r => {
     const matchD = selectedDistrict === 'ALL' || r.district === selectedDistrict;
     const matchS = severityFilter === 'ALL' || r.severity === severityFilter;
@@ -683,90 +855,255 @@ export const SatarkOfficerApp: React.FC<Props> = ({ onSwitchToCitizen }) => {
 
       {/* ── TAB 3: DEDICATED GIS MAP (OFFICER MAP) ── */}
       {activeTab === 'map' && (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: 'calc(100vh - 120px)' }}>
-          {/* Map Subheader & Filters */}
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          width: '100%',
+          padding: '10px 12px 20px',
+          boxSizing: 'border-box',
+          gap: '10px'
+        }}>
+          {/* 1. TOP CONTROLS: District & Severity Dropdowns */}
           <div style={{
-            padding: '8px 12px',
-            background: bgHeader,
-            borderBottom: `1px solid ${borderCol}`,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: '6px',
-            flexWrap: 'wrap'
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gap: '8px',
+            background: bgCard,
+            padding: '10px',
+            borderRadius: '12px',
+            border: `1px solid ${borderCol}`
           }}>
-            <select
-              value={selectedDistrict}
-              onChange={e => setSelectedDistrict(e.target.value)}
-              style={{
-                background: isLight ? '#f1f5f9' : '#1e293b',
-                color: textPrimary,
-                border: `1px solid ${borderCol}`,
-                borderRadius: '6px',
-                padding: '4px 8px',
-                fontSize: '0.72rem',
-                fontWeight: 700
-              }}
-            >
-              {districts.map(d => (
-                <option key={d} value={d}>District: {d}</option>
-              ))}
-            </select>
+            <div>
+              <label style={{ fontSize: '0.68rem', fontWeight: 800, color: textMuted, display: 'block', marginBottom: '4px' }}>
+                DISTRICT SELECTOR
+              </label>
+              <select
+                value={selectedDistrict}
+                onChange={e => handleSelectDistrict(e.target.value)}
+                style={{
+                  width: '100%',
+                  background: isLight ? '#f1f5f9' : '#1e293b',
+                  color: textPrimary,
+                  border: `1px solid ${borderCol}`,
+                  borderRadius: '8px',
+                  padding: '7px 8px',
+                  fontSize: '0.74rem',
+                  fontWeight: 700,
+                  cursor: 'pointer'
+                }}
+              >
+                {availableDistricts.map(d => (
+                  <option key={d} value={d}>
+                    {d === 'ALL' ? '🗺️ ALL Districts' : d}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-            <select
-              value={severityFilter}
-              onChange={e => setSeverityFilter(e.target.value as any)}
-              style={{
-                background: isLight ? '#f1f5f9' : '#1e293b',
-                color: textPrimary,
-                border: `1px solid ${borderCol}`,
-                borderRadius: '6px',
-                padding: '4px 8px',
-                fontSize: '0.72rem',
-                fontWeight: 700
-              }}
-            >
-              <option value="ALL">Severity: ALL</option>
-              <option value="CRITICAL">CRITICAL</option>
-              <option value="HIGH">HIGH</option>
-              <option value="MODERATE">MODERATE</option>
-              <option value="LOW">LOW</option>
-            </select>
+            <div>
+              <label style={{ fontSize: '0.68rem', fontWeight: 800, color: textMuted, display: 'block', marginBottom: '4px' }}>
+                SEVERITY FILTER
+              </label>
+              <select
+                value={severityFilter}
+                onChange={e => handleSelectSeverity(e.target.value as any)}
+                style={{
+                  width: '100%',
+                  background: isLight ? '#f1f5f9' : '#1e293b',
+                  color: textPrimary,
+                  border: `1px solid ${borderCol}`,
+                  borderRadius: '8px',
+                  padding: '7px 8px',
+                  fontSize: '0.74rem',
+                  fontWeight: 700,
+                  cursor: 'pointer'
+                }}
+              >
+                <option value="ALL">ALL CONDITIONS</option>
+                <option value="CRITICAL">🔴 CRITICAL</option>
+                <option value="HIGH">🟠 HIGH</option>
+                <option value="MODERATE">🟡 MODERATE</option>
+                <option value="LOW">🟢 LOW</option>
+              </select>
+            </div>
           </div>
 
-          {/* Leaflet Map */}
-          <div style={{ flex: 1, width: '100%', position: 'relative' }}>
-            <MapContainer
-              center={[25.5, 92.0]}
-              zoom={7}
-              style={{ height: '100%', width: '100%' }}
+          {/* 2. MODE BUTTONS: [ 📍 MY LIVE GPS ] [ 🗺️ AREA MAP ] */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+            <button
+              type="button"
+              onClick={handleTriggerLiveGps}
+              style={{
+                background: mapMode === 'live_gps' ? '#0284c7' : (isLight ? '#ffffff' : '#0e172a'),
+                color: mapMode === 'live_gps' ? '#ffffff' : textPrimary,
+                border: `1.5px solid ${mapMode === 'live_gps' ? '#0284c7' : borderCol}`,
+                borderRadius: '10px',
+                padding: '10px 8px',
+                fontSize: '0.78rem',
+                fontWeight: 900,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px',
+                cursor: 'pointer',
+                boxShadow: mapMode === 'live_gps' ? '0 4px 12px rgba(2, 132, 199, 0.35)' : 'none'
+              }}
             >
+              <span>📍</span>
+              <span>MY LIVE GPS</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleTriggerAreaMap}
+              style={{
+                background: mapMode === 'area_map' ? '#2563eb' : (isLight ? '#ffffff' : '#0e172a'),
+                color: mapMode === 'area_map' ? '#ffffff' : textPrimary,
+                border: `1.5px solid ${mapMode === 'area_map' ? '#2563eb' : borderCol}`,
+                borderRadius: '10px',
+                padding: '10px 8px',
+                fontSize: '0.78rem',
+                fontWeight: 900,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px',
+                cursor: 'pointer',
+                boxShadow: mapMode === 'area_map' ? '0 4px 12px rgba(37, 99, 235, 0.35)' : 'none'
+              }}
+            >
+              <span>🗺️</span>
+              <span>AREA MAP</span>
+            </button>
+          </div>
+
+          {/* 3. CONDITIONS QUICK FILTER BAR */}
+          <div style={{
+            background: bgCard,
+            borderRadius: '10px',
+            padding: '6px 8px',
+            border: `1px solid ${borderCol}`,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px',
+            overflowX: 'auto',
+            whiteSpace: 'nowrap'
+          }}>
+            <span style={{ fontSize: '0.68rem', fontWeight: 900, color: textMuted, paddingRight: '4px' }}>
+              ⚠️ CONDITIONS:
+            </span>
+            {[
+              { id: 'ALL' as const, label: 'ALL', color: '#64748b' },
+              { id: 'CRITICAL' as const, label: '🔴 CRITICAL', color: '#ef4444' },
+              { id: 'HIGH' as const, label: '🟠 HIGH', color: '#ea580c' },
+              { id: 'MODERATE' as const, label: '🟡 MODERATE', color: '#f59e0b' },
+              { id: 'LOW' as const, label: '🟢 LOW', color: '#22c55e' }
+            ].map(cond => (
+              <button
+                key={cond.id}
+                type="button"
+                onClick={() => handleSelectSeverity(cond.id)}
+                style={{
+                  background: severityFilter === cond.id ? cond.color : (isLight ? '#f1f5f9' : '#1e293b'),
+                  color: severityFilter === cond.id ? '#ffffff' : textPrimary,
+                  border: `1px solid ${severityFilter === cond.id ? cond.color : borderCol}`,
+                  borderRadius: '6px',
+                  padding: '4px 8px',
+                  fontSize: '0.68rem',
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  flexShrink: 0
+                }}
+              >
+                {cond.label}
+              </button>
+            ))}
+          </div>
+
+          {/* GPS Notice / Status Banner */}
+          {gpsNotice && (
+            <div style={{
+              background: gpsStatus === 'LIVE' ? 'rgba(34, 197, 94, 0.15)' : gpsStatus === 'LAST_KNOWN' ? 'rgba(245, 158, 11, 0.15)' : gpsStatus === 'DENIED' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(56, 189, 248, 0.15)',
+              border: `1px solid ${gpsStatus === 'LIVE' ? '#22c55e' : gpsStatus === 'LAST_KNOWN' ? '#f59e0b' : gpsStatus === 'DENIED' ? '#ef4444' : '#38bdf8'}`,
+              color: textPrimary,
+              borderRadius: '8px',
+              padding: '6px 10px',
+              fontSize: '0.74rem',
+              fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between'
+            }}>
+              <span>📍 {gpsNotice}</span>
+              <button
+                type="button"
+                onClick={() => setGpsNotice(null)}
+                style={{ background: 'transparent', border: 'none', color: textMuted, fontSize: '0.8rem', cursor: 'pointer' }}
+              >
+                ✕
+              </button>
+            </div>
+          )}
+
+          {/* 4. REAL INTERACTIVE LEAFLET MAP CONTAINER */}
+          <div style={{
+            width: '100%',
+            height: 'calc(100vh - 365px)',
+            minHeight: '380px',
+            maxHeight: '520px',
+            position: 'relative',
+            borderRadius: '14px',
+            overflow: 'hidden',
+            border: `1px solid ${borderCol}`,
+            boxShadow: isLight ? '0 4px 14px rgba(0,0,0,0.06)' : '0 6px 24px rgba(0,0,0,0.5)'
+          }}>
+            <MapContainer
+              center={mapCenter}
+              zoom={mapZoom}
+              style={{ width: '100%', height: '100%' }}
+              zoomControl={true}
+            >
+              <MapController center={mapCenter} zoom={mapZoom} invalidateKey={invalidateKey} />
+
               <TileLayer
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 attribution="&copy; OpenStreetMap | SATARK GIS"
+                maxZoom={19}
               />
 
-              {/* Regions Heatmap Circles */}
+              {/* Hazard Risk Regions */}
               {filteredRegions.map(r => {
-                const color = r.severity === 'CRITICAL' ? '#8B2315' : r.severity === 'HIGH' ? '#B84A39' : r.severity === 'MODERATE' ? '#C4873A' : '#4A7C59';
-                const radius = r.severity === 'CRITICAL' ? 12000 : r.severity === 'HIGH' ? 8000 : 5000;
+                const color = r.severity === 'CRITICAL' ? '#ef4444' : r.severity === 'HIGH' ? '#ea580c' : r.severity === 'MODERATE' ? '#f59e0b' : '#22c55e';
+                const radius = r.severity === 'CRITICAL' ? 12000 : r.severity === 'HIGH' ? 8000 : r.severity === 'MODERATE' ? 5000 : 3500;
 
                 return (
                   <Circle
                     key={r.regionId}
                     center={[r.centroidLat, r.centroidLng]}
                     radius={radius}
-                    pathOptions={{ color, fillColor: color, fillOpacity: 0.4 }}
+                    pathOptions={{ color, fillColor: color, fillOpacity: 0.45, weight: 2 }}
                     eventHandlers={{
                       click: () => setSelectedRegion(r)
                     }}
                   >
                     <Popup>
-                      <strong>{r.name}</strong><br />
-                      District: {r.district}<br />
-                      Severity: <strong>{r.severity}</strong><br />
-                      Score: {(r.computedScore * 100).toFixed(1)}%<br />
-                      Road: {r.roadStatus || 'OPEN'}
+                      <div style={{ minWidth: '150px' }}>
+                        <strong style={{ fontSize: '0.9rem' }}>{r.name}</strong><br />
+                        <span style={{ fontSize: '0.74rem', color: '#64748b' }}>District: {r.district}</span><br />
+                        <span style={{
+                          display: 'inline-block',
+                          marginTop: '4px',
+                          background: color,
+                          color: '#fff',
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          fontSize: '0.7rem',
+                          fontWeight: 800
+                        }}>
+                          {r.severity} ({(r.computedScore * 100).toFixed(1)}%)
+                        </span><br />
+                        <span style={{ fontSize: '0.74rem' }}>Road: <strong>{r.roadStatus || 'OPEN'}</strong></span>
+                      </div>
                     </Popup>
                   </Circle>
                 );
@@ -776,37 +1113,148 @@ export const SatarkOfficerApp: React.FC<Props> = ({ onSwitchToCitizen }) => {
               {shelters.map((s: any, idx: number) => (
                 <Marker key={s.id || idx} position={[s.lat, s.lng]} icon={defaultIcon}>
                   <Popup>
-                    <strong>🏕️ {s.name}</strong><br />
-                    Capacity: {s.totalBeds} beds<br />
-                    Medical: {s.medicalTeam || 'Available'}
+                    <div>
+                      <strong>🏕️ {s.name}</strong><br />
+                      Capacity: {s.totalBeds} beds<br />
+                      Medical: {s.medicalTeam || 'Available'}
+                    </div>
                   </Popup>
                 </Marker>
               ))}
 
-              {/* Officer Location */}
-              {officerLocation && (
-                <Marker position={[officerLocation.lat, officerLocation.lng]} icon={defaultIcon}>
-                  <Popup>📍 Your Field Command Location</Popup>
+              {/* Live Officer Location Marker */}
+              {liveCoords && (
+                <Marker position={[liveCoords.lat, liveCoords.lng]} icon={officerIcon}>
+                  <Popup>
+                    <div>
+                      <strong>📍 Officer Field Location</strong><br />
+                      Lat: {liveCoords.lat.toFixed(5)}<br />
+                      Lng: {liveCoords.lng.toFixed(5)}<br />
+                      GPS: <strong>{gpsStatus === 'LIVE' ? '🟢 LIVE' : '🟡 LAST KNOWN'}</strong>
+                    </div>
+                  </Popup>
                 </Marker>
               )}
             </MapContainer>
+
+            {/* 5. COMPACT FLOATING MAP LEGEND */}
+            <div style={{
+              position: 'absolute',
+              bottom: '12px',
+              right: '12px',
+              zIndex: 400,
+              background: isLight ? 'rgba(255,255,255,0.92)' : 'rgba(11, 19, 41, 0.92)',
+              backdropFilter: 'blur(8px)',
+              WebkitBackdropFilter: 'blur(8px)',
+              border: `1px solid ${borderCol}`,
+              borderRadius: '8px',
+              padding: '6px 10px',
+              fontSize: '0.68rem',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
+              pointerEvents: 'auto'
+            }}>
+              <div style={{ fontWeight: 900, textTransform: 'uppercase', color: textMuted, marginBottom: '3px', fontSize: '0.62rem' }}>
+                RISK CONDITIONS
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '3px 8px', fontWeight: 700 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#ef4444' }}></span>
+                  <span>Critical</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#ea580c' }}></span>
+                  <span>High</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#f59e0b' }}></span>
+                  <span>Moderate</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#22c55e' }}></span>
+                  <span>Low</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* 6. SELECTED AREA OR LIVE GPS INFO CARD */}
+          <div style={{
+            background: bgCard,
+            border: `1px solid ${borderCol}`,
+            borderRadius: '12px',
+            padding: '12px 14px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '4px'
+          }}>
+            {mapMode === 'live_gps' ? (
+              <>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.68rem', fontWeight: 900, color: textMuted, textTransform: 'uppercase' }}>
+                    📍 MY LOCATION
+                  </span>
+                  <span style={{
+                    background: gpsStatus === 'LIVE' ? 'rgba(34, 197, 94, 0.2)' : 'rgba(245, 158, 11, 0.2)',
+                    color: gpsStatus === 'LIVE' ? '#22c55e' : '#f59e0b',
+                    padding: '1px 8px',
+                    borderRadius: '6px',
+                    fontSize: '0.68rem',
+                    fontWeight: 900
+                  }}>
+                    GPS: {gpsStatus === 'LIVE' ? 'LIVE' : gpsStatus === 'SEARCHING' ? 'ACQUIRING…' : 'LAST KNOWN'}
+                  </span>
+                </div>
+                <div style={{ fontSize: '0.84rem', fontWeight: 800, color: textPrimary, marginTop: '2px' }}>
+                  {liveCoords ? `Latitude: ${liveCoords.lat.toFixed(6)} | Longitude: ${liveCoords.lng.toFixed(6)}` : 'Awaiting GPS acquisition…'}
+                </div>
+                <div style={{ fontSize: '0.72rem', color: textMuted }}>
+                  {filteredRegions.length} hazard regions monitored · Nearest district: {selectedDistrict}
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.68rem', fontWeight: 900, color: textMuted, textTransform: 'uppercase' }}>
+                    🗺️ SELECTED AREA
+                  </span>
+                  <span style={{
+                    background: isLight ? '#f1f5f9' : '#1e293b',
+                    color: '#38bdf8',
+                    padding: '1px 8px',
+                    borderRadius: '6px',
+                    fontSize: '0.68rem',
+                    fontWeight: 900
+                  }}>
+                    {filteredRegions.length} Monitored Region{filteredRegions.length === 1 ? '' : 's'}
+                  </span>
+                </div>
+                <div style={{ fontSize: '0.95rem', fontWeight: 900, color: textPrimary, marginTop: '2px' }}>
+                  {selectedDistrict === 'ALL' ? 'All Monitored NER Districts' : selectedDistrict}
+                </div>
+                <div style={{ fontSize: '0.72rem', color: textMuted }}>
+                  Severity Filter: <strong style={{ color: severityFilter === 'CRITICAL' ? '#ef4444' : textPrimary }}>{severityFilter}</strong> · Target Centroid: {DISTRICT_COORDINATES[selectedDistrict]?.lat.toFixed(4) || '26.1445'}, {DISTRICT_COORDINATES[selectedDistrict]?.lng.toFixed(4) || '91.7362'}
+                </div>
+              </>
+            )}
           </div>
 
           {/* Region Details Drawer if tapped */}
           {selectedRegion && (
             <div style={{
               background: bgCard,
-              borderTop: `2px solid #38bdf8`,
-              padding: '14px',
+              border: `1px solid ${selectedRegion.severity === 'CRITICAL' ? '#ef4444' : '#38bdf8'}`,
+              borderRadius: '12px',
+              padding: '12px 14px',
               display: 'flex',
               flexDirection: 'column',
               gap: '6px'
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ fontWeight: 900, fontSize: '0.98rem', color: textPrimary }}>
+                <div style={{ fontWeight: 900, fontSize: '0.94rem', color: textPrimary }}>
                   {selectedRegion.name} ({selectedRegion.district})
                 </div>
                 <button
+                  type="button"
                   onClick={() => setSelectedRegion(null)}
                   style={{ background: 'transparent', border: 'none', color: textMuted, fontSize: '1rem', cursor: 'pointer' }}
                 >
