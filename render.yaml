@@ -41,10 +41,26 @@ services:
         value: 248691ae6b30abce7f3cf5a4319520d2
       - key: OPENTOPOGRAPHY_API_KEY
         value: 619ea4b33002a569b3ac0b851e8b51d2
-      - key: SPRING_DATASOURCE_URL
+      - key: SPRING_DATASOURCE_HOST
         fromDatabase:
           name: ews-postgres-db
-          property: connectionString
+          property: host
+      - key: SPRING_DATASOURCE_PORT
+        fromDatabase:
+          name: ews-postgres-db
+          property: port
+      - key: SPRING_DATASOURCE_DATABASE
+        fromDatabase:
+          name: ews-postgres-db
+          property: database
+      - key: SPRING_DATASOURCE_USERNAME
+        fromDatabase:
+          name: ews-postgres-db
+          property: user
+      - key: SPRING_DATASOURCE_PASSWORD
+        fromDatabase:
+          name: ews-postgres-db
+          property: password
 
 databases:
   # ── 3. PostgreSQL Database with PostGIS ──────────────────────────────────

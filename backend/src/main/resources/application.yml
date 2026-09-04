@@ -9,7 +9,7 @@ spring:
 
   # ── Database ───────────────────────────────────────────────────────────────
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/ews_ner}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://${SPRING_DATASOURCE_HOST:localhost}:${SPRING_DATASOURCE_PORT:5432}/${SPRING_DATASOURCE_DATABASE:ews_ner}}
     username: ${SPRING_DATASOURCE_USERNAME:ews_user}
     password: ${SPRING_DATASOURCE_PASSWORD:ews_secure_pass}
     driver-class-name: org.postgresql.Driver
