@@ -147,6 +147,7 @@ app:
       - "http://localhost:5173"
       - "http://localhost:3000"
       - "http://localhost:4173"
+      - "https://landslide-ews.vercel.app"
       - "https://frontend-eta-rouge-44.vercel.app"
       - "https://*.vercel.app"
 
