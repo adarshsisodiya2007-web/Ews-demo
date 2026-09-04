@@ -1,8 +1,8 @@
 import { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'in.gov.ews.ner',
-  appName: 'EWS-NER',
+  appId: 'com.satark.ews',
+  appName: 'SATARK',
   webDir: 'dist',
   server: {
     androidScheme: 'https',

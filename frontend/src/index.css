@@ -2,8 +2,14 @@
 @import './tokens/design-tokens.css';
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html, body, #root { height: 100%; }
-body { background: var(--color-base-900); color: var(--color-base-100); font-family: var(--font-body); font-size: var(--text-base); line-height: 1.5; }
+html, body, #root { 
+  height: 100%; 
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+}
+body { background: var(--color-base-900); color: var(--color-base-100); font-family: var(--font-body); font-size: var(--text-base); line-height: 1.5; -webkit-tap-highlight-color: transparent; }
 h1, h2, h3, h4, h5, h6 { font-family: var(--font-heading); color: var(--color-base-000); }
 .mono { font-family: var(--font-mono) !important; }
 

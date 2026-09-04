@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">EWS-NER</string>
-    <string name="title_activity_main">EWS-NER</string>
-    <string name="package_name">in.gov.ews.ner</string>
-    <string name="custom_url_scheme">in.gov.ews.ner</string>
+    <string name="app_name">SATARK</string>
+    <string name="title_activity_main">SATARK</string>
+    <string name="package_name">com.satark.ews</string>
+    <string name="custom_url_scheme">com.satark.ews</string>
 </resources>

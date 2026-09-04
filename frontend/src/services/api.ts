@@ -54,6 +54,14 @@ export const resolveApiBaseUrl = (): string => {
     return clean;
   }
   if (typeof window !== 'undefined') {
+    // Check if running inside native Capacitor
+    const isCapacitor = !!(window as any).Capacitor?.isNativePlatform?.() || 
+      window.location.protocol === 'capacitor:' || 
+      window.location.hostname === 'localhost' && navigator.userAgent.includes('wv');
+    if (isCapacitor) {
+      return 'https://ews-backend-gateway-vck8.onrender.com';
+    }
+
     const host = window.location.hostname;
     if (host === 'localhost' || host === '127.0.0.1') {
       return 'http://localhost:8080';

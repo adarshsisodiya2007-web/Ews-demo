@@ -13,21 +13,15 @@ import { ResponderPortal } from './pages/ResponderPortal';
 import { OfflineRescuePage } from './pages/OfflineRescuePage';
 import { ProfilePage } from './pages/ProfilePage';
 import { PrivacyDataPage } from './pages/PrivacyDataPage';
+import { useCapacitorNative } from './hooks/useCapacitorNative';
 
-function App() {
-  const [permsDone, setPermsDone] = useState<boolean>(() => {
-    return localStorage.getItem('ews_perms_shown') === 'true';
-  });
-
-  const handlePermComplete = () => {
-    localStorage.setItem('ews_perms_shown', 'true');
-    setPermsDone(true);
-  };
+function AppContent({ permsDone, onPermComplete }: { permsDone: boolean; onPermComplete: () => void }) {
+  useCapacitorNative();
 
   return (
-    <BrowserRouter>
+    <>
       {/* Show permission gate on first visit */}
-      {!permsDone && <PermissionGate onComplete={handlePermComplete} />}
+      {!permsDone && <PermissionGate onComplete={onPermComplete} />}
 
       {/* Global demo mode banner — shows on any page when backend is offline */}
       <DemoBanner />
@@ -59,6 +53,23 @@ function App() {
         <Route path="/map"    element={<PublicRiskMap />} />
         <Route path="/report" element={<ReportFormPage />} />
       </Routes>
+    </>
+  );
+}
+
+function App() {
+  const [permsDone, setPermsDone] = useState<boolean>(() => {
+    return localStorage.getItem('ews_perms_shown') === 'true';
+  });
+
+  const handlePermComplete = () => {
+    localStorage.setItem('ews_perms_shown', 'true');
+    setPermsDone(true);
+  };
+
+  return (
+    <BrowserRouter>
+      <AppContent permsDone={permsDone} onPermComplete={handlePermComplete} />
     </BrowserRouter>
   );
 }

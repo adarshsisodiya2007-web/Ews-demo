@@ -1,10 +1,10 @@
 apply plugin: 'com.android.application'
 
 android {
-    namespace = "in.gov.ews.ner"
+    namespace = "com.satark.ews"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "in.gov.ews.ner"
+        applicationId "com.satark.ews"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

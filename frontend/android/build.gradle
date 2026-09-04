@@ -24,15 +24,14 @@ allprojects {
     }
 }
 
-// Force Java 17 compatibility across ALL subprojects
-// (Capacitor library defaults to Java 21 but we have JDK 17)
+// Ensure Java 21 compatibility across ALL subprojects
 subprojects {
     afterEvaluate { project ->
         if (project.hasProperty('android')) {
             project.android {
                 compileOptions {
-                    sourceCompatibility JavaVersion.VERSION_17
-                    targetCompatibility JavaVersion.VERSION_17
+                    sourceCompatibility JavaVersion.VERSION_21
+                    targetCompatibility JavaVersion.VERSION_21
                 }
             }
         }

@@ -1,4 +1,4 @@
-package in.gov.ews.ner;
+package com.satark.ews;
 
 import com.getcapacitor.BridgeActivity;
 
