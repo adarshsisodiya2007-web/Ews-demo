@@ -24,6 +24,11 @@ export function useCapacitorNative() {
 
     const setupListener = async () => {
       listenerHandle = await CapApp.addListener('backButton', ({ canGoBack }) => {
+        // Allow active mobile modals, sheets, or subviews to consume back press
+        const backEvent = new CustomEvent('satark-android-back', { cancelable: true });
+        const handled = !window.dispatchEvent(backEvent);
+        if (handled) return;
+
         const currentPath = location.pathname;
 
         // If at root or main portals, exit app
