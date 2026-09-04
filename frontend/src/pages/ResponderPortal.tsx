@@ -116,11 +116,13 @@ export const ResponderPortal: React.FC = () => {
       loadData();
     };
     window.addEventListener('ews-sync-completed', handleSyncComplete);
+    window.addEventListener('ews-reports-updated', handleSyncComplete);
 
     loadData();
 
     return () => {
       window.removeEventListener('ews-sync-completed', handleSyncComplete);
+      window.removeEventListener('ews-reports-updated', handleSyncComplete);
     };
   }, []);
 

@@ -4,9 +4,10 @@ import { useOfflineSync } from '../../hooks/useOfflineSync';
 interface Props {
   cachedTimestamp?: number | null;
   compact?: boolean;
+  theme?: 'light' | 'dark';
 }
 
-export const OfflineStatusHeader: React.FC<Props> = ({ cachedTimestamp, compact = false }) => {
+export const OfflineStatusHeader: React.FC<Props> = ({ cachedTimestamp, compact = false, theme = 'dark' }) => {
   const { isOnline, pendingCount, isSyncing, syncNow, syncError } = useOfflineSync();
   const [localCachedTime, setLocalCachedTime] = useState<number | null>(cachedTimestamp || null);
 
@@ -35,13 +36,13 @@ export const OfflineStatusHeader: React.FC<Props> = ({ cachedTimestamp, compact 
     return (
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.75rem', fontWeight: 700 }}>
         {isOnline ? (
-          <span style={{ color: '#4ade80', display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#22c55e', display: 'inline-block' }} />
+          <span style={{ color: theme === 'light' ? '#15803d' : '#4ade80', display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: theme === 'light' ? '#15803d' : '#22c55e', display: 'inline-block' }} />
             ONLINE
           </span>
         ) : (
-          <span style={{ color: '#f59e0b', display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#f59e0b', display: 'inline-block' }} />
+          <span style={{ color: theme === 'light' ? '#b45309' : '#f59e0b', display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: theme === 'light' ? '#b45309' : '#f59e0b', display: 'inline-block' }} />
             OFFLINE (CACHED)
           </span>
         )}
@@ -50,8 +51,11 @@ export const OfflineStatusHeader: React.FC<Props> = ({ cachedTimestamp, compact 
             onClick={() => syncNow()}
             disabled={!isOnline || isSyncing}
             style={{
-              background: '#f59e0b20', border: '1px solid #f59e0b80', color: '#fcd34d',
-              padding: '2px 6px', borderRadius: '4px', fontSize: '0.7rem', cursor: isOnline ? 'pointer' : 'default'
+              background: theme === 'light' ? '#fef3c7' : '#f59e0b20',
+              border: `1px solid ${theme === 'light' ? '#fcd34d' : '#f59e0b80'}`,
+              color: theme === 'light' ? '#b45309' : '#fcd34d',
+              padding: '2px 6px', borderRadius: '4px', fontSize: '0.7rem', cursor: isOnline ? 'pointer' : 'default',
+              fontWeight: 700
             }}
           >
             {isSyncing ? '⏳ Syncing...' : `📤 ${pendingCount} Queued`}

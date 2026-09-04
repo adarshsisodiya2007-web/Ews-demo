@@ -337,9 +337,9 @@ export const CitizenPortal: React.FC = () => {
               </span>
               <span
                 style={{
-                  background: 'rgba(56, 189, 248, 0.15)',
-                  color: '#38bdf8',
-                  border: '1px solid rgba(56, 189, 248, 0.35)',
+                  background: theme === 'dark' ? 'rgba(56, 189, 248, 0.15)' : 'rgba(2, 132, 199, 0.12)',
+                  color: theme === 'dark' ? '#38bdf8' : '#0369a1',
+                  border: theme === 'dark' ? '1px solid rgba(56, 189, 248, 0.35)' : '1px solid rgba(2, 132, 199, 0.35)',
                   borderRadius: '6px',
                   padding: '1px 8px',
                   fontSize: '0.72rem',
@@ -361,9 +361,10 @@ export const CitizenPortal: React.FC = () => {
           <button
             onClick={() => isSpeaking ? stopSpeaking() : speakAlert(selectedZone.name, data?.assessment?.level || 'GREEN', data?.assessment?.action_protocol || '')}
             style={{
-              padding: '6px 12px', borderRadius: '8px', border: '1px solid #3b82f640',
-              background: isSpeaking ? '#3b82f6' : 'rgba(59,130,246,0.15)',
-              color: isSpeaking ? '#fff' : '#60a5fa',
+              padding: '6px 12px', borderRadius: '8px',
+              border: theme === 'dark' ? '1px solid #3b82f640' : '1px solid rgba(37,99,235,0.3)',
+              background: isSpeaking ? '#2563eb' : (theme === 'dark' ? 'rgba(59,130,246,0.15)' : 'rgba(37,99,235,0.10)'),
+              color: isSpeaking ? '#fff' : (theme === 'dark' ? '#60a5fa' : '#1d4ed8'),
               fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer'
             }}
           >
@@ -374,9 +375,10 @@ export const CitizenPortal: React.FC = () => {
           <button
             onClick={() => isPlaying ? stopSiren() : playCriticalSiren()}
             style={{
-              padding: '6px 12px', borderRadius: '8px', border: 'none',
-              background: isPlaying ? '#ef4444' : 'rgba(239,68,68,0.15)',
-              color: isPlaying ? '#fff' : '#ef4444',
+              padding: '6px 12px', borderRadius: '8px',
+              border: theme === 'dark' ? 'none' : '1px solid rgba(220,38,38,0.3)',
+              background: isPlaying ? '#dc2626' : (theme === 'dark' ? 'rgba(239,68,68,0.15)' : 'rgba(220,38,38,0.10)'),
+              color: isPlaying ? '#fff' : (theme === 'dark' ? '#ef4444' : '#b91c1c'),
               fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer',
               animation: isPlaying ? 'pulse 1s infinite' : 'none'
             }}
@@ -390,7 +392,7 @@ export const CitizenPortal: React.FC = () => {
               <button key={l} onClick={() => setLang(l)} style={{
                 padding: '4px 10px', borderRadius: '16px', border: 'none',
                 background: lang === l ? '#2563eb' : 'transparent',
-                color: lang === l ? '#fff' : muted,
+                color: lang === l ? '#fff' : (theme === 'dark' ? '#94a3b8' : '#475569'),
                 fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer'
               }}>{l.toUpperCase()}</button>
             ))}
@@ -408,9 +410,9 @@ export const CitizenPortal: React.FC = () => {
               <button
                 onClick={() => setProfileMenuOpen(o => !o)}
                 style={{
-                  background: profileMenuOpen ? '#2563eb' : 'rgba(37, 99, 235, 0.15)',
-                  color: profileMenuOpen ? '#fff' : '#60a5fa',
-                  border: '1px solid rgba(59, 130, 246, 0.4)',
+                  background: profileMenuOpen ? '#2563eb' : (theme === 'dark' ? 'rgba(37, 99, 235, 0.15)' : 'rgba(37, 99, 235, 0.10)'),
+                  color: profileMenuOpen ? '#fff' : (theme === 'dark' ? '#60a5fa' : '#1d4ed8'),
+                  border: theme === 'dark' ? '1px solid rgba(59, 130, 246, 0.4)' : '1px solid rgba(37, 99, 235, 0.35)',
                   borderRadius: '8px',
                   padding: '6px 12px',
                   fontSize: '0.82rem',
@@ -432,12 +434,12 @@ export const CitizenPortal: React.FC = () => {
                     position: 'absolute',
                     right: 0,
                     top: '110%',
-                    background: '#0f172a',
-                    border: '1px solid #334155',
+                    background: card,
+                    border: `1px solid ${brd}`,
                     borderRadius: '10px',
                     padding: '6px',
                     width: '170px',
-                    boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+                    boxShadow: theme === 'dark' ? '0 8px 24px rgba(0,0,0,0.5)' : '0 8px 24px rgba(0,0,0,0.12)',
                     zIndex: 100,
                     display: 'flex',
                     flexDirection: 'column',
@@ -449,7 +451,7 @@ export const CitizenPortal: React.FC = () => {
                     style={{
                       background: 'transparent',
                       border: 'none',
-                      color: '#f8fafc',
+                      color: fg,
                       padding: '8px 12px',
                       borderRadius: '6px',
                       textAlign: 'left',
@@ -469,7 +471,7 @@ export const CitizenPortal: React.FC = () => {
                     style={{
                       background: 'transparent',
                       border: 'none',
-                      color: '#94a3b8',
+                      color: theme === 'dark' ? '#94a3b8' : '#475569',
                       padding: '8px 12px',
                       borderRadius: '6px',
                       textAlign: 'left',
@@ -484,7 +486,7 @@ export const CitizenPortal: React.FC = () => {
                     <span>🛡️</span> Privacy &amp; Data
                   </button>
 
-                  <div style={{ borderTop: '1px solid #1e293b', margin: '4px 0' }} />
+                  <div style={{ borderTop: `1px solid ${brd}`, margin: '4px 0' }} />
 
                   <button
                     onClick={async () => {
@@ -495,7 +497,7 @@ export const CitizenPortal: React.FC = () => {
                     style={{
                       background: 'transparent',
                       border: 'none',
-                      color: '#f87171',
+                      color: theme === 'dark' ? '#f87171' : '#dc2626',
                       padding: '8px 12px',
                       borderRadius: '6px',
                       textAlign: 'left',
@@ -516,9 +518,9 @@ export const CitizenPortal: React.FC = () => {
             <button
               onClick={() => navigate('/login')}
               style={{
-                background: 'rgba(37, 99, 235, 0.15)',
-                color: '#60a5fa',
-                border: '1px solid rgba(59, 130, 246, 0.4)',
+                background: theme === 'dark' ? 'rgba(37, 99, 235, 0.15)' : 'rgba(37, 99, 235, 0.10)',
+                color: theme === 'dark' ? '#60a5fa' : '#1d4ed8',
+                border: theme === 'dark' ? '1px solid rgba(59, 130, 246, 0.4)' : '1px solid rgba(37, 99, 235, 0.35)',
                 borderRadius: '8px',
                 padding: '6px 12px',
                 fontSize: '0.82rem',
@@ -548,15 +550,16 @@ export const CitizenPortal: React.FC = () => {
         <div style={{ marginBottom: '20px', textAlign: 'center' }}>
           <div style={{
             display: 'inline-flex', alignItems: 'center', gap: '6px',
-            background: 'rgba(34,197,94,0.15)', border: '1px solid #22c55e',
-            color: '#4ade80', padding: '4px 12px', borderRadius: '20px',
+            background: theme === 'dark' ? 'rgba(34,197,94,0.15)' : 'rgba(22, 163, 74, 0.12)',
+            border: theme === 'dark' ? '1px solid #22c55e' : '1px solid #16a34a',
+            color: theme === 'dark' ? '#4ade80' : '#15803d', padding: '4px 12px', borderRadius: '20px',
             fontSize: '0.75rem', fontWeight: 700, marginBottom: '10px'
           }}>
-            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#22c55e', display: 'inline-block' }} />
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: theme === 'dark' ? '#22c55e' : '#16a34a', display: 'inline-block' }} />
             {t.liveBadge}
           </div>
-          <h1 style={{ fontSize: '1.8rem', fontWeight: 800, margin: '0 0 6px 0', letterSpacing: '-0.03em' }}>{t.title}</h1>
-          <p style={{ color: muted, fontSize: '0.92rem', margin: 0 }}>{t.subtitle}</p>
+          <h1 style={{ fontSize: '1.8rem', fontWeight: 800, margin: '0 0 6px 0', letterSpacing: '-0.03em', color: fg }}>{t.title}</h1>
+          <p style={{ color: theme === 'dark' ? '#94a3b8' : '#475569', fontSize: '0.92rem', margin: 0 }}>{t.subtitle}</p>
         </div>
 
         {/* ── Complete Citizen Offline Rescue Mode (6 Interactive Workflows & Beacon) ── */}
@@ -564,6 +567,7 @@ export const CitizenPortal: React.FC = () => {
           defaultLat={userLocation?.lat || selectedZone.lat}
           defaultLng={userLocation?.lon || selectedZone.lon}
           onNavigateTab={(tab) => setActiveTab(tab as any)}
+          theme={theme}
         />
 
         {/* Navigation Tabs (5 Features) */}
@@ -580,8 +584,8 @@ export const CitizenPortal: React.FC = () => {
               style={{
                 padding: '10px 16px', border: 'none', cursor: 'pointer',
                 background: 'transparent', fontWeight: 700, fontSize: '0.86rem',
-                color: activeTab === tab.id ? '#3b82f6' : muted,
-                borderBottom: activeTab === tab.id ? '2px solid #3b82f6' : '2px solid transparent',
+                color: activeTab === tab.id ? '#2563eb' : (theme === 'dark' ? '#94a3b8' : '#64748b'),
+                borderBottom: activeTab === tab.id ? '2px solid #2563eb' : '2px solid transparent',
                 whiteSpace: 'nowrap', transition: 'all 0.15s'
               }}
             >
@@ -600,8 +604,8 @@ export const CitizenPortal: React.FC = () => {
               display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '12px'
             }}>
               <div>
-                <label style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: muted, fontWeight: 700, display: 'block', marginBottom: '6px' }}>
-                  📍 {t.location} {userLocation && <span style={{ color: '#22c55e', marginLeft: '6px' }}>● GPS Auto-Detected</span>}
+                <label style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: theme === 'dark' ? '#94a3b8' : '#475569', fontWeight: 700, display: 'block', marginBottom: '6px' }}>
+                  📍 {t.location} {userLocation && <span style={{ color: theme === 'dark' ? '#22c55e' : '#15803d', marginLeft: '6px' }}>● GPS Auto-Detected</span>}
                 </label>
                 <select value={selectedZone.name}
                   onChange={e => { const z = ZONES.find(x => x.name === e.target.value); if (z) setSelectedZone(z); }}
@@ -628,29 +632,38 @@ export const CitizenPortal: React.FC = () => {
 
             {/* AI Risk Banner */}
             <div style={{
-              background: isRed ? 'linear-gradient(135deg,rgba(239,68,68,0.25),rgba(185,28,28,0.15))' :
-                          isAmber ? 'linear-gradient(135deg,rgba(245,158,11,0.25),rgba(217,119,6,0.15))' :
-                          'linear-gradient(135deg,rgba(34,197,94,0.25),rgba(21,128,61,0.15))',
+              background: isRed ? (theme === 'dark' ? 'linear-gradient(135deg,rgba(239,68,68,0.25),rgba(185,28,28,0.15))' : 'linear-gradient(135deg,#fee2e2,#fecaca)') :
+                          isAmber ? (theme === 'dark' ? 'linear-gradient(135deg,rgba(245,158,11,0.25),rgba(217,119,6,0.15))' : 'linear-gradient(135deg,#fef3c7,#fde68a)') :
+                          (theme === 'dark' ? 'linear-gradient(135deg,rgba(34,197,94,0.25),rgba(21,128,61,0.15))' : 'linear-gradient(135deg,#dcfce7,#bbf7d0)'),
               border: `2px solid ${isRed ? '#ef4444' : isAmber ? '#f59e0b' : '#22c55e'}`,
               borderRadius: '16px', padding: '24px', marginBottom: '24px'
             }}>
               <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
                 <div>
-                  <div style={{ fontSize: '0.8rem', fontWeight: 700, color: muted, textTransform: 'uppercase' }}>{t.aiScore}</div>
-                  <div style={{ fontSize: '2rem', fontWeight: 900, color: isRed ? '#ef4444' : isAmber ? '#f59e0b' : '#22c55e', marginTop: '4px' }}>
+                  <div style={{ fontSize: '0.8rem', fontWeight: 700, color: theme === 'dark' ? '#94a3b8' : '#334155', textTransform: 'uppercase' }}>{t.aiScore}</div>
+                  <div style={{ fontSize: '2rem', fontWeight: 900, color: isRed ? (theme === 'dark' ? '#ef4444' : '#b91c1c') : isAmber ? (theme === 'dark' ? '#f59e0b' : '#b45309') : (theme === 'dark' ? '#22c55e' : '#15803d'), marginTop: '4px' }}>
                     {loading ? 'Analyzing…' : `${data?.assessment?.level || 'MODERATE'} RISK (${(data?.assessment?.score ?? 0.42).toFixed(2)})`}
                   </div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: '0.72rem', color: muted }}>Notification Status</div>
-                  <div style={{ fontSize: '0.85rem', fontWeight: 700, color: notification === 'granted' ? '#4ade80' : '#f59e0b' }}>
+                  <div style={{ fontSize: '0.72rem', color: theme === 'dark' ? '#94a3b8' : '#475569' }}>Notification Status</div>
+                  <div style={{ fontSize: '0.85rem', fontWeight: 700, color: notification === 'granted' ? (theme === 'dark' ? '#4ade80' : '#15803d') : (theme === 'dark' ? '#f59e0b' : '#b45309') }}>
                     {notification === 'granted' ? '🔔 Alerts Enabled' : '🔕 Notifications Off'}
                   </div>
                 </div>
               </div>
-              <div style={{ marginTop: '16px', padding: '12px 16px', background: 'rgba(0,0,0,0.2)', borderRadius: '8px' }}>
-                <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#f8fafc' }}>{t.action}:</div>
-                <div style={{ fontSize: '1.05rem', fontWeight: 800, color: isRed ? '#fca5a5' : isAmber ? '#fcd34d' : '#86efac', marginTop: '4px' }}>
+              <div style={{
+                marginTop: '16px', padding: '12px 16px',
+                background: theme === 'dark' ? 'rgba(0,0,0,0.25)' : 'rgba(255,255,255,0.85)',
+                border: theme === 'dark' ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)',
+                borderRadius: '8px'
+              }}>
+                <div style={{ fontSize: '0.82rem', fontWeight: 700, color: fg }}>{t.action}:</div>
+                <div style={{
+                  fontSize: '1.05rem', fontWeight: 800,
+                  color: isRed ? (theme === 'dark' ? '#fca5a5' : '#991b1b') : isAmber ? (theme === 'dark' ? '#fcd34d' : '#92400e') : (theme === 'dark' ? '#86efac' : '#166534'),
+                  marginTop: '4px'
+                }}>
                   {data?.assessment?.action_protocol || 'Normal Monitoring Active'}
                 </div>
               </div>
@@ -659,32 +672,32 @@ export const CitizenPortal: React.FC = () => {
             {/* Telemetry Grid */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px', marginBottom: '24px' }}>
               {[
-                { icon: '🌧️', label: t.rain24, value: `${data?.weather?.rain_24h_mm ?? 142.0} mm`, sub: 'Open-Meteo & OpenWeather', color: (data?.weather?.rain_24h_mm ?? 0) > 100 ? '#ef4444' : '#38bdf8' },
-                { icon: '📊', label: t.rain72, value: `${data?.weather?.rain_72h_mm ?? 285.0} mm`, sub: '3-Day Antecedent Rain', color: '#f8fafc' },
-                { icon: '🌱', label: t.soil, value: `${data?.weather?.soil_moisture ?? 0.52} m³/m³`, sub: 'Topsoil 0-1cm Layer', color: '#f8fafc' },
-                { icon: '🛰️', label: t.elevation, value: '876.5 m', sub: 'NASA SRTM 30m DEM', color: '#38bdf8' },
+                { icon: '🌧️', label: t.rain24, value: `${data?.weather?.rain_24h_mm ?? 142.0} mm`, sub: 'Open-Meteo & OpenWeather', color: (data?.weather?.rain_24h_mm ?? 0) > 100 ? (theme === 'dark' ? '#ef4444' : '#dc2626') : (theme === 'dark' ? '#38bdf8' : '#0284c7') },
+                { icon: '📊', label: t.rain72, value: `${data?.weather?.rain_72h_mm ?? 285.0} mm`, sub: '3-Day Antecedent Rain', color: theme === 'dark' ? '#f8fafc' : '#0f172a' },
+                { icon: '🌱', label: t.soil, value: `${data?.weather?.soil_moisture ?? 0.52} m³/m³`, sub: 'Topsoil 0-1cm Layer', color: theme === 'dark' ? '#f8fafc' : '#0f172a' },
+                { icon: '🛰️', label: t.elevation, value: '876.5 m', sub: 'NASA SRTM 30m DEM', color: theme === 'dark' ? '#38bdf8' : '#0284c7' },
               ].map(({ icon, label, value, sub, color }) => (
                 <div key={label} style={{ background: card, border: `1px solid ${brd}`, borderRadius: '12px', padding: '16px' }}>
-                  <div style={{ fontSize: '0.75rem', color: muted, fontWeight: 600 }}>{icon} {label}</div>
+                  <div style={{ fontSize: '0.75rem', color: theme === 'dark' ? '#94a3b8' : '#475569', fontWeight: 600 }}>{icon} {label}</div>
                   <div style={{ fontSize: '1.5rem', fontWeight: 800, color, marginTop: '4px' }}>{value}</div>
-                  <div style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '4px' }}>{sub}</div>
+                  <div style={{ fontSize: '0.7rem', color: theme === 'dark' ? '#64748b' : '#475569', marginTop: '4px' }}>{sub}</div>
                 </div>
               ))}
             </div>
 
             {/* Road Status */}
             <div style={{ background: card, border: `1px solid ${brd}`, borderRadius: '16px', padding: '24px', marginBottom: '24px' }}>
-              <h3 style={{ margin: '0 0 16px 0', fontSize: '1.1rem', fontWeight: 800, color: '#4ade80' }}>
+              <h3 style={{ margin: '0 0 16px 0', fontSize: '1.1rem', fontWeight: 800, color: theme === 'dark' ? '#4ade80' : '#15803d' }}>
                 🚗 {t.roadStatus} &amp; Safe Detour Routing
               </h3>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '14px' }}>
                 {[
-                  { label: t.roadStatus, value: data?.evacuation_plan?.primary_corridor || 'NH-766 Blocked', color: '#f87171', prefix: '⛔' },
-                  { label: t.safeRoute, value: data?.evacuation_plan?.safe_evacuation_route || 'Active via SH-59 Bypass', color: '#4ade80', prefix: '✅' },
-                  { label: t.estTime, value: `${data?.evacuation_plan?.estimated_evacuation_time_min ?? 42} Minutes`, color: '#f8fafc', prefix: '⏱️' },
+                  { label: t.roadStatus, value: data?.evacuation_plan?.primary_corridor || 'NH-766 Blocked', color: theme === 'dark' ? '#f87171' : '#b91c1c', prefix: '⛔' },
+                  { label: t.safeRoute, value: data?.evacuation_plan?.safe_evacuation_route || 'Active via SH-59 Bypass', color: theme === 'dark' ? '#4ade80' : '#15803d', prefix: '✅' },
+                  { label: t.estTime, value: `${data?.evacuation_plan?.estimated_evacuation_time_min ?? 42} Minutes`, color: theme === 'dark' ? '#f8fafc' : '#0f172a', prefix: '⏱️' },
                 ].map(({ label, value, color, prefix }) => (
-                  <div key={label} style={{ background: theme === 'dark' ? '#1e293b' : '#f8fafc', padding: '14px', borderRadius: '10px' }}>
-                    <div style={{ fontSize: '0.75rem', color: muted }}>{label}:</div>
+                  <div key={label} style={{ background: theme === 'dark' ? '#1e293b' : '#f8fafc', border: `1px solid ${brd}`, padding: '14px', borderRadius: '10px' }}>
+                    <div style={{ fontSize: '0.75rem', color: theme === 'dark' ? '#94a3b8' : '#475569' }}>{label}:</div>
                     <div style={{ fontSize: '0.95rem', fontWeight: 800, color, marginTop: '4px' }}>{prefix} {value}</div>
                   </div>
                 ))}
@@ -693,8 +706,8 @@ export const CitizenPortal: React.FC = () => {
 
             {/* Survival Guide */}
             <div style={{ background: card, border: `1px solid ${brd}`, borderRadius: '16px', padding: '24px' }}>
-              <h3 style={{ margin: '0 0 12px 0', fontSize: '1.1rem', fontWeight: 800 }}>🛡️ {t.survivalGuide}</h3>
-              <ul style={{ paddingLeft: '20px', lineHeight: '1.9', color: theme === 'dark' ? '#cbd5e1' : '#334155', fontSize: '0.9rem', margin: 0 }}>
+              <h3 style={{ margin: '0 0 12px 0', fontSize: '1.1rem', fontWeight: 800, color: fg }}>🛡️ {t.survivalGuide}</h3>
+              <ul style={{ paddingLeft: '20px', lineHeight: '1.9', color: theme === 'dark' ? '#cbd5e1' : '#1e293b', fontSize: '0.9rem', margin: 0 }}>
                 <li><strong>Muddy water or sudden stream surge</strong> indicates uphill slope failure — move immediately.</li>
                 <li><strong>Do not use NH-766</strong> when blocked. Follow designated SH-59 green bypass on the GIS map.</li>
                 <li><strong>Rumbling sounds or cracking trees</strong> — move perpendicular to slope, not downhill.</li>
@@ -719,6 +732,7 @@ export const CitizenPortal: React.FC = () => {
             selectedZoneName={selectedZone.name}
             userLat={userLocation?.lat || selectedZone.lat}
             userLon={userLocation?.lon || selectedZone.lon}
+            theme={theme}
           />
         )}
 
@@ -727,6 +741,7 @@ export const CitizenPortal: React.FC = () => {
           <OfflineSosMesh
             userLat={userLocation?.lat || selectedZone.lat}
             userLon={userLocation?.lon || selectedZone.lon}
+            theme={theme}
           />
         )}
       </main>

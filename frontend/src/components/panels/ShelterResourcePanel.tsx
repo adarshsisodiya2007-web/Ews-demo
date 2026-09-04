@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { calculateHaversineDistanceKm, calculateCompassBearing } from '../../utils/geoUtils';
 
 export interface Shelter {
@@ -89,12 +89,14 @@ interface Props {
   selectedZoneName?: string;
   userLat?: number;
   userLon?: number;
+  theme?: 'light' | 'dark';
 }
 
 export const ShelterResourcePanel: React.FC<Props> = ({
   selectedZoneName,
   userLat,
   userLon,
+  theme = 'dark',
 }) => {
   const [shelters, setShelters] = useState<Shelter[]>(MOCK_SHELTERS);
   const [cachedTime, setCachedTime] = useState<number | null>(null);
@@ -139,14 +141,23 @@ export const ShelterResourcePanel: React.FC<Props> = ({
     ? sortedShelters
     : (filteredShelters.length > 0 ? filteredShelters : computedShelters);
 
+  const isLight = theme === 'light';
+  const cardBg = isLight ? '#ffffff' : '#0f172a';
+  const itemBg = isLight ? '#f8fafc' : '#1e293b';
+  const innerBg = isLight ? '#ffffff' : '#0f172a';
+  const brd = isLight ? '#e2e8f0' : '#1e293b';
+  const itemBrd = isLight ? '#e2e8f0' : '#334155';
+  const fg = isLight ? '#0f172a' : '#f8fafc';
+  const muted = isLight ? '#475569' : '#94a3b8';
+
   return (
-    <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '24px', marginBottom: '24px' }}>
+    <div style={{ background: cardBg, border: `1px solid ${brd}`, borderRadius: '16px', padding: '24px', marginBottom: '24px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', flexWrap: 'wrap', gap: '8px' }}>
         <div>
-          <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800, color: fg, display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span>🏥</span> Safe Relief Camps &amp; Resource Allocation
           </h3>
-          <p style={{ margin: '4px 0 0 0', fontSize: '0.8rem', color: '#94a3b8' }}>
+          <p style={{ margin: '4px 0 0 0', fontSize: '0.8rem', color: muted }}>
             Designated emergency shelter capacities, food rations &amp; medical response units.
           </p>
         </div>
@@ -155,9 +166,9 @@ export const ShelterResourcePanel: React.FC<Props> = ({
           <button
             onClick={() => setHighlightNearest(prev => !prev)}
             style={{
-              background: highlightNearest ? '#16a34a' : '#1e293b',
-              color: '#ffffff',
-              border: `1px solid ${highlightNearest ? '#22c55e' : '#3b82f6'}`,
+              background: highlightNearest ? '#16a34a' : (isLight ? '#f1f5f9' : '#1e293b'),
+              color: highlightNearest ? '#ffffff' : (isLight ? '#0f172a' : '#ffffff'),
+              border: `1px solid ${highlightNearest ? '#15803d' : (isLight ? '#cbd5e1' : '#3b82f6')}`,
               borderRadius: '20px',
               padding: '6px 14px',
               fontSize: '0.78rem',
@@ -171,9 +182,9 @@ export const ShelterResourcePanel: React.FC<Props> = ({
             🧭 {highlightNearest ? 'Showing Nearest First' : 'Find Nearest Rescue Point'}
           </button>
           <span style={{
-            background: isOnline ? 'rgba(34, 197, 94, 0.15)' : 'rgba(245, 158, 11, 0.15)',
-            border: `1px solid ${isOnline ? '#22c55e' : '#f59e0b'}`,
-            color: isOnline ? '#4ade80' : '#fcd34d',
+            background: isOnline ? (isLight ? 'rgba(22, 163, 74, 0.12)' : 'rgba(34, 197, 94, 0.15)') : (isLight ? 'rgba(217, 119, 6, 0.12)' : 'rgba(245, 158, 11, 0.15)'),
+            border: `1px solid ${isOnline ? (isLight ? '#16a34a' : '#22c55e') : (isLight ? '#d97706' : '#f59e0b')}`,
+            color: isOnline ? (isLight ? '#15803d' : '#4ade80') : (isLight ? '#b45309' : '#fcd34d'),
             padding: '4px 12px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 700
           }}>
             {isOnline ? '● LIVE RESOURCE SYNC' : cachedTime ? `📴 OFFLINE CACHED DIRECTORY (${new Date(cachedTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})` : '📴 OFFLINE CACHED DIRECTORY'}
@@ -185,8 +196,8 @@ export const ShelterResourcePanel: React.FC<Props> = ({
       {nearestShelter && (
         <div
           style={{
-            background: 'linear-gradient(135deg, rgba(22, 163, 74, 0.15), rgba(15, 23, 42, 0.8))',
-            border: '1px solid #22c55e',
+            background: isLight ? 'linear-gradient(135deg, #dcfce7, #f0fdf4)' : 'linear-gradient(135deg, rgba(22, 163, 74, 0.15), rgba(15, 23, 42, 0.8))',
+            border: `1px solid ${isLight ? '#86efac' : '#22c55e'}`,
             borderRadius: '12px',
             padding: '16px',
             marginBottom: '20px',
@@ -198,15 +209,15 @@ export const ShelterResourcePanel: React.FC<Props> = ({
           }}
         >
           <div>
-            <div style={{ fontSize: '0.72rem', fontWeight: 800, color: '#4ade80', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            <div style={{ fontSize: '0.72rem', fontWeight: 800, color: isLight ? '#15803d' : '#4ade80', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
               ⭐ CLOSEST CONFIRMED RESCUE POINT TO YOUR LOCATION
             </div>
-            <div style={{ fontSize: '1.1rem', fontWeight: 900, color: '#ffffff', marginTop: '2px' }}>
+            <div style={{ fontSize: '1.1rem', fontWeight: 900, color: fg, marginTop: '2px' }}>
               {nearestShelter.name}
             </div>
-            <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '4px' }}>
-              Calculated Distance: <strong style={{ color: '#38bdf8' }}>{nearestShelter.distanceKm} km</strong> ({nearestShelter.bearing} bearing) ·
-              Beds Available: <strong style={{ color: '#4ade80' }}>{nearestShelter.totalBeds - nearestShelter.occupiedBeds}</strong>
+            <div style={{ fontSize: '0.8rem', color: muted, marginTop: '4px' }}>
+              Calculated Distance: <strong style={{ color: isLight ? '#0284c7' : '#38bdf8' }}>{nearestShelter.distanceKm} km</strong> ({nearestShelter.bearing} bearing) ·
+              Beds Available: <strong style={{ color: isLight ? '#15803d' : '#4ade80' }}>{nearestShelter.totalBeds - nearestShelter.occupiedBeds}</strong>
             </div>
           </div>
           <span style={{
@@ -232,21 +243,21 @@ export const ShelterResourcePanel: React.FC<Props> = ({
             <div
               key={shelter.id}
               style={{
-                background: '#1e293b', border: '1px solid #334155', borderRadius: '12px',
+                background: itemBg, border: `1px solid ${itemBrd}`, borderRadius: '12px',
                 padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px'
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
-                  <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 800, color: '#f8fafc' }}>
+                  <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 800, color: fg }}>
                     {shelter.name}
                   </h4>
-                  <div style={{ fontSize: '0.75rem', color: '#38bdf8', marginTop: '2px' }}>
+                  <div style={{ fontSize: '0.75rem', color: isLight ? '#0284c7' : '#38bdf8', marginTop: '2px' }}>
                     📍 {shelter.distanceKm} km away ({shelter.bearing || 'Verified'}) · Safe corridor
                   </div>
                 </div>
                 <span style={{
-                  background: isAlmostFull ? '#ef4444' : '#22c55e', color: '#fff',
+                  background: isAlmostFull ? '#dc2626' : '#16a34a', color: '#fff',
                   padding: '3px 8px', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 800
                 }}>
                   {isAlmostFull ? 'ALMOST FULL' : 'AVAILABLE'}
@@ -255,32 +266,32 @@ export const ShelterResourcePanel: React.FC<Props> = ({
 
               {/* Occupancy bar */}
               <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: '#cbd5e1', marginBottom: '4px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: muted, marginBottom: '4px' }}>
                   <span>Bed Occupancy:</span>
-                  <strong>{shelter.occupiedBeds} / {shelter.totalBeds} ({occPct}%)</strong>
+                  <strong style={{ color: fg }}>{shelter.occupiedBeds} / {shelter.totalBeds} ({occPct}%)</strong>
                 </div>
-                <div style={{ width: '100%', height: '8px', background: '#0f172a', borderRadius: '4px', overflow: 'hidden' }}>
+                <div style={{ width: '100%', height: '8px', background: isLight ? '#e2e8f0' : '#0f172a', borderRadius: '4px', overflow: 'hidden' }}>
                   <div style={{
                     width: `${occPct}%`, height: '100%',
-                    background: isAlmostFull ? '#ef4444' : occPct > 60 ? '#f59e0b' : '#22c55e',
+                    background: isAlmostFull ? '#dc2626' : occPct > 60 ? '#f59e0b' : '#16a34a',
                     borderRadius: '4px', transition: 'width 0.5s ease'
                   }} />
                 </div>
               </div>
 
               {/* Resource Metrics Grid */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '0.75rem', background: '#0f172a', padding: '10px', borderRadius: '8px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '0.75rem', background: innerBg, border: `1px solid ${itemBrd}`, padding: '10px', borderRadius: '8px' }}>
                 <div>
-                  <span style={{ color: '#94a3b8' }}>🍞 Food Stocks:</span><br/>
-                  <strong style={{ color: '#f8fafc' }}>{shelter.foodStockDays} Days Reserve</strong>
+                  <span style={{ color: muted }}>🍞 Food Stocks:</span><br/>
+                  <strong style={{ color: fg }}>{shelter.foodStockDays} Days Reserve</strong>
                 </div>
                 <div>
-                  <span style={{ color: '#94a3b8' }}>💧 Potable Water:</span><br/>
-                  <strong style={{ color: '#f8fafc' }}>{shelter.waterSupplyLitres.toLocaleString()} L</strong>
+                  <span style={{ color: muted }}>💧 Potable Water:</span><br/>
+                  <strong style={{ color: fg }}>{shelter.waterSupplyLitres.toLocaleString()} L</strong>
                 </div>
-                <div style={{ gridColumn: 'span 2', marginTop: '4px', borderTop: '1px solid #1e293b', paddingTop: '6px' }}>
-                  <span style={{ color: '#94a3b8' }}>🩺 Medical Station:</span><br/>
-                  <strong style={{ color: '#4ade80' }}>{shelter.medicalTeam}</strong>
+                <div style={{ gridColumn: 'span 2', marginTop: '4px', borderTop: `1px solid ${brd}`, paddingTop: '6px' }}>
+                  <span style={{ color: muted }}>🩺 Medical Station:</span><br/>
+                  <strong style={{ color: isLight ? '#15803d' : '#4ade80' }}>{shelter.medicalTeam}</strong>
                 </div>
               </div>
             </div>

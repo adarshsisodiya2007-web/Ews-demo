@@ -175,7 +175,7 @@ export const fetchRecentReports = async (): Promise<CitizenReport[]> => {
 export const submitReport = async (payload: CreateReportPayload): Promise<CitizenReport> => {
   // Map extended emergency categories to backend enum 'OTHER' with high-priority markers
   const isEmergencyCategory = payload.category === 'INJURED_PEOPLE' || payload.category === 'TRAPPED_CITIZENS';
-  const backendCategory = isEmergencyCategory ? 'OTHER' : payload.category;
+  const backendCategory = isEmergencyCategory ? 'OTHER' : (payload.category || 'OTHER');
 
   const emergencyHeader = payload.category === 'INJURED_PEOPLE'
     ? `[EMERGENCY SOS: INJURED CITIZEN${payload.medicalUrgent ? ' - URGENT MEDICAL REQUIRED' : ''}] `
@@ -183,10 +183,24 @@ export const submitReport = async (payload: CreateReportPayload): Promise<Citize
     ? '[EMERGENCY SOS: CITIZEN TRAPPED - IMMEDIATE EXTRACTION REQUIRED] '
     : '';
 
+  // Avoid duplicate prefixes if already present in description
+  const desc = payload.description || '';
+  const finalDesc = (emergencyHeader && !desc.includes(emergencyHeader.trim()))
+    ? emergencyHeader + desc
+    : desc;
+
+  // Ensure valid numerical lat & lng, supporting legacy field names
+  const rawLat = (payload as any).geoLat ?? (payload as any).latitude ?? (payload as any).lat ?? 26.1445;
+  const rawLng = (payload as any).geoLng ?? (payload as any).longitude ?? (payload as any).lng ?? 91.7362;
+  const geoLat = typeof rawLat === 'number' ? rawLat : parseFloat(rawLat) || 26.1445;
+  const geoLng = typeof rawLng === 'number' ? rawLng : parseFloat(rawLng) || 91.7362;
+
   const backendPayload = {
     ...payload,
+    geoLat,
+    geoLng,
     category: backendCategory,
-    description: emergencyHeader + (payload.description || '')
+    description: finalDesc,
   };
 
   const res = await api.post<CitizenReport>('/api/reports', backendPayload);
