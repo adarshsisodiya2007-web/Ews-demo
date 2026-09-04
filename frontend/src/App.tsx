@@ -14,9 +14,23 @@ import { OfflineRescuePage } from './pages/OfflineRescuePage';
 import { ProfilePage } from './pages/ProfilePage';
 import { PrivacyDataPage } from './pages/PrivacyDataPage';
 import { useCapacitorNative } from './hooks/useCapacitorNative';
+import { isCapacitorAndroid } from './utils/platform';
+import { SatarkMobileApp } from './components/mobile/SatarkMobileApp';
 
 function AppContent({ permsDone, onPermComplete }: { permsDone: boolean; onPermComplete: () => void }) {
   useCapacitorNative();
+  const isAndroidApp = isCapacitorAndroid();
+
+  // If running inside native Android Capacitor app, render the dedicated mobile-app UI
+  if (isAndroidApp) {
+    return (
+      <>
+        {!permsDone && <PermissionGate onComplete={onPermComplete} />}
+        <DemoBanner />
+        <SatarkMobileApp />
+      </>
+    );
+  }
 
   return (
     <>
