@@ -112,7 +112,16 @@ export const ResponderPortal: React.FC = () => {
     setOfficerRole(role);
     setOfficerUser(user);
 
+    const handleSyncComplete = () => {
+      loadData();
+    };
+    window.addEventListener('ews-sync-completed', handleSyncComplete);
+
     loadData();
+
+    return () => {
+      window.removeEventListener('ews-sync-completed', handleSyncComplete);
+    };
   }, []);
 
   const loadData = async () => {
@@ -310,7 +319,12 @@ export const ResponderPortal: React.FC = () => {
           ].map(tab => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
+              onClick={() => {
+                setActiveTab(tab.id as any);
+                if (tab.id === 'incidents' || tab.id === 'ai_priority') {
+                  loadData();
+                }
+              }}
               style={{
                 padding: '10px 16px', border: 'none', cursor: 'pointer',
                 background: activeTab === tab.id ? 'rgba(234, 88, 12, 0.15)' : 'transparent',

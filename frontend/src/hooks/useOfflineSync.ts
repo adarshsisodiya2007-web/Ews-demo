@@ -116,6 +116,7 @@ export function useOfflineSync() {
       if (hadErrors) {
         setSyncError('Some queued actions could not be synchronized. They remain saved for retry.');
       }
+      window.dispatchEvent(new CustomEvent('ews-sync-completed', { detail: { hadErrors, timestamp: Date.now() } }));
     } finally {
       setIsSyncing(false);
       await refreshPending();
