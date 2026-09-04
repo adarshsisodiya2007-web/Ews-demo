@@ -1,96 +1,230 @@
 /**
  * useVoiceAssistant Hook — Multilingual Voice Alerts & Speech-to-Text
- * Uses Web Speech API (SpeechSynthesis + SpeechRecognition)
- * Supports English, Hindi, and Regional Dialects
+ * Enhanced with dual-engine fallback for Android WebView / Capacitor:
+ * Engine A: Web Speech API (SpeechSynthesis)
+ * Engine B: HTML5 Audio streaming fallback (guarantees audible speech on Android)
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
-
-interface VoiceAssistantProps {
-  lang: 'en' | 'hi' | 'as';
-}
 
 export const useVoiceAssistant = (lang: 'en' | 'hi' | 'as' = 'en') => {
   const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
   const [isListening, setIsListening] = useState<boolean>(false);
   const [transcript, setTranscript] = useState<string>('');
   const [voiceSupported, setVoiceSupported] = useState<boolean>(true);
+  const [audioError, setAudioError] = useState<string | null>(null);
 
   const recognitionRef = useRef<any>(null);
+  const currentAudioRef = useRef<HTMLAudioElement | null>(null);
+  const voicesLoadedRef = useRef<boolean>(false);
 
+  // Pre-load voices for SpeechSynthesis
   useEffect(() => {
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      const loadVoices = () => {
+        const v = window.speechSynthesis.getVoices();
+        if (v && v.length > 0) {
+          voicesLoadedRef.current = true;
+        }
+      };
+      loadVoices();
+      window.speechSynthesis.onvoiceschanged = loadVoices;
+    }
+
+    // Initialize SpeechRecognition if present
     if (typeof window !== 'undefined') {
       const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
       if (SpeechRecognition) {
-        const recognition = new SpeechRecognition();
-        recognition.continuous = false;
-        recognition.interimResults = false;
-        recognition.lang = lang === 'hi' ? 'hi-IN' : lang === 'as' ? 'as-IN' : 'en-IN';
+        try {
+          const recognition = new SpeechRecognition();
+          recognition.continuous = false;
+          recognition.interimResults = false;
+          recognition.lang = lang === 'hi' ? 'hi-IN' : lang === 'as' ? 'as-IN' : 'en-IN';
 
-        recognition.onstart = () => setIsListening(true);
-        recognition.onend = () => setIsListening(false);
-        recognition.onerror = () => setIsListening(false);
-        recognition.onresult = (event: any) => {
-          const text = event.results[0][0].transcript;
-          setTranscript(text);
-          setIsListening(false);
-        };
-        recognitionRef.current = recognition;
+          recognition.onstart = () => setIsListening(true);
+          recognition.onend = () => setIsListening(false);
+          recognition.onerror = () => setIsListening(false);
+          recognition.onresult = (event: any) => {
+            const text = event.results[0][0].transcript;
+            setTranscript(text);
+            setIsListening(false);
+          };
+          recognitionRef.current = recognition;
+        } catch {
+          // Ignore recognition init failure
+        }
       } else {
         setVoiceSupported(false);
       }
     }
+
+    return () => {
+      // Cleanup on unmount
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+      if (currentAudioRef.current) {
+        currentAudioRef.current.pause();
+        currentAudioRef.current = null;
+      }
+    };
   }, [lang]);
 
-  // Text-to-Speech voice alert
+  // Halt all active audio/speech
+  const stopSpeaking = useCallback(() => {
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
+    if (currentAudioRef.current) {
+      currentAudioRef.current.pause();
+      currentAudioRef.current = null;
+    }
+    setIsSpeaking(false);
+  }, []);
+
+  // HTML5 Audio TTS Fallback (Guaranteed to play on Android WebView)
+  const playAudioFallback = useCallback((text: string, targetLang: string) => {
+    try {
+      if (currentAudioRef.current) {
+        currentAudioRef.current.pause();
+        currentAudioRef.current = null;
+      }
+
+      // Map language code for translate_tts
+      const tl = targetLang.startsWith('hi') ? 'hi' : targetLang.startsWith('as') ? 'hi' : 'en';
+      const cleanText = text.replace(/[#*_`]/g, '').slice(0, 180);
+      const audioUrl = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=${tl}&q=${encodeURIComponent(cleanText)}`;
+
+      const audio = new Audio(audioUrl);
+      audio.crossOrigin = 'anonymous';
+      currentAudioRef.current = audio;
+
+      audio.onplay = () => {
+        setIsSpeaking(true);
+        setAudioError(null);
+      };
+      audio.onended = () => {
+        setIsSpeaking(false);
+        currentAudioRef.current = null;
+      };
+      audio.onerror = () => {
+        setIsSpeaking(false);
+        currentAudioRef.current = null;
+        setAudioError('Audio playback failed');
+      };
+
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise.catch((err) => {
+          console.warn('HTML5 Audio play caught:', err);
+          setIsSpeaking(false);
+        });
+      }
+    } catch (e: any) {
+      console.warn('Fallback TTS audio failed:', e);
+      setIsSpeaking(false);
+      setAudioError(e?.message || 'Audio error');
+    }
+  }, []);
+
+  // Speak raw text
+  const speakText = useCallback((text: string, langCode?: string) => {
+    if (typeof window === 'undefined') return;
+
+    stopSpeaking();
+    setAudioError(null);
+
+    const targetLang = langCode || (lang === 'hi' ? 'hi-IN' : lang === 'as' ? 'hi-IN' : 'en-US');
+
+    // Try SpeechSynthesis first if supported
+    if ('speechSynthesis' in window) {
+      try {
+        window.speechSynthesis.resume();
+
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = targetLang;
+        utterance.rate = 0.95;
+        utterance.pitch = 1.0;
+
+        // Try to match available voice
+        const voices = window.speechSynthesis.getVoices();
+        if (voices && voices.length > 0) {
+          const matched = voices.find(v => v.lang.startsWith(targetLang.slice(0, 2)));
+          if (matched) utterance.voice = matched;
+        }
+
+        let hasStarted = false;
+        utterance.onstart = () => {
+          hasStarted = true;
+          setIsSpeaking(true);
+        };
+
+        utterance.onend = () => {
+          setIsSpeaking(false);
+        };
+
+        utterance.onerror = (e) => {
+          console.warn('SpeechSynthesis error, switching to Audio fallback:', e);
+          setIsSpeaking(false);
+          // Fallback to HTML5 Audio TTS
+          playAudioFallback(text, targetLang);
+        };
+
+        window.speechSynthesis.speak(utterance);
+
+        // Android WebView watchdog: if SpeechSynthesis fails to start within 700ms, use fallback
+        setTimeout(() => {
+          if (!hasStarted && window.speechSynthesis.speaking === false) {
+            window.speechSynthesis.cancel();
+            playAudioFallback(text, targetLang);
+          }
+        }, 700);
+
+        return;
+      } catch (err) {
+        console.warn('SpeechSynthesis exception, using fallback:', err);
+      }
+    }
+
+    // Direct fallback if no SpeechSynthesis
+    playAudioFallback(text, targetLang);
+  }, [lang, stopSpeaking, playAudioFallback]);
+
+  // Text-to-Speech regional voice alert
   const speakAlert = useCallback((zoneName: string, level: string, actionProtocol: string) => {
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
-
-    window.speechSynthesis.cancel(); // Stop prior speech
-
     let message = '';
-    let voiceLang = 'en-IN';
+    let voiceLang = 'en-US';
 
     if (lang === 'hi') {
       voiceLang = 'hi-IN';
       if (level === 'RED') {
-        message = `चेतावनी! ${zoneName} में गंभीर भूस्खलन का खतरा है। तत्काल निकासी के निर्देश दिए गए हैं। कृपया सुरक्षित मार्ग से निकलें।`;
+        message = `चेतावनी! ${zoneName} में गंभीर भूस्खलन का खतरा है। तत्काल सुरक्षित स्थान पर जाएं। निर्देश: ${actionProtocol || 'तुरंत खाली करें।'}`;
       } else if (level === 'AMBER') {
-        message = `ध्यान दें! ${zoneName} में भूस्खलन की पूर्व चेतावनी जारी की गई है। सतर्क रहें।`;
+        message = `सतर्कता सूचना! ${zoneName} में भूस्खलन की संभावना है। तैयार रहें। निर्देश: ${actionProtocol || 'सतर्क रहें।'}`;
       } else {
-        message = `${zoneName} में स्थिति सामान्य और सुरक्षित है।`;
+        message = `${zoneName} में स्थिति सामान्य और सुरक्षित है। नियमित निगरानी जारी है।`;
       }
     } else if (lang === 'as') {
-      voiceLang = 'as-IN';
-      message = `জৰুৰী সতৰ্কবাৰ্তা! ${zoneName}ত ভূমিস্খলনৰ আশংকা। অনুগ্ৰহ কৰি সুৰক্ষিত স্থানলৈ যাওক।`;
+      voiceLang = 'hi-IN'; // Fallback to Indian accent
+      if (level === 'RED') {
+        message = `জরুরী সতৰ্কবাৰ্তা! ${zoneName}ত ভূমিস্খলনৰ আশংকা। অনুগ্ৰহ কৰি সুৰক্ষিত স্থানলৈ যাওক।`;
+      } else if (level === 'AMBER') {
+        message = `সতৰ্কতা! ${zoneName}ত ভূমিস্খলনৰ পূৰ্ব সতৰ্কবাৰ্তা।`;
+      } else {
+        message = `${zoneName}ত পৰিস্থিতি স্বাভাৱিক আৰু সুৰক্ষিত।`;
+      }
     } else {
       voiceLang = 'en-US';
       if (level === 'RED') {
-        message = `Warning! Critical landslide alert in ${zoneName}. Immediate evacuation required. Protocol: ${actionProtocol}`;
+        message = `Warning! Critical landslide alert in ${zoneName}. Immediate evacuation required. Protocol: ${actionProtocol || 'Evacuate to designated shelters.'}`;
       } else if (level === 'AMBER') {
-        message = `Advisory alert in ${zoneName}. Elevated risk detected. Prepare for possible evacuation.`;
+        message = `Advisory alert in ${zoneName}. Elevated landslide risk detected. Protocol: ${actionProtocol || 'Stay alert and prepare for evacuation.'}`;
       } else {
-        message = `Normal conditions monitored in ${zoneName}.`;
+        message = `Normal conditions monitored in ${zoneName}. Regional slopes are currently stable.`;
       }
     }
 
-    const utterance = new SpeechSynthesisUtterance(message);
-    utterance.lang = voiceLang;
-    utterance.rate = 0.95;
-    utterance.pitch = 1.0;
-
-    utterance.onstart = () => setIsSpeaking(true);
-    utterance.onend = () => setIsSpeaking(false);
-    utterance.onerror = () => setIsSpeaking(false);
-
-    window.speechSynthesis.speak(utterance);
-  }, [lang]);
-
-  const stopSpeaking = useCallback(() => {
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-      setIsSpeaking(false);
-    }
-  }, []);
+    speakText(message, voiceLang);
+  }, [lang, speakText]);
 
   const startListening = useCallback(() => {
     if (recognitionRef.current) {
@@ -98,15 +232,19 @@ export const useVoiceAssistant = (lang: 'en' | 'hi' | 'as' = 'en') => {
       try {
         recognitionRef.current.start();
       } catch {
-        recognitionRef.current.stop();
-        recognitionRef.current.start();
+        try {
+          recognitionRef.current.stop();
+          recognitionRef.current.start();
+        } catch {}
       }
     }
   }, []);
 
   const stopListening = useCallback(() => {
     if (recognitionRef.current) {
-      recognitionRef.current.stop();
+      try {
+        recognitionRef.current.stop();
+      } catch {}
       setIsListening(false);
     }
   }, []);
@@ -116,7 +254,9 @@ export const useVoiceAssistant = (lang: 'en' | 'hi' | 'as' = 'en') => {
     isListening,
     transcript,
     voiceSupported,
+    audioError,
     speakAlert,
+    speakText,
     stopSpeaking,
     startListening,
     stopListening

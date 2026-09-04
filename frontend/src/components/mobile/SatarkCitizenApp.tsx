@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useGeolocation } from '../../hooks/useGeolocation';
 import { useAlertSound } from '../../hooks/useAlertSound';
+import { useVoiceAssistant } from '../../hooks/useVoiceAssistant';
+import { analyzeImageCanvas, CompleteImageAnalysis } from '../../services/imageAnalysisService';
 import {
   fetchRecentAlerts,
   submitReport,
@@ -72,6 +74,7 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
   const [lang, setLang] = useState<'en' | 'hi' | 'as'>(() => {
     return (localStorage.getItem('ews_lang') as 'en' | 'hi' | 'as') || 'en';
   });
+  const { speakAlert, isSpeaking: isVoiceSpeaking, stopSpeaking: stopVoiceSpeaking } = useVoiceAssistant(lang);
   const [showLangSheet, setShowLangSheet] = useState<boolean>(false);
 
   // Connectivity
@@ -221,9 +224,56 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
   const [reportDesc, setReportDesc] = useState<string>('');
   const [reportPhoto, setReportPhoto] = useState<File | Blob | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [imageAnalysis, setImageAnalysis] = useState<CompleteImageAnalysis | null>(null);
+  const [isAnalyzingPhoto, setIsAnalyzingPhoto] = useState<boolean>(false);
   const [reportMedicalUrgent] = useState<boolean>(false);
   const [submittingReport, setSubmittingReport] = useState<boolean>(false);
   const [reportSuccessNotice, setReportSuccessNotice] = useState<string | null>(null);
+
+  const handlePhotoSelected = (file: File) => {
+    setReportPhoto(file);
+    const url = URL.createObjectURL(file);
+    setPhotoPreview(url);
+    setIsAnalyzingPhoto(true);
+    setImageAnalysis(null);
+
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.src = url;
+    img.onload = () => {
+      try {
+        const offscreen = document.createElement('canvas');
+        offscreen.width = img.width;
+        offscreen.height = img.height;
+        const ctx = offscreen.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0);
+          const res = analyzeImageCanvas(offscreen, file);
+          setImageAnalysis(res);
+          setIsAnalyzingPhoto(false);
+          if (res.hazard.hazardType === 'TENSION_CRACK') {
+            setReportCategory('CRACK');
+          } else if (res.hazard.hazardType === 'ROAD_FRACTURE') {
+            setReportCategory('BLOCKED_ROAD');
+          } else if (res.hazard.hazardType === 'MUDFLOW') {
+            setReportCategory('SLOPE_MOVEMENT');
+          }
+        } else {
+          setIsAnalyzingPhoto(false);
+        }
+      } catch {
+        setIsAnalyzingPhoto(false);
+      }
+    };
+    img.onerror = () => setIsAnalyzingPhoto(false);
+  };
+
+  const handleRemovePhoto = () => {
+    setReportPhoto(null);
+    setPhotoPreview(null);
+    setImageAnalysis(null);
+    setIsAnalyzingPhoto(false);
+  };
 
   // Citizen Profile state
   const [citizenProfile, setCitizenProfile] = useState<ICitizenProfile | null>(null);
@@ -421,11 +471,16 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
       } catch {}
     }
 
+    let finalDesc = reportDesc.trim();
+    if (imageAnalysis) {
+      finalDesc = `[AI Hazard: ${imageAnalysis.hazard.label} (${imageAnalysis.hazard.confidence}%)] [Authenticity: ${imageAnalysis.authenticity.status} (${imageAnalysis.authenticity.confidence}%)] ${finalDesc}`;
+    }
+
     const payload: CreateReportPayload = {
       geoLat: lat,
       geoLng: lng,
       category: reportCategory,
-      description: reportDesc.trim(),
+      description: finalDesc,
       reporterType: 'CITIZEN',
       photoUrl: uploadedUrl,
       medicalUrgent: reportMedicalUrgent,
@@ -441,7 +496,7 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
         setReportSuccessNotice('📴 OFFLINE: Report preserved in local IndexedDB queue. Automatic cloud sync active.');
       }
       setReportDesc('');
-      setReportPhoto(null);
+      handleRemovePhoto();
     } catch {
       await queueReport(payload);
       setReportSuccessNotice('📴 Saved locally to offline queue.');
@@ -809,8 +864,40 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
               </div>
             )}
 
-            <div style={{ textAlign: 'right', marginTop: '6px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '10px', paddingTop: '8px', borderTop: `1px solid ${borderCol}` }}>
               <button
+                type="button"
+                onClick={() => {
+                  if (isVoiceSpeaking) {
+                    stopVoiceSpeaking();
+                  } else {
+                    speakAlert(
+                      selectedZone.name,
+                      riskData?.assessment?.level || 'GREEN',
+                      riskData?.assessment?.action_protocol || 'Maintain standard vigilance.'
+                    );
+                  }
+                }}
+                style={{
+                  background: isVoiceSpeaking ? '#2563eb' : (isLight ? '#eff6ff' : 'rgba(37, 99, 235, 0.15)'),
+                  border: `1px solid ${isVoiceSpeaking ? '#1d4ed8' : (isLight ? '#bfdbfe' : 'rgba(59, 130, 246, 0.4)')}`,
+                  color: isVoiceSpeaking ? '#ffffff' : (isLight ? '#1d4ed8' : '#60a5fa'),
+                  borderRadius: '8px',
+                  padding: '5px 11px',
+                  fontSize: '0.74rem',
+                  fontWeight: 800,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  cursor: 'pointer'
+                }}
+              >
+                <span>{isVoiceSpeaking ? '⏹️' : '🗣️'}</span>
+                <span>{isVoiceSpeaking ? 'Stop Spoken Advisory' : 'Listen Spoken Advisory'}</span>
+              </button>
+
+              <button
+                type="button"
                 onClick={() => setExpandedDetails(!expandedDetails)}
                 style={{
                   background: 'transparent',
@@ -1225,16 +1312,113 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
                 EVIDENCE PHOTO (OPTIONAL)
               </label>
               <PhotoCapture
-                onPhotoSelected={(file: File) => {
-                  setReportPhoto(file);
-                  setPhotoPreview(URL.createObjectURL(file));
-                }}
+                onPhotoSelected={handlePhotoSelected}
                 preview={photoPreview}
-                onRemovePhoto={() => {
-                  setReportPhoto(null);
-                  setPhotoPreview(null);
-                }}
+                onRemovePhoto={handleRemovePhoto}
               />
+
+              {isAnalyzingPhoto && (
+                <div style={{
+                  marginTop: '8px',
+                  padding: '10px',
+                  background: isLight ? '#f1f5f9' : '#1e293b',
+                  borderRadius: '8px',
+                  border: `1px solid ${borderCol}`,
+                  fontSize: '0.74rem',
+                  color: '#38bdf8',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  <span>⚙️</span>
+                  <span>Running AI Hazard &amp; Forensic Authenticity verification…</span>
+                </div>
+              )}
+
+              {imageAnalysis && (
+                <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {/* Hazard Detection */}
+                  <div style={{
+                    padding: '10px',
+                    background: isLight ? '#fef2f2' : 'rgba(239, 68, 68, 0.12)',
+                    border: `1px solid ${isLight ? '#fca5a5' : '#ef4444'}`,
+                    borderRadius: '8px',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
+                  }}>
+                    <div>
+                      <div style={{ fontSize: '0.68rem', fontWeight: 800, color: '#ef4444', textTransform: 'uppercase' }}>
+                        AI Hazard Feature
+                      </div>
+                      <div style={{ fontSize: '0.86rem', fontWeight: 800, color: textPrimary, marginTop: '2px' }}>
+                        {imageAnalysis.hazard.label}
+                      </div>
+                    </div>
+                    <span style={{
+                      background: '#ef4444',
+                      color: '#ffffff',
+                      padding: '2px 8px',
+                      borderRadius: '6px',
+                      fontSize: '0.72rem',
+                      fontWeight: 900
+                    }}>
+                      {imageAnalysis.hazard.confidence}%
+                    </span>
+                  </div>
+
+                  {/* Forensic Authenticity */}
+                  <div style={{
+                    padding: '10px',
+                    background: imageAnalysis.authenticity.badgeBg,
+                    border: `1px solid ${imageAnalysis.authenticity.badgeColor}80`,
+                    borderRadius: '8px',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
+                  }}>
+                    <div>
+                      <div style={{
+                        fontSize: '0.68rem',
+                        fontWeight: 800,
+                        color: imageAnalysis.authenticity.badgeColor,
+                        textTransform: 'uppercase',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}>
+                        <span>Image Authenticity</span>
+                        <span style={{
+                          background: imageAnalysis.authenticity.badgeColor,
+                          color: '#fff',
+                          padding: '1px 5px',
+                          borderRadius: '6px',
+                          fontSize: '0.62rem'
+                        }}>
+                          {imageAnalysis.authenticity.status}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '0.82rem', fontWeight: 800, color: textPrimary, marginTop: '2px' }}>
+                        {imageAnalysis.authenticity.label}
+                      </div>
+                      <div style={{ fontSize: '0.7rem', color: textMuted, marginTop: '2px' }}>
+                        {imageAnalysis.authenticity.details}
+                      </div>
+                    </div>
+                    <span style={{
+                      background: imageAnalysis.authenticity.badgeColor,
+                      color: '#ffffff',
+                      padding: '3px 8px',
+                      borderRadius: '6px',
+                      fontSize: '0.74rem',
+                      fontWeight: 900,
+                      whiteSpace: 'nowrap'
+                    }}>
+                      {imageAnalysis.authenticity.confidence}%
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Description */}
