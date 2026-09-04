@@ -71,6 +71,15 @@ export const useVoiceAssistant = (lang: 'en' | 'hi' | 'as' = 'en') => {
 
   // Halt all active audio/speech
   const stopSpeaking = useCallback(() => {
+    // 1. Check Native Android TTS Bridge
+    if (typeof window !== 'undefined' && (window as any).AndroidTTS) {
+      try {
+        (window as any).AndroidTTS.stop();
+      } catch (e) {
+        console.warn('Native AndroidTTS stop error:', e);
+      }
+    }
+
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       window.speechSynthesis.cancel();
     }
@@ -81,7 +90,7 @@ export const useVoiceAssistant = (lang: 'en' | 'hi' | 'as' = 'en') => {
     setIsSpeaking(false);
   }, []);
 
-  // HTML5 Audio TTS Fallback (Guaranteed to play on Android WebView)
+  // HTML5 Audio TTS Fallback
   const playAudioFallback = useCallback((text: string, targetLang: string) => {
     try {
       if (currentAudioRef.current) {
@@ -95,7 +104,6 @@ export const useVoiceAssistant = (lang: 'en' | 'hi' | 'as' = 'en') => {
       const audioUrl = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=${tl}&q=${encodeURIComponent(cleanText)}`;
 
       const audio = new Audio(audioUrl);
-      audio.crossOrigin = 'anonymous';
       currentAudioRef.current = audio;
 
       audio.onplay = () => {
@@ -135,7 +143,26 @@ export const useVoiceAssistant = (lang: 'en' | 'hi' | 'as' = 'en') => {
 
     const targetLang = langCode || (lang === 'hi' ? 'hi-IN' : lang === 'as' ? 'hi-IN' : 'en-US');
 
-    // Try SpeechSynthesis first if supported
+    // 1. Check Native Android TTS Bridge (Direct Android hardware speech)
+    if ((window as any).AndroidTTS && typeof (window as any).AndroidTTS.speak === 'function') {
+      try {
+        (window as any).AndroidTTS.speak(text, targetLang);
+        setIsSpeaking(true);
+        // Watch for speaking completion on Android bridge
+        const checkInterval = setInterval(() => {
+          if ((window as any).AndroidTTS && !(window as any).AndroidTTS.isSpeaking()) {
+            clearInterval(checkInterval);
+            setIsSpeaking(false);
+          }
+        }, 500);
+        setTimeout(() => clearInterval(checkInterval), 15000); // 15s max safety
+        return;
+      } catch (nativeErr) {
+        console.warn('Native AndroidTTS call failed, falling back to Web Speech:', nativeErr);
+      }
+    }
+
+    // 2. Try SpeechSynthesis (Web Speech API)
     if ('speechSynthesis' in window) {
       try {
         window.speechSynthesis.resume();
@@ -171,7 +198,7 @@ export const useVoiceAssistant = (lang: 'en' | 'hi' | 'as' = 'en') => {
 
         window.speechSynthesis.speak(utterance);
 
-        // Android WebView watchdog: if SpeechSynthesis fails to start within 700ms, use fallback
+        // Watchdog: if SpeechSynthesis fails to start within 700ms, use fallback
         setTimeout(() => {
           if (!hasStarted && window.speechSynthesis.speaking === false) {
             window.speechSynthesis.cancel();
@@ -185,7 +212,7 @@ export const useVoiceAssistant = (lang: 'en' | 'hi' | 'as' = 'en') => {
       }
     }
 
-    // Direct fallback if no SpeechSynthesis
+    // 3. Direct fallback if no SpeechSynthesis
     playAudioFallback(text, targetLang);
   }, [lang, stopSpeaking, playAudioFallback]);
 

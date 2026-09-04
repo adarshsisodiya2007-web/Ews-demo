@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useGeolocation } from '../../hooks/useGeolocation';
 import { useAlertSound } from '../../hooks/useAlertSound';
 import { useVoiceAssistant } from '../../hooks/useVoiceAssistant';
@@ -7,7 +7,8 @@ import {
   fetchRecentAlerts,
   submitReport,
   uploadPhoto,
-  fetchRiskAssessment
+  fetchRiskAssessment,
+  fetchHeatmap
 } from '../../services/api';
 import {
   queueReport,
@@ -34,12 +35,13 @@ import {
   Severity,
   CitizenProfile as ICitizenProfile,
   CitizenProfileInput,
-  RiskAssessmentResponse
+  RiskAssessmentResponse,
+  RegionRisk
 } from '../../types';
 import { PhotoCapture } from '../report/PhotoCapture';
 import { OfflineRescueMode } from '../emergency/OfflineRescueMode';
 import { OfflineHowItWorksIllustration } from '../emergency/OfflineHowItWorksIllustration';
-import { MapContainer, TileLayer, Circle, Marker, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, Circle, Marker, Popup, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
@@ -51,6 +53,71 @@ const defaultIcon = L.icon({
   iconSize: [25, 41],
   iconAnchor: [12, 41]
 });
+
+// Complete Assam & NER District centroids with optimal zoom levels
+const DISTRICT_COORDINATES: Record<string, { lat: number; lng: number; zoom: number }> = {
+  'ALL': { lat: 26.2006, lng: 92.9376, zoom: 8 },
+  'Kamrup': { lat: 26.1445, lng: 91.7362, zoom: 11 },
+  'Kamrup Metropolitan': { lat: 26.1445, lng: 91.7362, zoom: 11 },
+  'Nagaon': { lat: 26.3452, lng: 92.6840, zoom: 10 },
+  'Sonitpur': { lat: 26.6528, lng: 92.7926, zoom: 10 },
+  'Lakhimpur': { lat: 27.2368, lng: 94.1037, zoom: 10 },
+  'Dhemaji': { lat: 27.4812, lng: 94.5779, zoom: 10 },
+  'Tinsukia': { lat: 27.4922, lng: 95.3468, zoom: 10 },
+  'Dibrugarh': { lat: 27.4728, lng: 94.9120, zoom: 10 },
+  'Sivasagar': { lat: 26.9826, lng: 94.6322, zoom: 10 },
+  'Jorhat': { lat: 26.7509, lng: 94.2037, zoom: 10 },
+  'Golaghat': { lat: 26.5168, lng: 93.9666, zoom: 10 },
+  'Karbi Anglong': { lat: 25.8450, lng: 93.4379, zoom: 10 },
+  'Dima Hasao': { lat: 25.1764, lng: 93.0245, zoom: 10 },
+  'Cachar': { lat: 24.8333, lng: 92.7789, zoom: 10 },
+  'Hailakandi': { lat: 24.6833, lng: 92.5667, zoom: 10 },
+  'Karimganj': { lat: 24.8667, lng: 92.3500, zoom: 10 },
+  'Kokrajhar': { lat: 26.4014, lng: 90.2714, zoom: 10 },
+  'Chirang': { lat: 26.5414, lng: 90.4950, zoom: 10 },
+  'Baksa': { lat: 26.6855, lng: 91.5984, zoom: 10 },
+  'Udalguri': { lat: 26.7453, lng: 92.0962, zoom: 10 },
+  'Barpeta': { lat: 26.3211, lng: 91.0065, zoom: 10 },
+  'Bongaigaon': { lat: 26.4789, lng: 90.5583, zoom: 10 },
+  'Goalpara': { lat: 26.1738, lng: 90.6222, zoom: 10 },
+  'Dhubri': { lat: 26.0208, lng: 89.9740, zoom: 10 },
+  'Nalbari': { lat: 26.4439, lng: 91.4402, zoom: 10 },
+  'Bajali': { lat: 26.4891, lng: 91.2291, zoom: 10 },
+  'Biswanath': { lat: 26.7329, lng: 93.1492, zoom: 10 },
+  'Charaideo': { lat: 26.9388, lng: 94.9142, zoom: 10 },
+  'Majuli': { lat: 26.9536, lng: 94.2185, zoom: 11 },
+  'South Salmara-Mankachar': { lat: 25.6800, lng: 89.8600, zoom: 10 },
+  'Hojai': { lat: 26.0022, lng: 92.8622, zoom: 10 },
+  'East Khasi Hills': { lat: 25.5788, lng: 91.8933, zoom: 10 },
+  'Aizawl': { lat: 23.7271, lng: 92.7176, zoom: 10 },
+  'Kohima': { lat: 25.6751, lng: 94.1086, zoom: 10 },
+  'East Sikkim': { lat: 27.3389, lng: 88.6065, zoom: 10 },
+  'Papum Pare': { lat: 27.0900, lng: 93.6200, zoom: 10 }
+};
+
+// Leaflet Map Controller: handles invalidateSize on Android and smooth flyTo navigation
+const CitizenMapController: React.FC<{
+  center: [number, number];
+  zoom: number;
+  invalidateKey: number;
+}> = ({ center, zoom, invalidateKey }) => {
+  const map = useMap();
+  useEffect(() => {
+    map.invalidateSize();
+    const t1 = setTimeout(() => map.invalidateSize(), 100);
+    const t2 = setTimeout(() => map.invalidateSize(), 400);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+  }, [map, invalidateKey]);
+
+  useEffect(() => {
+    map.flyTo(center, zoom, { duration: 1.0 });
+  }, [center, zoom, map]);
+
+  return null;
+};
 
 interface Props {
   onSwitchToOfficer?: () => void;
@@ -111,9 +178,61 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
   const [selectedZone, setSelectedZone] = useState(ZONES[0]);
   const [showZoneSheet, setShowZoneSheet] = useState(false);
 
+  // Controlled Demo / Simulation Mode (Strictly deterministic, NO Math.random)
+  const DEMO_SCENARIOS = [
+    {
+      id: 'cherra_critical',
+      name: 'Cherrapunjee Slopes (East Khasi Hills)',
+      district: 'East Khasi Hills',
+      lat: 25.2986,
+      lon: 91.7317,
+      slope: 42.0,
+      severity: 'CRITICAL' as const,
+      score: 0.94,
+      rain24h: 312,
+      soilMoist: 92,
+      protocol: 'Immediate Evacuation Required. Move to East Khasi Safe Relief Center.',
+      state: 'Meghalaya'
+    },
+    {
+      id: 'guwahati_high',
+      name: 'Kamakhya Ridge (Kamrup Metropolitan)',
+      district: 'Kamrup Metropolitan',
+      lat: 26.1664,
+      lon: 91.7058,
+      slope: 33.5,
+      severity: 'HIGH' as const,
+      score: 0.76,
+      rain24h: 145,
+      soilMoist: 78,
+      protocol: 'Advisory Alert. Avoid hillside cut-slopes and monitor drainage channels.',
+      state: 'Assam'
+    },
+    {
+      id: 'dispur_low',
+      name: 'Dispur Capital Corridor (Kamrup)',
+      district: 'Kamrup',
+      lat: 26.1445,
+      lon: 91.7362,
+      slope: 12.0,
+      severity: 'LOW' as const,
+      score: 0.22,
+      rain24h: 18,
+      soilMoist: 35,
+      protocol: 'Normal Conditions. Slopes stable and monitored via telemetry sensors.',
+      state: 'Assam'
+    }
+  ];
+
+  const [isDemoMode, setIsDemoMode] = useState<boolean>(false);
+  const [demoScenarioIdx, setDemoScenarioIdx] = useState<number>(0);
+
+  // Deduplication ref to prevent repeated sirens/voice loops on re-renders
+  const lastCriticalAnnouncedAreaRef = useRef<string | null>(null);
+
   // Nearest zone auto-detect
   useEffect(() => {
-    if (userLocation) {
+    if (userLocation && !isDemoMode) {
       const nearest = ZONES.reduce((prev, curr) => {
         const dPrev = Math.hypot(prev.lat - userLocation.lat, prev.lon - userLocation.lng);
         const dCurr = Math.hypot(curr.lat - userLocation.lat, curr.lon - userLocation.lng);
@@ -121,7 +240,7 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
       });
       setSelectedZone(nearest);
     }
-  }, [userLocation]);
+  }, [userLocation, isDemoMode]);
 
   // Risk & Telemetry Data
   const [riskData, setRiskData] = useState<RiskAssessmentResponse | null>(null);
@@ -130,6 +249,7 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
 
   useEffect(() => {
     let isMounted = true;
+    if (isDemoMode) return;
     setLoadingRisk(true);
     fetchRiskAssessment(selectedZone.lat, selectedZone.lon, selectedZone.slope, selectedZone.name)
       .then(res => { if (isMounted) setRiskData(res); })
@@ -182,7 +302,37 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
       .finally(() => { if (isMounted) setLoadingRisk(false); });
 
     return () => { isMounted = false; };
-  }, [selectedZone]);
+  }, [selectedZone, isDemoMode]);
+
+  // Area-Specific Emergency Alert & Critical Horn Logic with Deduplication
+  useEffect(() => {
+    if (!riskData) return;
+
+    const isCritical = riskData.assessment?.level === 'RED';
+    const currentAreaKey = `${selectedZone.name}_${selectedZone.lat}_${selectedZone.lon}`;
+
+    if (isCritical) {
+      // Deduplication: Only fire horn & voice when entering a NEW critical area
+      if (lastCriticalAnnouncedAreaRef.current !== currentAreaKey) {
+        lastCriticalAnnouncedAreaRef.current = currentAreaKey;
+        // Trigger critical emergency horn
+        playCriticalSiren();
+        // Play multilingual voice advisory
+        speakAlert(
+          selectedZone.name,
+          'RED',
+          riskData.assessment?.action_protocol || 'Immediate Evacuation Required. Move to safe relief shelter.'
+        );
+      }
+    } else {
+      // When leaving a critical area or when area is Low / Moderate / High
+      if (lastCriticalAnnouncedAreaRef.current !== null) {
+        lastCriticalAnnouncedAreaRef.current = null;
+        stopSiren();
+        stopVoiceSpeaking();
+      }
+    }
+  }, [riskData, selectedZone, playCriticalSiren, stopSiren, speakAlert, stopVoiceSpeaking]);
 
   // Alerts state
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
@@ -193,6 +343,29 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
       .catch(() => {});
   }, []);
 
+  // GIS Risk Heatmap Regions state for Citizen Map
+  const [gisRegions, setGisRegions] = useState<RegionRisk[]>([]);
+  const [selectedDistrict, setSelectedDistrict] = useState<string>('ALL');
+  const [severityFilter, setSeverityFilter] = useState<Severity | 'ALL'>('ALL');
+  const [mapCenter, setMapCenter] = useState<[number, number]>([selectedZone.lat, selectedZone.lon]);
+  const [mapZoom, setMapZoom] = useState<number>(10);
+  const [invalidateKey, setInvalidateKey] = useState<number>(0);
+  const [mapMode, setMapMode] = useState<'area_map' | 'live_gps'>('area_map');
+  const [selectedRegion, setSelectedRegion] = useState<RegionRisk | null>(null);
+  const [gpsStatus, setGpsStatus] = useState<'LIVE' | 'SEARCHING' | 'DENIED'>('SEARCHING');
+  const [gpsNotice, setGpsNotice] = useState<string | null>(null);
+
+  // Fetch full GIS heatmap regions for interactive map
+  useEffect(() => {
+    fetchHeatmap()
+      .then(data => {
+        if (data && data.length > 0) {
+          setGisRegions(data);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   // Shelters state for Map
   const [shelters, setShelters] = useState<any[]>([]);
   useEffect(() => {
@@ -200,6 +373,130 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
       .then(res => { if (res?.data) setShelters(res.data); })
       .catch(() => {});
   }, []);
+
+  // Handle Live GPS vs Area Map for Citizen
+  const handleTriggerLiveGps = () => {
+    setMapMode('live_gps');
+    if (userLocation) {
+      setMapCenter([userLocation.lat, userLocation.lng]);
+      setMapZoom(13);
+      setGpsStatus('LIVE');
+      setGpsNotice(`GPS acquired: ${userLocation.lat.toFixed(4)}, ${userLocation.lng.toFixed(4)}`);
+      setInvalidateKey(k => k + 1);
+    } else if (navigator.geolocation) {
+      setGpsStatus('SEARCHING');
+      setGpsNotice('Acquiring precise satellite GPS…');
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          setMapCenter([lat, lng]);
+          setMapZoom(13);
+          setGpsStatus('LIVE');
+          setGpsNotice(`GPS acquired: ${lat.toFixed(4)}, ${lng.toFixed(4)}`);
+          setInvalidateKey(k => k + 1);
+        },
+        () => {
+          setGpsStatus('DENIED');
+          setGpsNotice('GPS permission denied or unavailable.');
+        },
+        { enableHighAccuracy: true, timeout: 8000 }
+      );
+    } else {
+      setGpsStatus('DENIED');
+      setGpsNotice('Geolocation not supported on this device.');
+    }
+  };
+
+  const handleTriggerAreaMap = () => {
+    setMapMode('area_map');
+    setGpsNotice(null);
+    const target = DISTRICT_COORDINATES[selectedDistrict] || { lat: selectedZone.lat, lng: selectedZone.lon, zoom: 10 };
+    setMapCenter([target.lat, target.lng]);
+    setMapZoom(selectedDistrict === 'ALL' ? 8 : target.zoom);
+    setInvalidateKey(k => k + 1);
+  };
+
+  const handleSelectDistrict = (d: string) => {
+    setSelectedDistrict(d);
+    setMapMode('area_map');
+    const target = DISTRICT_COORDINATES[d] || { lat: selectedZone.lat, lng: selectedZone.lon, zoom: 10 };
+    setMapCenter([target.lat, target.lng]);
+    setMapZoom(d === 'ALL' ? 8 : target.zoom);
+    setInvalidateKey(k => k + 1);
+  };
+
+  const handleSelectSeverity = (sev: Severity | 'ALL') => {
+    setSeverityFilter(sev);
+    setInvalidateKey(k => k + 1);
+  };
+
+  // Available districts for Citizen
+  const availableDistricts = Array.from(new Set([
+    'ALL',
+    ...Object.keys(DISTRICT_COORDINATES),
+    ...gisRegions.map(r => r.district).filter(Boolean)
+  ]));
+
+  // Filtered regions for Citizen GIS
+  const filteredRegions = gisRegions.filter(r => {
+    const matchD = selectedDistrict === 'ALL' || r.district === selectedDistrict;
+    const matchS = severityFilter === 'ALL' || r.severity === severityFilter;
+    return matchD && matchS;
+  });
+
+  // Cycle Controlled Demo Scenarios
+  const cycleDemoScenario = () => {
+    const nextIdx = (demoScenarioIdx + 1) % DEMO_SCENARIOS.length;
+    setDemoScenarioIdx(nextIdx);
+    const scen = DEMO_SCENARIOS[nextIdx];
+    setSelectedZone({
+      name: scen.name,
+      district: scen.district,
+      lat: scen.lat,
+      lon: scen.lon,
+      slope: scen.slope,
+      state: scen.state
+    });
+    setRiskData({
+      location: {
+        lat: scen.lat,
+        lon: scen.lon,
+        slope_deg: scen.slope,
+        region_name: scen.name
+      },
+      weather: {
+        rain_24h_mm: scen.rain24h,
+        rain_72h_mm: scen.rain24h * 2,
+        soil_moisture: scen.soilMoist,
+        critical_rain_trigger: scen.severity === 'CRITICAL' || scen.severity === 'HIGH',
+        source: 'Controlled Demo Simulation Scenario'
+      },
+      assessment: {
+        score: scen.score,
+        level: scen.severity === 'CRITICAL' ? 'RED' : scen.severity === 'HIGH' ? 'AMBER' : 'GREEN',
+        action_protocol: scen.protocol,
+        feature_breakdown: {
+          norm_slope: scen.slope / 45,
+          norm_r24: scen.rain24h / 350,
+          norm_r72: (scen.rain24h * 1.8) / 600,
+          norm_moisture: scen.soilMoist / 100
+        }
+      },
+      evacuation_plan: {
+        region: scen.name,
+        risk_score: scen.score,
+        status: scen.severity === 'CRITICAL' ? 'REROUTED' : 'CLEAR',
+        primary_corridor: 'Main Mountain Pass',
+        safe_evacuation_route: 'Designated Valley Bypass Road',
+        action: scen.protocol,
+        rerouted: scen.severity === 'CRITICAL',
+        blocked_segments: [],
+        safe_route_geometry: [[scen.lat, scen.lon]],
+        estimated_evacuation_time_min: 15
+      }
+    });
+  };
 
   // Modals & Sheets
   const [showSosModal, setShowSosModal] = useState<boolean>(false);
@@ -695,8 +992,37 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
           <span>▾</span>
         </button>
 
-        {/* Right: Language + Siren + Theme */}
+        {/* Right: Simulation Pill + Language + Siren + Theme */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          {/* Controlled Demo Simulation Toggle */}
+          <button
+            type="button"
+            onClick={() => {
+              const next = !isDemoMode;
+              setIsDemoMode(next);
+              if (next) {
+                cycleDemoScenario();
+              } else {
+                setSelectedZone(ZONES[0]);
+                if (isSirenPlaying) stopSiren();
+                if (isVoiceSpeaking) stopVoiceSpeaking();
+              }
+            }}
+            style={{
+              background: isDemoMode ? '#f59e0b' : (isLight ? '#f1f5f9' : '#1e293b'),
+              border: `1px solid ${isDemoMode ? '#d97706' : borderCol}`,
+              borderRadius: '6px',
+              padding: '4px 7px',
+              fontSize: '0.68rem',
+              fontWeight: 900,
+              color: isDemoMode ? '#000000' : textMuted,
+              cursor: 'pointer'
+            }}
+            title={isDemoMode ? 'Click to rotate demo scenario' : 'Switch to demo simulation scenarios'}
+          >
+            {isDemoMode ? `DEMO ${demoScenarioIdx + 1}/3 ↻` : 'LIVE 🟢'}
+          </button>
+
           {/* Language selector */}
           <button
             onClick={() => setShowLangSheet(true)}
@@ -791,7 +1117,41 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
       {/* ── TAB 1: HOME ── */}
       {activeTab === 'home' && (
         <div style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-          {/* Critical Alert Card */}
+          {/* Demo Mode Notice Banner if Active */}
+          {isDemoMode && (
+            <div style={{
+              background: 'rgba(245, 158, 11, 0.15)',
+              border: '1px solid #f59e0b',
+              borderRadius: '10px',
+              padding: '8px 12px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              fontSize: '0.76rem',
+              fontWeight: 700,
+              color: textPrimary
+            }}>
+              <span>🧪 DEMO SCENARIO: <strong>{DEMO_SCENARIOS[demoScenarioIdx].name}</strong></span>
+              <button
+                type="button"
+                onClick={cycleDemoScenario}
+                style={{
+                  background: '#f59e0b',
+                  color: '#000',
+                  border: 'none',
+                  borderRadius: '6px',
+                  padding: '3px 8px',
+                  fontSize: '0.72rem',
+                  fontWeight: 900,
+                  cursor: 'pointer'
+                }}
+              >
+                Next Scenario ↻
+              </button>
+            </div>
+          )}
+
+          {/* Critical Alert Card with Dismiss & Audio Control */}
           {riskData?.assessment?.level === 'RED' && (
             <div style={{
               background: isLight ? '#fef2f2' : 'rgba(239, 68, 68, 0.15)',
@@ -800,17 +1160,40 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
               padding: '12px 14px',
               display: 'flex',
               alignItems: 'flex-start',
+              justifyContent: 'space-between',
               gap: '10px'
             }}>
-              <span style={{ fontSize: '1.4rem', lineHeight: 1 }}>⚠️</span>
-              <div>
-                <div style={{ fontWeight: 800, fontSize: '0.86rem', color: isLight ? '#991b1b' : '#fca5a5' }}>
-                  CRITICAL LANDSLIDE WARNING · {selectedZone.name}
-                </div>
-                <div style={{ fontSize: '0.75rem', color: isLight ? '#7f1d1d' : '#fecaca', marginTop: '2px' }}>
-                  {riskData.assessment.action_protocol}
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                <span style={{ fontSize: '1.4rem', lineHeight: 1 }}>⚠️</span>
+                <div>
+                  <div style={{ fontWeight: 800, fontSize: '0.86rem', color: isLight ? '#991b1b' : '#fca5a5' }}>
+                    CRITICAL LANDSLIDE WARNING · {selectedZone.name}
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: isLight ? '#7f1d1d' : '#fecaca', marginTop: '2px' }}>
+                    {riskData.assessment.action_protocol}
+                  </div>
                 </div>
               </div>
+
+              {isSirenPlaying && (
+                <button
+                  type="button"
+                  onClick={stopSiren}
+                  style={{
+                    background: '#ef4444',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '6px',
+                    padding: '4px 8px',
+                    fontSize: '0.7rem',
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  MUTE HORN 🔇
+                </button>
+              )}
             </div>
           )}
 
@@ -1174,55 +1557,387 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
         </div>
       )}
 
-      {/* ── TAB 3: MAP ── */}
+      {/* ── TAB 3: CITIZEN GIS & RISK MAP ── */}
       {activeTab === 'map' && (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: 'calc(100vh - 120px)' }}>
-          <div style={{ padding: '8px 14px', background: bgHeader, borderBottom: `1px solid ${borderCol}`, fontSize: '0.76rem', color: textMuted, display: 'flex', justifyContent: 'space-between' }}>
-            <span>📍 Center: {selectedZone.name}</span>
-            <span>🟢 Live GPS &amp; Shelters</span>
+        <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          {/* 1. TOP CONTROLS BAR: DISTRICT SELECTOR & ACTION BUTTONS */}
+          <div style={{
+            background: bgCard,
+            border: `1px solid ${borderCol}`,
+            borderRadius: '12px',
+            padding: '10px 12px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+              <div style={{ flex: 1 }}>
+                <label style={{ fontSize: '0.66rem', fontWeight: 800, color: textMuted, textTransform: 'uppercase', display: 'block', marginBottom: '3px' }}>
+                  SELECT REGIONAL DISTRICT ({availableDistricts.length})
+                </label>
+                <select
+                  value={selectedDistrict}
+                  onChange={(e) => handleSelectDistrict(e.target.value)}
+                  style={{
+                    width: '100%',
+                    background: isLight ? '#f8fafc' : '#070c17',
+                    color: textPrimary,
+                    border: `1px solid ${borderCol}`,
+                    borderRadius: '8px',
+                    padding: '7px 10px',
+                    fontSize: '0.82rem',
+                    fontWeight: 700,
+                    outline: 'none',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {availableDistricts.map(d => (
+                    <option key={d} value={d}>
+                      {d === 'ALL' ? '🌐 All Assam & NER Districts' : d}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Live GPS & Area Map Navigation Buttons */}
+              <div style={{ display: 'flex', gap: '6px', marginTop: '16px' }}>
+                <button
+                  type="button"
+                  onClick={handleTriggerLiveGps}
+                  style={{
+                    background: mapMode === 'live_gps' ? '#22c55e' : (isLight ? '#f1f5f9' : '#1e293b'),
+                    color: mapMode === 'live_gps' ? '#ffffff' : (isLight ? '#15803d' : '#4ade80'),
+                    border: `1px solid ${mapMode === 'live_gps' ? '#16a34a' : borderCol}`,
+                    borderRadius: '8px',
+                    padding: '7px 10px',
+                    fontSize: '0.74rem',
+                    fontWeight: 800,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  <span>📍</span>
+                  <span>MY LIVE GPS</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleTriggerAreaMap}
+                  style={{
+                    background: mapMode === 'area_map' ? '#2563eb' : (isLight ? '#f1f5f9' : '#1e293b'),
+                    color: mapMode === 'area_map' ? '#ffffff' : (isLight ? '#1d4ed8' : '#60a5fa'),
+                    border: `1px solid ${mapMode === 'area_map' ? '#1d4ed8' : borderCol}`,
+                    borderRadius: '8px',
+                    padding: '7px 10px',
+                    fontSize: '0.74rem',
+                    fontWeight: 800,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  <span>🗺️</span>
+                  <span>AREA MAP</span>
+                </button>
+              </div>
+            </div>
           </div>
-          <div style={{ flex: 1, width: '100%', position: 'relative' }}>
+
+          {/* 2. CONDITIONS FILTER BAR */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            overflowX: 'auto',
+            paddingBottom: '2px'
+          }}>
+            <span style={{ fontSize: '0.68rem', fontWeight: 800, color: textMuted, textTransform: 'uppercase', flexShrink: 0 }}>
+              CONDITIONS:
+            </span>
+            {[
+              { id: 'ALL' as const, label: 'ALL', color: '#64748b' },
+              { id: 'CRITICAL' as const, label: '🔴 CRITICAL', color: '#ef4444' },
+              { id: 'HIGH' as const, label: '🟠 HIGH', color: '#ea580c' },
+              { id: 'MODERATE' as const, label: '🟡 MODERATE', color: '#f59e0b' },
+              { id: 'LOW' as const, label: '🟢 LOW', color: '#22c55e' }
+            ].map(cond => (
+              <button
+                key={cond.id}
+                type="button"
+                onClick={() => handleSelectSeverity(cond.id)}
+                style={{
+                  background: severityFilter === cond.id ? cond.color : (isLight ? '#f1f5f9' : '#1e293b'),
+                  color: severityFilter === cond.id ? '#ffffff' : textPrimary,
+                  border: `1px solid ${severityFilter === cond.id ? cond.color : borderCol}`,
+                  borderRadius: '6px',
+                  padding: '4px 8px',
+                  fontSize: '0.68rem',
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  flexShrink: 0
+                }}
+              >
+                {cond.label}
+              </button>
+            ))}
+          </div>
+
+          {/* GPS Status Banner */}
+          {gpsNotice && (
+            <div style={{
+              background: gpsStatus === 'LIVE' ? 'rgba(34, 197, 94, 0.15)' : 'rgba(56, 189, 248, 0.15)',
+              border: `1px solid ${gpsStatus === 'LIVE' ? '#22c55e' : '#38bdf8'}`,
+              color: textPrimary,
+              borderRadius: '8px',
+              padding: '6px 10px',
+              fontSize: '0.74rem',
+              fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between'
+            }}>
+              <span>📍 {gpsNotice}</span>
+              <button
+                type="button"
+                onClick={() => setGpsNotice(null)}
+                style={{ background: 'transparent', border: 'none', color: textMuted, fontSize: '0.8rem', cursor: 'pointer' }}
+              >
+                ✕
+              </button>
+            </div>
+          )}
+
+          {/* 3. REAL INTERACTIVE LEAFLET MAP */}
+          <div style={{
+            width: '100%',
+            height: 'calc(100vh - 365px)',
+            minHeight: '380px',
+            maxHeight: '520px',
+            position: 'relative',
+            borderRadius: '14px',
+            overflow: 'hidden',
+            border: `1px solid ${borderCol}`,
+            boxShadow: isLight ? '0 4px 14px rgba(0,0,0,0.06)' : '0 6px 24px rgba(0,0,0,0.5)'
+          }}>
             <MapContainer
-              center={[selectedZone.lat, selectedZone.lon]}
-              zoom={11}
-              style={{ height: '100%', width: '100%' }}
+              center={mapCenter}
+              zoom={mapZoom}
+              style={{ width: '100%', height: '100%' }}
+              zoomControl={true}
             >
+              <CitizenMapController center={mapCenter} zoom={mapZoom} invalidateKey={invalidateKey} />
+
               <TileLayer
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                attribution="&copy; OpenStreetMap"
+                attribution="&copy; OpenStreetMap | SATARK GIS"
+                maxZoom={19}
               />
-              {/* Monitored hazard circle */}
-              <Circle
-                center={[selectedZone.lat, selectedZone.lon]}
-                radius={3500}
-                pathOptions={{ color: '#ef4444', fillColor: '#ef4444', fillOpacity: 0.25 }}
-              >
-                <Popup>
-                  <strong>{selectedZone.name}</strong><br />
-                  Slope: {selectedZone.slope}°<br />
-                  Status: Monitored Landslide Hazard Zone
-                </Popup>
-              </Circle>
 
-              {/* User location marker if GPS available */}
-              {userLocation && (
-                <Marker position={[userLocation.lat, userLocation.lng]} icon={defaultIcon}>
-                  <Popup>📍 Your Current GPS Location</Popup>
-                </Marker>
-              )}
+              {/* Hazard Risk Circles */}
+              {filteredRegions.map(r => {
+                const color = r.severity === 'CRITICAL' ? '#ef4444' : r.severity === 'HIGH' ? '#ea580c' : r.severity === 'MODERATE' ? '#f59e0b' : '#22c55e';
+                const radius = r.severity === 'CRITICAL' ? 12000 : r.severity === 'HIGH' ? 8000 : r.severity === 'MODERATE' ? 5000 : 3500;
 
-              {/* Shelters */}
+                return (
+                  <Circle
+                    key={r.regionId}
+                    center={[r.centroidLat, r.centroidLng]}
+                    radius={radius}
+                    pathOptions={{ color, fillColor: color, fillOpacity: 0.45, weight: 2 }}
+                    eventHandlers={{
+                      click: () => setSelectedRegion(r)
+                    }}
+                  >
+                    <Popup>
+                      <div style={{ minWidth: '150px' }}>
+                        <strong style={{ fontSize: '0.9rem' }}>{r.name}</strong><br />
+                        <span style={{ fontSize: '0.74rem', color: '#64748b' }}>District: {r.district}</span><br />
+                        <span style={{
+                          display: 'inline-block',
+                          marginTop: '4px',
+                          background: color,
+                          color: '#fff',
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          fontSize: '0.7rem',
+                          fontWeight: 800
+                        }}>
+                          {r.severity} ({(r.computedScore * 100).toFixed(1)}%)
+                        </span>
+                      </div>
+                    </Popup>
+                  </Circle>
+                );
+              })}
+
+              {/* Relief Shelters */}
               {shelters.map((s: any, idx: number) => (
                 <Marker key={s.id || idx} position={[s.lat, s.lng]} icon={defaultIcon}>
                   <Popup>
-                    <strong>🏕️ {s.name}</strong><br />
-                    Beds: {s.totalBeds - (s.occupiedBeds || 0)} available<br />
-                    Medical: {s.medicalTeam || 'District Team'}
+                    <div>
+                      <strong>🏕️ {s.name}</strong><br />
+                      Capacity: {s.totalBeds} beds<br />
+                      Available: {s.totalBeds - (s.occupiedBeds || 0)} beds<br />
+                      Medical: {s.medicalTeam || 'District Team'}
+                    </div>
                   </Popup>
                 </Marker>
               ))}
+
+              {/* Live Citizen Location Marker */}
+              {userLocation && (
+                <Marker position={[userLocation.lat, userLocation.lng]} icon={defaultIcon}>
+                  <Popup>
+                    <div>
+                      <strong>📍 Your Current Location</strong><br />
+                      Lat: {userLocation.lat.toFixed(5)}<br />
+                      Lng: {userLocation.lng.toFixed(5)}<br />
+                      GPS: <strong>🟢 ACQUIRED</strong>
+                    </div>
+                  </Popup>
+                </Marker>
+              )}
             </MapContainer>
+
+            {/* Floating Risk Legend */}
+            <div style={{
+              position: 'absolute',
+              bottom: '12px',
+              right: '12px',
+              zIndex: 400,
+              background: isLight ? 'rgba(255,255,255,0.92)' : 'rgba(11, 19, 41, 0.92)',
+              backdropFilter: 'blur(8px)',
+              WebkitBackdropFilter: 'blur(8px)',
+              border: `1px solid ${borderCol}`,
+              borderRadius: '8px',
+              padding: '6px 10px',
+              fontSize: '0.68rem',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
+              pointerEvents: 'auto'
+            }}>
+              <div style={{ fontWeight: 900, textTransform: 'uppercase', color: textMuted, marginBottom: '3px', fontSize: '0.62rem' }}>
+                RISK CONDITIONS
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '3px 8px', fontWeight: 700 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#ef4444' }}></span>
+                  <span>Critical</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#ea580c' }}></span>
+                  <span>High</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#f59e0b' }}></span>
+                  <span>Moderate</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#22c55e' }}></span>
+                  <span>Low</span>
+                </div>
+              </div>
+            </div>
           </div>
+
+          {/* 4. SELECTED AREA OR LIVE GPS INFO CARD */}
+          <div style={{
+            background: bgCard,
+            border: `1px solid ${borderCol}`,
+            borderRadius: '12px',
+            padding: '12px 14px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '4px'
+          }}>
+            {mapMode === 'live_gps' ? (
+              <>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.68rem', fontWeight: 900, color: textMuted, textTransform: 'uppercase' }}>
+                    📍 MY GPS LOCATION
+                  </span>
+                  <span style={{
+                    background: gpsStatus === 'LIVE' ? 'rgba(34, 197, 94, 0.2)' : 'rgba(245, 158, 11, 0.2)',
+                    color: gpsStatus === 'LIVE' ? '#22c55e' : '#f59e0b',
+                    padding: '1px 8px',
+                    borderRadius: '6px',
+                    fontSize: '0.68rem',
+                    fontWeight: 900
+                  }}>
+                    GPS: {gpsStatus === 'LIVE' ? 'LIVE' : gpsStatus === 'SEARCHING' ? 'ACQUIRING…' : 'DENIED'}
+                  </span>
+                </div>
+                <div style={{ fontSize: '0.84rem', fontWeight: 800, color: textPrimary, marginTop: '2px' }}>
+                  {userLocation ? `Latitude: ${userLocation.lat.toFixed(6)} | Longitude: ${userLocation.lng.toFixed(6)}` : 'Awaiting GPS acquisition…'}
+                </div>
+                <div style={{ fontSize: '0.72rem', color: textMuted }}>
+                  {filteredRegions.length} hazard zones monitored in scope · District: {selectedDistrict}
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.68rem', fontWeight: 900, color: textMuted, textTransform: 'uppercase' }}>
+                    🗺️ MONITORED AREA
+                  </span>
+                  <span style={{
+                    background: isLight ? '#f1f5f9' : '#1e293b',
+                    color: '#38bdf8',
+                    padding: '1px 8px',
+                    borderRadius: '6px',
+                    fontSize: '0.68rem',
+                    fontWeight: 900
+                  }}>
+                    {filteredRegions.length} Monitored Zone{filteredRegions.length === 1 ? '' : 's'}
+                  </span>
+                </div>
+                <div style={{ fontSize: '0.95rem', fontWeight: 900, color: textPrimary, marginTop: '2px' }}>
+                  {selectedDistrict === 'ALL' ? 'All Monitored NER Districts' : selectedDistrict}
+                </div>
+                <div style={{ fontSize: '0.72rem', color: textMuted }}>
+                  Conditions Filter: <strong style={{ color: severityFilter === 'CRITICAL' ? '#ef4444' : textPrimary }}>{severityFilter}</strong> · Target Centroid: {DISTRICT_COORDINATES[selectedDistrict]?.lat.toFixed(4) || '26.1445'}, {DISTRICT_COORDINATES[selectedDistrict]?.lng.toFixed(4) || '91.7362'}
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Region Details Drawer if tapped */}
+          {selectedRegion && (
+            <div style={{
+              background: bgCard,
+              border: `1px solid ${selectedRegion.severity === 'CRITICAL' ? '#ef4444' : '#38bdf8'}`,
+              borderRadius: '12px',
+              padding: '12px 14px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '6px'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ fontWeight: 900, fontSize: '0.94rem', color: textPrimary }}>
+                  {selectedRegion.name} ({selectedRegion.district})
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedRegion(null)}
+                  style={{ background: 'transparent', border: 'none', color: textMuted, fontSize: '1rem', cursor: 'pointer' }}
+                >
+                  ✕
+                </button>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px', fontSize: '0.74rem' }}>
+                <div>Severity: <strong style={{ color: selectedRegion.severity === 'CRITICAL' ? '#ef4444' : '#22c55e' }}>{selectedRegion.severity}</strong></div>
+                <div>Score: <strong>{(selectedRegion.computedScore * 100).toFixed(1)}%</strong></div>
+                <div>Road: <strong>{selectedRegion.roadStatus || 'OPEN'}</strong></div>
+              </div>
+              <div style={{ fontSize: '0.7rem', color: textMuted }}>
+                Rainfall Factor: {Math.round(selectedRegion.contributingFactors.rainfall.score * 100)}% | Soil Moisture Factor: {Math.round(selectedRegion.contributingFactors.soilMoisture.score * 100)}%
+              </div>
+            </div>
+          )}
         </div>
       )}
 
