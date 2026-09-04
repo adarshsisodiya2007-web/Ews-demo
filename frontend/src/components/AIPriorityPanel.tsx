@@ -42,6 +42,13 @@ export const AIPriorityPanel: React.FC<Props> = ({
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [actionNotice, setActionNotice] = useState<string | null>(null);
   const [photoModal, setPhotoModal] = useState<string | null>(null);
+  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 768);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Load and correlate incidents
   const loadData = useCallback(async () => {
@@ -151,7 +158,7 @@ export const AIPriorityPanel: React.FC<Props> = ({
 
       {/* ── Operational Header ── */}
       <div style={{
-        padding: '20px 24px',
+        padding: isMobile ? '12px 14px' : '20px 24px',
         background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.98))',
         borderBottom: '1px solid rgba(51, 65, 85, 0.6)',
         display: 'flex',
@@ -171,8 +178,8 @@ export const AIPriorityPanel: React.FC<Props> = ({
               🤖
             </div>
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontWeight: 900, fontSize: '1.15rem', letterSpacing: '-0.01em', color: '#f8fafc' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <span style={{ fontWeight: 900, fontSize: isMobile ? '1.0rem' : '1.15rem', letterSpacing: '-0.01em', color: '#f8fafc' }}>
                   AI Response Priority &amp; Decision Support
                 </span>
                 <span style={{
@@ -189,8 +196,8 @@ export const AIPriorityPanel: React.FC<Props> = ({
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{ fontSize: '0.72rem', color: '#64748b', textAlign: 'right' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', width: isMobile ? '100%' : 'auto', justifyContent: isMobile ? 'space-between' : 'flex-end' }}>
+          <div style={{ fontSize: '0.72rem', color: '#64748b', textAlign: isMobile ? 'left' : 'right' }}>
             Updated: {lastUpdated.toLocaleTimeString()}
           </div>
           <button
@@ -216,7 +223,7 @@ export const AIPriorityPanel: React.FC<Props> = ({
       {/* ── Operational Workflow Indicator ── */}
       <div style={{
         background: 'rgba(15, 23, 42, 0.7)',
-        padding: '8px 24px',
+        padding: isMobile ? '8px 12px' : '8px 24px',
         borderBottom: '1px solid rgba(51, 65, 85, 0.4)',
         display: 'flex',
         alignItems: 'center',
@@ -241,7 +248,7 @@ export const AIPriorityPanel: React.FC<Props> = ({
         <div style={{
           background: 'rgba(234, 88, 12, 0.15)',
           borderBottom: '1px solid rgba(234, 88, 12, 0.35)',
-          padding: '10px 24px',
+          padding: isMobile ? '8px 12px' : '10px 24px',
           display: 'flex',
           alignItems: 'center',
           gap: '10px',
@@ -257,11 +264,11 @@ export const AIPriorityPanel: React.FC<Props> = ({
 
       {/* ── Priority Filter Summary Counters ── */}
       <div style={{
-        padding: '12px 24px',
+        padding: isMobile ? '8px 12px' : '12px 24px',
         background: 'rgba(10, 16, 32, 0.85)',
         borderBottom: '1px solid rgba(51, 65, 85, 0.5)',
         display: 'flex',
-        gap: '10px',
+        gap: '8px',
         flexWrap: 'wrap',
         alignItems: 'center'
       }}>
@@ -359,11 +366,11 @@ export const AIPriorityPanel: React.FC<Props> = ({
                 <div
                   onClick={() => setExpandedId(isExpanded ? null : incident.id)}
                   style={{
-                    padding: '16px 24px',
+                    padding: isMobile ? '12px 14px' : '16px 24px',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'flex-start',
-                    gap: '14px',
+                    gap: isMobile ? '10px' : '14px',
                     flexWrap: 'wrap'
                   }}
                 >
@@ -378,7 +385,7 @@ export const AIPriorityPanel: React.FC<Props> = ({
                   </div>
 
                   {/* Incident Info */}
-                  <div style={{ flex: 1, minWidth: '240px' }}>
+                  <div style={{ flex: 1, minWidth: isMobile ? '200px' : '240px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '8px' }}>
                       <div>
                         <span style={{ fontWeight: 900, fontSize: '1.02rem', color: '#f8fafc' }}>
@@ -420,7 +427,7 @@ export const AIPriorityPanel: React.FC<Props> = ({
                     </div>
 
                     {/* Operational Metric Chips */}
-                    <div style={{ display: 'flex', gap: '12px', marginTop: '8px', flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', gap: isMobile ? '6px' : '12px', marginTop: '8px', flexWrap: 'wrap' }}>
                       <span style={{ fontSize: '0.75rem', color: '#cbd5e1', background: '#1e293b', padding: '2px 8px', borderRadius: '4px' }}>
                         🌧️ {incident.rain_24h_mm} mm/24h
                       </span>
@@ -451,7 +458,7 @@ export const AIPriorityPanel: React.FC<Props> = ({
 
                 {/* ── Expanded Operational Decision Support View ── */}
                 {isExpanded && (
-                  <div style={{ padding: '0 24px 20px 76px' }}>
+                  <div style={{ padding: isMobile ? '0 12px 16px 12px' : '0 24px 20px 76px' }}>
                     {/* Potential Cluster Notice */}
                     {incident.cluster_description && (
                       <div style={{
@@ -508,8 +515,10 @@ export const AIPriorityPanel: React.FC<Props> = ({
                         style={{
                           background: 'linear-gradient(135deg, #ef4444, #dc2626)',
                           color: '#fff', border: 'none', borderRadius: '8px',
-                          padding: '8px 16px', fontSize: '0.8rem', fontWeight: 800, cursor: 'pointer',
-                          boxShadow: '0 2px 8px rgba(239, 68, 68, 0.3)'
+                          padding: '10px 16px', fontSize: '0.8rem', fontWeight: 800, cursor: 'pointer',
+                          boxShadow: '0 2px 8px rgba(239, 68, 68, 0.3)',
+                          width: isMobile ? '100%' : 'auto',
+                          textAlign: 'center'
                         }}
                       >
                         🚨 Dispatch Field Response Team
@@ -520,7 +529,9 @@ export const AIPriorityPanel: React.FC<Props> = ({
                           onClick={() => handleToggleRoad(incident.regionId, 'BLOCKED')}
                           style={{
                             background: '#7f1d1d', color: '#fca5a5', border: '1px solid #ef4444',
-                            borderRadius: '8px', padding: '8px 14px', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer'
+                            borderRadius: '8px', padding: '10px 14px', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer',
+                            width: isMobile ? '100%' : 'auto',
+                            textAlign: 'center'
                           }}
                         >
                           🔴 Mark Corridor BLOCKED &amp; Detour
@@ -530,7 +541,9 @@ export const AIPriorityPanel: React.FC<Props> = ({
                           onClick={() => handleToggleRoad(incident.regionId, 'OPEN')}
                           style={{
                             background: '#14532d', color: '#86efac', border: '1px solid #22c55e',
-                            borderRadius: '8px', padding: '8px 14px', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer'
+                            borderRadius: '8px', padding: '10px 14px', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer',
+                            width: isMobile ? '100%' : 'auto',
+                            textAlign: 'center'
                           }}
                         >
                           🟢 Re-Open Road Corridor
@@ -542,7 +555,9 @@ export const AIPriorityPanel: React.FC<Props> = ({
                           onClick={() => onSelectRegion(incident.regionId)}
                           style={{
                             background: '#1e293b', color: '#38bdf8', border: '1px solid #334155',
-                            borderRadius: '8px', padding: '8px 14px', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer'
+                            borderRadius: '8px', padding: '10px 14px', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer',
+                            width: isMobile ? '100%' : 'auto',
+                            textAlign: 'center'
                           }}
                         >
                           🗺️ View on GIS Map

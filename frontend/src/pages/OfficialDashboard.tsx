@@ -72,7 +72,7 @@ const OfficialDashboard = () => {
       <OfflineStatusHeader />
       <div style={{
         display: 'grid',
-        gridTemplateRows: '52px 28px 1fr 44px',
+        gridTemplateRows: isMobile ? 'auto auto 1fr auto' : '52px auto 1fr 44px',
         gridTemplateColumns: gridCols,
         flex: 1,
         overflow: 'hidden',
@@ -99,79 +99,109 @@ const OfficialDashboard = () => {
         gridColumn: '1 / -1',
         background: '#1B222C',
         borderBottom: '1px solid #2A3547',
-        display: 'flex', alignItems: 'center', gap: '24px',
-        padding: '0 16px',
+        display: 'flex', alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '6px 12px',
         fontFamily: 'var(--font-mono)', fontSize: '0.68rem', color: '#4A5A70',
-        overflow: 'hidden', whiteSpace: 'nowrap',
+        minHeight: '36px',
+        boxSizing: 'border-box',
+        gap: '8px',
+        flexWrap: isMobile ? 'wrap' : 'nowrap',
       }}>
-        <span><span className="status-dot green" style={{ marginRight: 5 }} />
-          {heatmapData.length} regions monitored
-        </span>
-        <span>|</span>
-        <span><span className="status-dot amber" style={{ marginRight: 5 }} />
-          Risk engine active
-        </span>
-        <span>|</span>
-        <span><span className="status-dot blue" style={{ marginRight: 5 }} />
-          {heatmapData.filter(r => r.severity === 'CRITICAL').length} CRITICAL &nbsp;
-          {heatmapData.filter(r => r.severity === 'HIGH').length} HIGH &nbsp;
-          {heatmapData.filter(r => r.severity === 'MODERATE').length} MOD &nbsp;
-          {heatmapData.filter(r => r.severity === 'LOW').length} LOW
-        </span>
-        <span>|</span>
-        <span>🔄 {minAgo === null ? 'Loading...' : minAgo === 0 ? 'Just updated' : `Updated ${minAgo}m ago`}</span>
-        <span>|</span>
-        <span>📡 SACHET-ready CAP 1.2 feed</span>
+        {/* Monitoring metrics on left / top */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
+          overflowX: 'auto',
+          whiteSpace: 'nowrap',
+          flex: isMobile ? '1 1 100%' : '1 1 auto',
+          scrollbarWidth: 'none'
+        }}>
+          <span><span className="status-dot green" style={{ marginRight: 5 }} />
+            {heatmapData.length} monitored
+          </span>
+          <span>|</span>
+          <span><span className="status-dot amber" style={{ marginRight: 5 }} />
+            Risk engine active
+          </span>
+          <span>|</span>
+          <span><span className="status-dot blue" style={{ marginRight: 5 }} />
+            {heatmapData.filter(r => r.severity === 'CRITICAL').length} CRIT &nbsp;
+            {heatmapData.filter(r => r.severity === 'HIGH').length} HIGH
+          </span>
+          <span>|</span>
+          <span>🔄 {minAgo === null ? 'Loading...' : minAgo === 0 ? 'Just updated' : `${minAgo}m ago`}</span>
+        </div>
 
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: '6px', flexShrink: 0 }}>
+        {/* View mode & responder action controls on right */}
+        <div style={{
+          display: 'flex',
+          gap: '6px',
+          flexShrink: 0,
+          alignItems: 'center',
+          width: isMobile ? '100%' : 'auto',
+          justifyContent: isMobile ? 'space-between' : 'flex-end',
+          overflowX: 'auto',
+          paddingTop: isMobile ? '4px' : '0'
+        }}>
           <a
             href="/responder"
             style={{
-              padding: '3px 9px',
-              borderRadius: '4px',
+              padding: '4px 10px',
+              borderRadius: '6px',
               border: '1px solid #ea580c',
               background: 'rgba(234, 88, 12, 0.25)',
               color: '#fb923c',
-              fontSize: '0.72rem',
+              fontSize: '0.74rem',
               fontWeight: 700,
               textDecoration: 'none',
               display: 'inline-flex',
               alignItems: 'center',
               gap: '4px',
-              whiteSpace: 'nowrap'
+              whiteSpace: 'nowrap',
+              flexShrink: 0
             }}
           >
             🛡️ Responder Mode
           </a>
-          <button
-            onClick={() => setViewMode('map')}
-            style={{
-              padding: '3px 10px', borderRadius: '4px', border: 'none',
-              background: viewMode === 'map' ? '#2563eb' : '#2A3547',
-              color: viewMode === 'map' ? '#fff' : '#94a3b8',
-              fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer',
-              whiteSpace: 'nowrap'
-            }}
-          >
-            🗺️ GIS Risk Map
-          </button>
-          <button
-            onClick={() => setViewMode('ai_priority')}
-            style={{
-              padding: '3px 10px', borderRadius: '4px', border: 'none',
-              background: viewMode === 'ai_priority' ? '#ea580c' : '#2A3547',
-              color: viewMode === 'ai_priority' ? '#fff' : '#94a3b8',
-              fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer',
-              whiteSpace: 'nowrap'
-            }}
-          >
-            🤖 AI Priority
-          </button>
+          <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
+            <button
+              onClick={() => setViewMode('map')}
+              style={{
+                padding: '4px 10px', borderRadius: '6px', border: 'none',
+                background: viewMode === 'map' ? '#2563eb' : '#2A3547',
+                color: viewMode === 'map' ? '#fff' : '#94a3b8',
+                fontSize: '0.74rem', fontWeight: 700, cursor: 'pointer',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              🗺️ GIS Map
+            </button>
+            <button
+              onClick={() => setViewMode('ai_priority')}
+              style={{
+                padding: '4px 10px', borderRadius: '6px', border: 'none',
+                background: viewMode === 'ai_priority' ? '#ea580c' : '#2A3547',
+                color: viewMode === 'ai_priority' ? '#fff' : '#94a3b8',
+                fontSize: '0.74rem', fontWeight: 700, cursor: 'pointer',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              🤖 AI Priority
+            </button>
+          </div>
         </div>
       </div>
 
       {viewMode === 'ai_priority' ? (
-        <div style={{ gridRow: 3, gridColumn: '1 / -1', overflowY: 'auto', padding: '16px 20px', background: '#0a0f1e' }}>
+        <div style={{
+          gridRow: 3, gridColumn: '1 / -1',
+          overflowY: 'auto',
+          padding: isMobile ? '10px 8px' : '16px 20px',
+          background: '#0a0f1e',
+          WebkitOverflowScrolling: 'touch'
+        }}>
           <AIPriorityPanel
             regions={heatmapData}
             onSelectRegion={(rId) => {
