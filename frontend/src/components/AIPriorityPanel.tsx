@@ -13,7 +13,7 @@ import {
 import { RegionRisk, CitizenReport, RoadStatus } from '../types';
 import { fetchHeatmap, fetchRecentReports, updateRoadStatus } from '../services/api';
 import { getCachedHeatmapWithMeta, getCachedIncidents, queueRoadStatus } from '../services/offlineStore';
-import { subscribeToScenario } from '../services/sharedRiskState';
+import { subscribeToScenario, getSharedRegionRisks } from '../services/sharedRiskState';
 
 const PRIORITY_CONFIG = {
   CRITICAL: { color: '#fca5a5', bg: 'rgba(239, 68, 68, 0.15)', border: '#ef4444', icon: '🔴', label: 'CRITICAL' },
@@ -36,7 +36,9 @@ export const AIPriorityPanel: React.FC<Props> = ({
   onSelectRegion,
   onUpdateRoadStatus
 }) => {
-  const [incidents, setIncidents] = useState<PrioritizedIncident[]>([]);
+  const [incidents, setIncidents] = useState<PrioritizedIncident[]>(() => {
+    return buildPrioritizedIncidents((propRegions && propRegions.length > 0) ? propRegions : getSharedRegionRisks(), propReports || []);
+  });
   const [selectedFilter, setSelectedFilter] = useState<'ALL' | 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW'>('ALL');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());

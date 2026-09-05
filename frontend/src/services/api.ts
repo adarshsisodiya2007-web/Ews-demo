@@ -85,7 +85,7 @@ export const isBackendAvailableOrConfigured = (): boolean => {
 
 export const api = axios.create({
   baseURL: resolveApiBaseUrl(),
-  timeout: 15000,
+  timeout: 3500,
 });
 
 api.interceptors.request.use((config) => {
