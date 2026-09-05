@@ -52,10 +52,18 @@ public class RiskAssessmentController {
         Map<String, Object> evacuationRoute = routingService.computeSafeCorridor(lat, lon, roadStatus);
 
         Map<String, Object> response = new HashMap<>();
+        Map<String, Object> location = new HashMap<>();
+        location.put("lat", lat);
+        location.put("lon", lon);
+        location.put("slope_deg", slope);
+        location.put("region_name", regionName);
+
+        response.put("location", location);
         response.put("region_name", regionName);
         response.put("weather", weather);
         response.put("terrain_elevation", terrainElevation);
         response.put("assessment", assessment);
+        response.put("evacuation_plan", evacuationRoute);
         response.put("evacuation_route", evacuationRoute);
         response.put("road_status", roadStatus);
         response.put("computed_at", java.time.Instant.now().toString());

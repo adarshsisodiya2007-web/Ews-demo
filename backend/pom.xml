@@ -30,7 +30,7 @@
         <minio.version>8.5.10</minio.version>
         <twilio.version>9.14.0</twilio.version>
         <mapstruct.version>1.5.5.Final</mapstruct.version>
-        <lombok.version>1.18.34</lombok.version>
+        <lombok.version>1.18.36</lombok.version>
         <lombok-mapstruct-binding.version>0.2.0</lombok-mapstruct-binding.version>
     </properties>
 

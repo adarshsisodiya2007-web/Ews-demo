@@ -141,6 +141,16 @@ public class EvacuationRoutingService {
         return calculateEvacuationPlan(regionName, riskScore, roadBlockedOverride, null, null);
     }
 
+    /**
+     * Dynamically compute safe evacuation corridor based on canonical coordinates and road status.
+     * Overload supporting coordinate-driven safe detour resolution.
+     */
+    public Map<String, Object> computeSafeCorridor(double lat, double lon, String roadStatus) {
+        boolean isBlocked = "BLOCKED".equalsIgnoreCase(roadStatus);
+        double impliedRiskScore = isBlocked ? 0.85 : ("AT_RISK".equalsIgnoreCase(roadStatus) ? 0.55 : 0.20);
+        return calculateEvacuationPlan(null, impliedRiskScore, isBlocked, lat, lon);
+    }
+
     public Map<String, Object> calculateEvacuationPlan(String regionName, double riskScore, boolean roadBlockedOverride, Double lat, Double lon) {
         boolean isBlocked = roadBlockedOverride || riskScore >= 0.70;
         AreaRoutingProfile profile = resolveProfile(regionName, lat, lon);
