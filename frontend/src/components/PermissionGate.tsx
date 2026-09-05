@@ -19,28 +19,55 @@ export const PermissionGate: React.FC<Props> = ({ onComplete }) => {
     let notifGranted = false;
     let locGranted = false;
 
-    // 1. Request Notification
+    // 1. Check & Request Notification
     try {
       if ('Notification' in window) {
         if (Notification.permission === 'granted') {
           notifGranted = true;
-        } else {
-          const res = await Promise.race([
-            Notification.requestPermission(),
-            new Promise<string>((r) => setTimeout(() => r('timeout'), 4000))
-          ]);
+        } else if (Notification.permission !== 'denied') {
+          const res = await Notification.requestPermission();
           notifGranted = res === 'granted';
         }
       }
     } catch {
-      notifGranted = false;
+      notifGranted = typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted';
     }
 
-    // 2. Request Geolocation
+    // 2. Check & Request Geolocation
     try {
-      if ('geolocation' in navigator) {
+      // First check if a valid location is already saved or if permission was previously granted
+      const existingLoc = sessionStorage.getItem('ews_user_location');
+      if (existingLoc) {
+        try {
+          const parsed = JSON.parse(existingLoc);
+          if (typeof parsed.lat === 'number' && typeof parsed.lon === 'number') {
+            locGranted = true;
+          }
+        } catch {}
+      }
+
+      if (!locGranted && 'geolocation' in navigator) {
         locGranted = await new Promise<boolean>((resolve) => {
-          const timer = setTimeout(() => resolve(false), 4000);
+          let resolved = false;
+          const complete = (status: boolean) => {
+            if (!resolved) {
+              resolved = true;
+              resolve(status);
+            }
+          };
+
+          const timer = setTimeout(async () => {
+            if (navigator.permissions) {
+              try {
+                const p = await navigator.permissions.query({ name: 'geolocation' });
+                if (p.state === 'granted') {
+                  return complete(true);
+                }
+              } catch {}
+            }
+            complete(false);
+          }, 8000);
+
           navigator.geolocation.getCurrentPosition(
             (pos) => {
               clearTimeout(timer);
@@ -52,13 +79,21 @@ export const PermissionGate: React.FC<Props> = ({ onComplete }) => {
                   detectedZone: `GPS (${pos.coords.latitude.toFixed(2)}, ${pos.coords.longitude.toFixed(2)})`
                 }));
               } catch {}
-              resolve(true);
+              complete(true);
             },
-            () => {
+            async () => {
               clearTimeout(timer);
-              resolve(false);
+              if (navigator.permissions) {
+                try {
+                  const p = await navigator.permissions.query({ name: 'geolocation' });
+                  if (p.state === 'granted') {
+                    return complete(true);
+                  }
+                } catch {}
+              }
+              complete(false);
             },
-            { timeout: 3500, enableHighAccuracy: false }
+            { timeout: 7500, enableHighAccuracy: false, maximumAge: 300000 }
           );
         });
       }
