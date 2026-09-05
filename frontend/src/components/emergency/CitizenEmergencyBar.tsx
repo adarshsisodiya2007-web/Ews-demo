@@ -20,8 +20,8 @@ interface Props {
 }
 
 export const CitizenEmergencyBar: React.FC<Props> = ({
-  defaultLat = 11.5534,
-  defaultLng = 76.1320,
+  defaultLat = 11.5513,
+  defaultLng = 76.1264,
   onOpenOfflineMap,
   onFindNearestShelter,
 }) => {

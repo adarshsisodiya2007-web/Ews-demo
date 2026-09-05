@@ -27,7 +27,7 @@ public class TerrainElevationService {
     private static final String DATASET = "NASADEM";
     private static final int RESOLUTION_METERS = 30;
 
-    @Value("${application.weather.opentopography.api-key:}")
+    @Value("${app.weather.opentopography.api-key:${application.weather.opentopography.api-key:${OPEN_TOPOGRAPHY_API_KEY:${OPENTOPOGRAPHY_API_KEY:619ea4b33002a569b3ac0b851e8b51d2}}}}")
     private String apiKey;
 
     private final RestTemplate restTemplate = new RestTemplate();

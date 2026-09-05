@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   getPendingReports,
   updatePendingReport,
@@ -17,6 +17,7 @@ export function useOfflineSync() {
   const [pendingReports, setPendingReports] = useState<PendingReportItem[]>([]);
   const [pendingRoads, setPendingRoads] = useState<PendingRoadStatusItem[]>([]);
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
+  const isSyncingRef = useRef<boolean>(false);
   const [lastSyncTime, setLastSyncTime] = useState<number | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
 
@@ -34,7 +35,8 @@ export function useOfflineSync() {
   }, []);
 
   const syncNow = useCallback(async () => {
-    if (!navigator.onLine || isSyncing) return;
+    if (!navigator.onLine || isSyncingRef.current) return;
+    isSyncingRef.current = true;
     setIsSyncing(true);
     setSyncError(null);
 
@@ -114,17 +116,18 @@ export function useOfflineSync() {
       }
       window.dispatchEvent(new CustomEvent('ews-sync-completed', { detail: { hadErrors, timestamp: Date.now() } }));
     } finally {
+      isSyncingRef.current = false;
       setIsSyncing(false);
       await refreshPending();
     }
-  }, [isSyncing, refreshPending]);
+  }, [refreshPending]);
 
   useEffect(() => {
     let intervalId: any = null;
 
     const handleOnline = () => {
       setIsOnline(true);
-      if (!isSyncing) {
+      if (!isSyncingRef.current) {
         syncNow();
       }
     };
@@ -140,16 +143,20 @@ export function useOfflineSync() {
     window.addEventListener('offline', handleOffline);
     window.addEventListener('ews-queue-change', handleQueueChange);
 
-    // Immediate check on mount: refresh pending and auto-sync immediately if online
+    // Immediate check on mount: sync if unattempted pending items exist
     refreshPending().then(() => {
-      if (navigator.onLine && !isSyncing) {
-        syncNow();
+      if (navigator.onLine && !isSyncingRef.current) {
+        getPendingReports().then((reps) => {
+          if (reps.some(r => r.syncStatus === 'PENDING_SYNC')) {
+            syncNow();
+          }
+        }).catch(() => {});
       }
     });
 
     // Background auto-retry interval: periodically retry pending queue when online
     intervalId = setInterval(() => {
-      if (navigator.onLine && !isSyncing) {
+      if (navigator.onLine && !isSyncingRef.current) {
         getPendingReports().then((reps) => {
           if (reps.length > 0) {
             syncNow();
@@ -170,7 +177,7 @@ export function useOfflineSync() {
       window.removeEventListener('ews-queue-change', handleQueueChange);
       if (intervalId) clearInterval(intervalId);
     };
-  }, [syncNow, refreshPending, isSyncing]);
+  }, [syncNow, refreshPending]);
 
   const pendingCount = pendingReports.length + pendingRoads.length;
 

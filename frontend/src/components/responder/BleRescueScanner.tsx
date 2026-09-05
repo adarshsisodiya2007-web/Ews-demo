@@ -58,8 +58,8 @@ interface Props {
 }
 
 export const BleRescueScanner: React.FC<Props> = ({
-  officerLat = 11.5534,
-  officerLng = 76.1320,
+  officerLat = 11.5513,
+  officerLng = 76.1264,
 }) => {
   const [isScanning, setIsScanning] = useState<boolean>(false);
   const [scannerStatus, setScannerStatus] = useState<string>('SCANNER IDLE');

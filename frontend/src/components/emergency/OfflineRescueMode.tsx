@@ -44,8 +44,8 @@ interface Props {
 }
 
 export const OfflineRescueMode: React.FC<Props> = ({
-  defaultLat = 11.5534,
-  defaultLng = 76.1320,
+  defaultLat = 11.5513,
+  defaultLng = 76.1264,
   initialView = 'main',
   onNavigateTab,
   theme = 'dark',
@@ -185,8 +185,8 @@ export const OfflineRescueMode: React.FC<Props> = ({
         closest = {
           name: 'Meppadi Slope Hazard Corridor',
           level: 'HIGH',
-          distanceKm: calculateHaversineDistanceKm(citizenLat, citizenLng, 11.5534, 76.1320),
-          bearing: calculateCompassBearing(citizenLat, citizenLng, 11.5534, 76.1320),
+          distanceKm: calculateHaversineDistanceKm(citizenLat, citizenLng, 11.5513, 76.1264),
+          bearing: calculateCompassBearing(citizenLat, citizenLng, 11.5513, 76.1264),
           isInsideOrNear: true,
         };
       }

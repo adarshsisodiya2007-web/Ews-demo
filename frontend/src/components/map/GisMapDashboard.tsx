@@ -22,7 +22,7 @@ interface PresetZone {
 }
 
 const PRESET_ZONES: PresetZone[] = [
-  { name: 'Meppadi, Wayanad (Testbed)', lat: 11.5534, lon: 76.1320, slope: 38.5 },
+  { name: 'Meppadi, Wayanad (Testbed)', lat: 11.5513, lon: 76.1264, slope: 38.5 },
   { name: 'Munnar, Idukki (Western Ghats)', lat: 10.0889, lon: 77.0595, slope: 42.0 },
   { name: 'Guwahati Hills (NER)', lat: 26.1445, lon: 91.7362, slope: 28.0 },
   { name: 'Shillong Ridge (NER)', lat: 25.5788, lon: 91.8933, slope: 34.0 },
@@ -266,7 +266,11 @@ export const GisMapDashboard: React.FC = () => {
             <div style={{ background: '#0f172a', padding: '10px', borderRadius: '6px', gridColumn: 'span 2' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>🛰️ NASA SRTM 30m DEM Elevation:</span>
-                <span style={{ fontSize: '0.95rem', fontWeight: 700, color: '#38bdf8' }}>879.0 m (Wayanad High Peak)</span>
+                <span style={{ fontSize: '0.95rem', fontWeight: 700, color: '#38bdf8' }}>
+                  {data?.terrain_elevation?.available && typeof data.terrain_elevation.elevationMeters === 'number'
+                    ? `${data.terrain_elevation.elevationMeters.toFixed(1)} m (${selectedZone.name.split(',')[0]} DEM)`
+                    : 'NASADEM elevation unavailable'}
+                </span>
               </div>
             </div>
           </div>

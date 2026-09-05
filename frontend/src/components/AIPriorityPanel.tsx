@@ -95,9 +95,16 @@ export const AIPriorityPanel: React.FC<Props> = ({
     const unsub = subscribeToScenario(() => {
       loadData();
     });
+    const handleReportsUpdated = () => {
+      loadData();
+    };
+    window.addEventListener('ews-reports-updated', handleReportsUpdated);
+    window.addEventListener('ews-sync-completed', handleReportsUpdated);
     const timer = setInterval(loadData, 30000); // 30s live sync
     return () => {
       unsub();
+      window.removeEventListener('ews-reports-updated', handleReportsUpdated);
+      window.removeEventListener('ews-sync-completed', handleReportsUpdated);
       clearInterval(timer);
     };
   }, [loadData]);

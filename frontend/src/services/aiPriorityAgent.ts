@@ -103,7 +103,7 @@ function populationScore(lat: number, lon: number, override?: number): number {
   const urbanCenters = [
     { lat: 26.1445, lon: 91.7362, density: 0.9 },  // Guwahati
     { lat: 25.5788, lon: 91.8933, density: 0.7 },  // Shillong
-    { lat: 11.5534, lon: 76.1320, density: 0.6 },  // Meppadi
+    { lat: 11.5513, lon: 76.1264, density: 0.6 },  // Meppadi
     { lat: 10.0889, lon: 77.0595, density: 0.5 },  // Munnar
     { lat: 23.7271, lon: 92.7176, density: 0.5 },  // Aizawl
   ];
@@ -233,7 +233,7 @@ export function getDemoAlerts(): AlertInput[] {
     {
       id: 'alert-001',
       zone: 'Meppadi, Wayanad',
-      lat: 11.5534, lon: 76.1320,
+      lat: 11.5513, lon: 76.1264,
       risk_level: 'RED',
       risk_score: 0.84,
       rain_24h_mm: 142,

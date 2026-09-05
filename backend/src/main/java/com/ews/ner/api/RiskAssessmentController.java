@@ -28,9 +28,9 @@ public class RiskAssessmentController {
 
     @GetMapping("/risk-assessment")
     public ResponseEntity<Map<String, Object>> getRiskAssessment(
-            @RequestParam(defaultValue = "11.6854") double lat,
-            @RequestParam(defaultValue = "76.1320") double lon,
-            @RequestParam(defaultValue = "36.5") double slope,
+            @RequestParam(defaultValue = "11.5513") double lat,
+            @RequestParam(defaultValue = "76.1264") double lon,
+            @RequestParam(defaultValue = "38.5") double slope,
             @RequestParam(required = false, defaultValue = "Meppadi, Wayanad") String regionName) {
 
         // 1. Fetch live hydrometeorological metrics from Open-Meteo & OpenWeather
@@ -48,35 +48,32 @@ public class RiskAssessmentController {
         double riskScore = ((Number) assessment.getOrDefault("score", 0.0)).doubleValue();
 
         // 4. Dynamic Safe Road Rerouting
-        Map<String, Object> evacuationPlan = routingService.calculateEvacuationPlan(regionName, riskScore, false, lat, lon);
+        String roadStatus = (riskScore >= 0.70 || rain24h > 120.0) ? "BLOCKED" : (riskScore >= 0.45 ? "AT_RISK" : "OPEN");
+        Map<String, Object> evacuationRoute = routingService.computeSafeCorridor(lat, lon, roadStatus);
 
         Map<String, Object> response = new HashMap<>();
-        Map<String, Object> location = new HashMap<>();
-        location.put("lat", lat);
-        location.put("lon", lon);
-        location.put("slope_deg", slope);
-        location.put("region_name", regionName);
-
-        response.put("location", location);
+        response.put("region_name", regionName);
         response.put("weather", weather);
         response.put("terrain_elevation", terrainElevation);
         response.put("assessment", assessment);
-        response.put("evacuation_plan", evacuationPlan);
+        response.put("evacuation_route", evacuationRoute);
+        response.put("road_status", roadStatus);
+        response.put("computed_at", java.time.Instant.now().toString());
 
         return ResponseEntity.ok(response);
     }
 
     @GetMapping("/weather/live")
     public ResponseEntity<Map<String, Object>> getLiveWeather(
-            @RequestParam(defaultValue = "11.6854") double lat,
-            @RequestParam(defaultValue = "76.1320") double lon) {
+            @RequestParam(defaultValue = "11.5513") double lat,
+            @RequestParam(defaultValue = "76.1264") double lon) {
         return ResponseEntity.ok(weatherService.getLiveRainfallMetrics(lat, lon));
     }
 
     @GetMapping("/terrain/elevation")
     public ResponseEntity<Map<String, Object>> getTerrainElevation(
-            @RequestParam(defaultValue = "11.6854") double lat,
-            @RequestParam(defaultValue = "76.1320") double lon) {
+            @RequestParam(defaultValue = "11.5513") double lat,
+            @RequestParam(defaultValue = "76.1264") double lon) {
         return ResponseEntity.ok(elevationService.getElevation(lat, lon));
     }
 }

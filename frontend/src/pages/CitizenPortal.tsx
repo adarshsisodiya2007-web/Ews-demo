@@ -726,16 +726,14 @@ export const CitizenPortal: React.FC = () => {
                   label: t.elevation,
                   value: data?.terrain_elevation?.available && typeof data.terrain_elevation.elevationMeters === 'number'
                     ? `${data.terrain_elevation.elevationMeters.toFixed(1)} m`
-                    : data?.terrain_elevation?.error
-                      ? 'Key Req.'
-                      : `${selectedZone.elev} m`,
+                    : 'NASADEM elevation unavailable',
                   sub: 'OpenTopography NASADEM 30m',
                   color: theme === 'dark' ? '#38bdf8' : '#0284c7'
                 },
               ].map(({ icon, label, value, sub, color }) => (
                 <div key={label} style={{ background: card, border: `1px solid ${brd}`, borderRadius: '12px', padding: '16px' }}>
                   <div style={{ fontSize: '0.75rem', color: theme === 'dark' ? '#94a3b8' : '#475569', fontWeight: 600 }}>{icon} {label}</div>
-                  <div style={{ fontSize: '1.5rem', fontWeight: 800, color, marginTop: '4px' }}>{value}</div>
+                  <div style={{ fontSize: value.includes('unavailable') ? '0.95rem' : '1.5rem', fontWeight: 800, color, marginTop: '4px', lineHeight: 1.2 }}>{value}</div>
                   <div style={{ fontSize: '0.7rem', color: theme === 'dark' ? '#64748b' : '#475569', marginTop: '4px' }}>{sub}</div>
                 </div>
               ))}
@@ -796,7 +794,7 @@ export const CitizenPortal: React.FC = () => {
                 marginBottom: '16px',
                 fontSize: '0.8rem'
               }}>
-                <div><strong>Terrain:</strong> Slope {selectedZone.slope}° · {data?.terrain_elevation?.elevationMeters ? `${data.terrain_elevation.elevationMeters.toFixed(1)}m` : `${selectedZone.elev}m`} NASADEM</div>
+                <div><strong>Terrain:</strong> Slope {selectedZone.slope}° · {data?.terrain_elevation?.available && typeof data.terrain_elevation.elevationMeters === 'number' ? `${data.terrain_elevation.elevationMeters.toFixed(1)}m` : 'NASADEM elevation unavailable'} NASADEM</div>
                 <div><strong>Hydro-Met:</strong> 24h: {data?.weather?.rain_24h_mm ?? 0}mm | 72h: {data?.weather?.rain_72h_mm ?? 0}mm</div>
                 <div><strong>Primary Corridor:</strong> {data?.evacuation_plan?.primary_corridor?.split('(')[0]?.trim() || 'Highway Corridor'}</div>
                 <div><strong>Designated Shelter:</strong> {data?.evacuation_plan?.nearest_verified_shelter || 'District Relief Camp'}</div>
@@ -826,7 +824,7 @@ export const CitizenPortal: React.FC = () => {
           <Terrain3DVisualizer
             zoneName={selectedZone.name}
             slope={selectedZone.slope}
-            elevation={data?.terrain_elevation?.elevationMeters ?? selectedZone.elev ?? 876.5}
+            elevation={data?.terrain_elevation?.available && typeof data.terrain_elevation.elevationMeters === 'number' ? data.terrain_elevation.elevationMeters : undefined}
           />
         )}
 

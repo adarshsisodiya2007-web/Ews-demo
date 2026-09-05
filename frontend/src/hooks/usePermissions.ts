@@ -26,7 +26,7 @@ export interface PermissionsState {
 /** Detect nearest EWS zone from GPS coordinates */
 function detectNearestZone(lat: number, lon: number): string {
   const zones = [
-    { name: 'Meppadi, Wayanad', lat: 11.5534, lon: 76.1320, radius: 0.5 },
+    { name: 'Meppadi, Wayanad', lat: 11.5513, lon: 76.1264, radius: 0.5 },
     { name: 'Munnar, Idukki', lat: 10.0889, lon: 77.0595, radius: 0.5 },
     { name: 'Guwahati Hills, Assam', lat: 26.1445, lon: 91.7362, radius: 0.8 },
     { name: 'Shillong Ridge, Meghalaya', lat: 25.5788, lon: 91.8933, radius: 0.6 },

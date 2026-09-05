@@ -83,8 +83,8 @@ const ReportFormPage = () => {
     const clientReportId = generateClientReportId();
 
     const payload = {
-      geoLat: coords?.lat || 11.5534,
-      geoLng: coords?.lng || 76.1320,
+      geoLat: coords?.lat || 11.5513,
+      geoLng: coords?.lng || 76.1264,
       category,
       description,
       reporterType: 'CITIZEN' as const,
@@ -249,7 +249,7 @@ const ReportFormPage = () => {
 
           {/* 4. GPS Location Status */}
           <div style={{ background: '#1e293b', padding: '12px 16px', borderRadius: '10px', marginBottom: '24px', fontSize: '0.8rem', color: '#94a3b8' }}>
-            📍 GPS Coordinates: <strong style={{ color: '#f8fafc' }}>{coords ? `${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)}` : 'Auto-detecting GPS (11.5534, 76.1320)...'}</strong>
+            📍 GPS Coordinates: <strong style={{ color: '#f8fafc' }}>{coords ? `${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)}` : 'Auto-detecting GPS (11.5513, 76.1264)...'}</strong>
           </div>
 
           {/* Result Alert Box */}

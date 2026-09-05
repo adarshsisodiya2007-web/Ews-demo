@@ -196,7 +196,7 @@ def health_check():
     return {"status": "UP", "models": ["XGBoost_v2", "NetworkX_Routing_v1"]}
 
 @app.get("/api/v1/weather/live", response_model=WeatherTelemetry)
-async def get_live_weather(lat: float = 11.5534, lon: float = 76.1320):
+async def get_live_weather(lat: float = 11.5513, lon: float = 76.1264):
     url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&hourly=precipitation,soil_moisture_0_to_1cm&timezone=auto"
     try:
         async with httpx.AsyncClient(timeout=4.0) as client:
@@ -230,22 +230,45 @@ async def get_live_weather(lat: float = 11.5534, lon: float = 76.1320):
     )
 
 @app.get("/api/v1/terrain/elevation")
-async def get_elevation(lat: float = 11.5534, lon: float = 76.1320):
-    url = f"https://portal.opentopography.org/API/v1/elevation?demtype=SRTMGL1&latitude={lat}&longitude={lon}&outputFormat=JSON&API_Key={OPENTOPOGRAPHY_KEY}"
+async def get_elevation(lat: float = 11.5513, lon: float = 76.1264):
+    url = f"https://portal.opentopography.org/API/v1/elevation?demtype=NASADEM&latitude={lat}&longitude={lon}&outputFormat=JSON&API_Key={OPENTOPOGRAPHY_KEY}"
     try:
         async with httpx.AsyncClient(timeout=6.0) as client:
             resp = await client.get(url)
             if resp.status_code == 200:
                 data = resp.json()
-                return {"elevation": data.get("Elevation", 876.5), "unit": "Meters", "source": "NASA_SRTM_30M_LIVE"}
+                if "Elevation" in data:
+                    elev_val = float(data["Elevation"])
+                    return {
+                        "available": True,
+                        "latitude": lat,
+                        "longitude": lon,
+                        "elevationMeters": elev_val,
+                        "elevation_meters": elev_val,
+                        "source": "OpenTopography",
+                        "dataset": "NASADEM",
+                        "resolutionMeters": 30,
+                        "status": "SUCCESS",
+                        "unit": "Meters"
+                    }
     except Exception:
         pass
-    return {"elevation": 876.5, "unit": "Meters", "source": "NASA_SRTM_30M_DEM"}
+    return {
+        "available": False,
+        "latitude": lat,
+        "longitude": lon,
+        "source": "OpenTopography",
+        "dataset": "NASADEM",
+        "resolutionMeters": 30,
+        "error": "NASADEM elevation unavailable",
+        "status": "UNAVAILABLE",
+        "unit": "Meters"
+    }
 
 @app.get("/api/v1/risk-assessment", response_model=FullRiskResponse)
 async def evaluate_risk(
-    lat: float = Query(11.5534, description="Latitude"),
-    lon: float = Query(76.1320, description="Longitude"),
+    lat: float = Query(11.5513, description="Latitude"),
+    lon: float = Query(76.1264, description="Longitude"),
     slope: float = Query(38.5, description="Terrain slope angle in degrees"),
     regionName: str = Query("Meppadi, Wayanad", description="Region Name")
 ):

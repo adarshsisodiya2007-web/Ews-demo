@@ -164,6 +164,7 @@ export interface TerrainElevation {
   dataset: string;
   resolutionMeters?: number;
   error?: string;
+  status?: string;
   isFallback?: boolean;
 }
 

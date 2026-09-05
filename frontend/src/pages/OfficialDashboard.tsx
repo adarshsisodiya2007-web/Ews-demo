@@ -44,9 +44,15 @@ const OfficialDashboard = () => {
       load();
     });
 
+    const handleSync = () => load();
+    window.addEventListener('ews-reports-updated', handleSync);
+    window.addEventListener('ews-sync-completed', handleSync);
+
     const iv = setInterval(load, 30000);
     return () => {
       unsub();
+      window.removeEventListener('ews-reports-updated', handleSync);
+      window.removeEventListener('ews-sync-completed', handleSync);
       clearInterval(iv);
     };
   }, []);

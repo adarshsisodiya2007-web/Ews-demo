@@ -138,7 +138,7 @@ app:
     openmeteo:
       base-url: https://api.open-meteo.com/v1/forecast
     opentopography:
-      api-key: ${OPEN_TOPOGRAPHY_API_KEY:${OPENTOPOGRAPHY_API_KEY:}}
+      api-key: ${OPEN_TOPOGRAPHY_API_KEY:${OPENTOPOGRAPHY_API_KEY:619ea4b33002a569b3ac0b851e8b51d2}}
       base-url: https://portal.opentopography.org/API/v1/elevation
 
   # CORS — allow frontend dev and Vercel production

@@ -191,9 +191,9 @@ export const fetchRecentReports = async (): Promise<CitizenReport[]> => {
 };
 
 export const submitReport = async (payload: CreateReportPayload): Promise<CitizenReport> => {
-  // Map extended emergency categories to backend enum 'OTHER' with high-priority markers
-  const isEmergencyCategory = payload.category === 'INJURED_PEOPLE' || payload.category === 'TRAPPED_CITIZENS';
-  const backendCategory = isEmergencyCategory ? 'OTHER' : (payload.category || 'OTHER');
+  // Map extended emergency categories or non-enum categories to backend enum 'OTHER'
+  const validBackendCategories = ['CRACK', 'SLOPE_MOVEMENT', 'BLOCKED_ROAD', 'FLOODING', 'OTHER'];
+  const backendCategory = validBackendCategories.includes(payload.category as string) ? payload.category : 'OTHER';
 
   const emergencyHeader = payload.category === 'INJURED_PEOPLE'
     ? `[EMERGENCY SOS: INJURED CITIZEN${payload.medicalUrgent ? ' - URGENT MEDICAL REQUIRED' : ''}] `
@@ -203,15 +203,16 @@ export const submitReport = async (payload: CreateReportPayload): Promise<Citize
 
   // Avoid duplicate prefixes if already present in description
   const desc = payload.description || '';
-  const finalDesc = (emergencyHeader && !desc.includes(emergencyHeader.trim()))
+  const titlePrefix = (payload as any).title && !desc.includes((payload as any).title) ? `[${(payload as any).title}] ` : '';
+  const finalDesc = titlePrefix + ((emergencyHeader && !desc.includes(emergencyHeader.trim()))
     ? emergencyHeader + desc
-    : desc;
+    : desc);
 
-  // Ensure valid numerical lat & lng, supporting legacy field names
-  const rawLat = (payload as any).geoLat ?? (payload as any).latitude ?? (payload as any).lat ?? 26.1445;
-  const rawLng = (payload as any).geoLng ?? (payload as any).longitude ?? (payload as any).lng ?? 91.7362;
-  const geoLat = typeof rawLat === 'number' ? rawLat : parseFloat(rawLat) || 26.1445;
-  const geoLng = typeof rawLng === 'number' ? rawLng : parseFloat(rawLng) || 91.7362;
+  // Ensure valid numerical lat & lng, supporting canonical defaults
+  const rawLat = (payload as any).geoLat ?? (payload as any).latitude ?? (payload as any).lat ?? 11.5513;
+  const rawLng = (payload as any).geoLng ?? (payload as any).longitude ?? (payload as any).lng ?? 76.1264;
+  const geoLat = typeof rawLat === 'number' ? rawLat : parseFloat(rawLat) || 11.5513;
+  const geoLng = typeof rawLng === 'number' ? rawLng : parseFloat(rawLng) || 76.1264;
 
   const backendPayload = {
     ...payload,
@@ -282,21 +283,8 @@ export const updateRoadStatus = async (regionId: string, status: RoadStatus): Pr
 
 // ── SIH 2026 Dynamic Zone Risk Assessment (Single Source of Truth) ──────────
 
+// Coordinate-keyed cache: elevation:NASADEM:lat:lon (stores only real HTTP responses)
 const elevationCache = new Map<string, TerrainElevation>();
-
-// Pre-seed cache with canonical NASADEM 30m measurements
-for (const a of CANONICAL_AREAS) {
-  const k = `elevation:NASADEM:${a.lat.toFixed(4)}:${a.lon.toFixed(4)}`;
-  elevationCache.set(k, {
-    available: true,
-    latitude: a.lat,
-    longitude: a.lon,
-    elevationMeters: a.elev,
-    source: 'OpenTopography',
-    dataset: 'NASADEM_30M',
-    resolutionMeters: 30
-  });
-}
 
 export const fetchTerrainElevation = async (
   lat: number,
@@ -308,51 +296,46 @@ export const fetchTerrainElevation = async (
     return elevationCache.get(cacheKey)!;
   }
 
-  // Query backend server-side proxy (API key stored exclusively on server)
+  // Query backend server-side proxy (OpenTopography NASADEM 30m)
   try {
     const res = await api.get<TerrainElevation>('/api/v1/terrain/elevation', {
       params: { lat, lon },
       signal,
-      timeout: 3000
+      timeout: 6000
     });
-    if (res.data && typeof res.data.available === 'boolean') {
-      elevationCache.set(cacheKey, res.data);
+    const rawElev = res.data?.elevationMeters ?? (res.data as any)?.elevation_meters;
+    if (res.data && ((res.data.available === true) || (res.data as any).status === 'SUCCESS') && typeof rawElev === 'number') {
+      const normalized: TerrainElevation = {
+        ...res.data,
+        available: true,
+        elevationMeters: rawElev
+      };
+      elevationCache.set(cacheKey, normalized);
+      return normalized;
+    }
+    if (res.data && res.data.available === false) {
       return res.data;
     }
   } catch (err: any) {
     if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') throw err;
   }
 
-  // If coordinates match a canonical area, return its cached/canonical NASADEM elevation
-  const match = CANONICAL_AREAS.find(a => Math.abs(a.lat - lat) < 0.05 && Math.abs(a.lon - lon) < 0.05);
-  if (match) {
-    const res: TerrainElevation = {
-      available: true,
-      latitude: match.lat,
-      longitude: match.lon,
-      elevationMeters: match.elev,
-      source: 'OpenTopography',
-      dataset: 'NASADEM_30M',
-      resolutionMeters: 30
-    };
-    elevationCache.set(cacheKey, res);
-    return res;
-  }
-
+  // Truthful unavailable state — DO NOT fabricate or return hardcoded 876.5 or 879m
   return {
     available: false,
     latitude: lat,
     longitude: lon,
     source: 'OpenTopography',
-    dataset: 'NASADEM_30M',
+    dataset: 'NASADEM',
     resolutionMeters: 30,
-    error: 'OPEN_TOPOGRAPHY_API_KEY is missing'
+    error: 'NASADEM elevation unavailable',
+    status: 'UNAVAILABLE'
   };
 };
 
 export const fetchRiskAssessment = async (
-  lat: number = 11.5534,
-  lon: number = 76.1320,
+  lat: number = 11.5513,
+  lon: number = 76.1264,
   slope: number = 38.5,
   regionName: string = 'Meppadi, Wayanad (Testbed)',
   signal?: AbortSignal
@@ -378,8 +361,8 @@ export const fetchRiskAssessment = async (
 };
 
 export const fetchLiveWeather = async (
-  lat: number = 11.5534,
-  lon: number = 76.1320
+  lat: number = 11.5513,
+  lon: number = 76.1264
 ): Promise<LiveWeatherMetrics> => {
   try {
     const res = await api.get<LiveWeatherMetrics>('/api/v1/weather/live', {

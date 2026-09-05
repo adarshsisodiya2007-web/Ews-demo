@@ -14,8 +14,8 @@ interface Props {
 }
 
 export const OfflineSosMesh: React.FC<Props> = ({
-  userLat = 11.5534,
-  userLon = 76.1320,
+  userLat = 11.5513,
+  userLon = 76.1264,
   theme = 'dark',
 }) => {
   const [broadcasting, setBroadcasting] = useState<boolean>(false);

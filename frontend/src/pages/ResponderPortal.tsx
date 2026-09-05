@@ -357,8 +357,8 @@ export const ResponderPortal: React.FC = () => {
         {/* TAB 1: BLE RESCUE SCANNER & DETECTIONS */}
         {activeTab === 'ble_scanner' && (
           <BleRescueScanner
-            officerLat={coords?.lat || 11.5534}
-            officerLng={coords?.lng || 76.1320}
+            officerLat={coords?.lat || 11.5513}
+            officerLng={coords?.lng || 76.1264}
           />
         )}
 

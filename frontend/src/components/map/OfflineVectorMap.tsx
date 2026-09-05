@@ -108,8 +108,8 @@ export const OfflineVectorMap: React.FC<Props> = ({
   }, []);
 
   // Safe fallback citizen coordinates
-  const centerLat = typeof userLat === 'number' && !isNaN(userLat) ? userLat : 11.5534;
-  const centerLon = typeof userLon === 'number' && !isNaN(userLon) ? userLon : 76.1320;
+  const centerLat = typeof userLat === 'number' && !isNaN(userLat) ? userLat : 11.5513;
+  const centerLon = typeof userLon === 'number' && !isNaN(userLon) ? userLon : 76.1264;
 
   // Default hazard geometry for Meppadi testbed
   const defaultHazard: [number, number][] = [

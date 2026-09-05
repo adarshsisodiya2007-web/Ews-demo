@@ -10,7 +10,7 @@ interface Props {
 export const Terrain3DVisualizer: React.FC<Props> = ({
   zoneName = 'Meppadi, Wayanad (Testbed)',
   slope = 38.5,
-  elevation = 876.5
+  elevation
 }) => {
   const mountRef = useRef<HTMLDivElement>(null);
   const [wireframe, setWireframe] = useState<boolean>(false);
@@ -189,7 +189,7 @@ export const Terrain3DVisualizer: React.FC<Props> = ({
             <span>⛰️</span> 3D Digital Elevation &amp; Debris Flow Simulator
           </h4>
           <p style={{ margin: '4px 0 0 0', fontSize: '0.78rem', color: '#94a3b8' }}>
-            NASA SRTM 30m DEM Terrain Mesh · Slope Angle: <strong style={{ color: '#f87171' }}>{slope}°</strong> · Peak: <strong style={{ color: '#38bdf8' }}>{elevation}m</strong>
+            NASA SRTM 30m DEM Terrain Mesh · Slope Angle: <strong style={{ color: '#f87171' }}>{slope}°</strong> · Peak: <strong style={{ color: '#38bdf8' }}>{typeof elevation === 'number' ? `${elevation.toFixed(1)} m` : 'Unavailable'}</strong>
           </p>
         </div>
 
