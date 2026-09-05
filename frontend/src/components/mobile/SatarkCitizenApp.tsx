@@ -175,13 +175,21 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
 
   // 5 Canonical Monitored Areas (Single Source of Truth)
   const ZONES = [
-    { name: 'Meppadi, Wayanad (Testbed)', district: 'Wayanad', lat: 11.5534, lon: 76.1320, slope: 38.5, state: 'Kerala' },
-    { name: 'Munnar, Idukki (Western Ghats)', district: 'Idukki', lat: 10.0889, lon: 77.0595, slope: 42.0, state: 'Kerala' },
-    { name: 'Guwahati Hills (NER)', district: 'Kamrup Metropolitan', lat: 26.1445, lon: 91.7362, slope: 28.0, state: 'Assam' },
-    { name: 'Shillong Ridge (NER)', district: 'East Khasi Hills', lat: 25.5788, lon: 91.8933, slope: 34.0, state: 'Meghalaya' },
-    { name: 'Aizawl Slopes (NER)', district: 'Aizawl', lat: 23.7271, lon: 92.7176, slope: 45.0, state: 'Mizoram' }
+    { name: 'Meppadi, Wayanad (Testbed)', district: 'Wayanad', lat: 11.5534, lon: 76.1320, slope: 38.5, state: 'Kerala', elev: 876.5 },
+    { name: 'Munnar, Idukki (Western Ghats)', district: 'Idukki', lat: 10.0889, lon: 77.0595, slope: 42.0, state: 'Kerala', elev: 1450.0 },
+    { name: 'Guwahati Hills (NER)', district: 'Kamrup Metropolitan', lat: 26.1445, lon: 91.7362, slope: 28.0, state: 'Assam', elev: 55.7 },
+    { name: 'Shillong Ridge (NER)', district: 'East Khasi Hills', lat: 25.5788, lon: 91.8933, slope: 34.0, state: 'Meghalaya', elev: 1428.3 },
+    { name: 'Aizawl Slopes (NER)', district: 'Aizawl', lat: 23.7271, lon: 92.7176, slope: 45.0, state: 'Mizoram', elev: 1070.3 }
   ];
-  const [selectedZone, setSelectedZone] = useState(ZONES[0]);
+  const [selectedZone, setSelectedZone] = useState<{
+    name: string;
+    district: string;
+    lat: number;
+    lon: number;
+    slope: number;
+    state: string;
+    elev?: number;
+  }>(ZONES[0]);
   const [showZoneSheet, setShowZoneSheet] = useState(false);
 
   // Controlled Demo / Simulation Mode (Strictly deterministic, NO Math.random)
@@ -1212,8 +1220,10 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
               }}>
                 <div>24h Rain: <strong>{riskData.weather.rain_24h_mm} mm</strong></div>
                 <div>72h Rain: <strong>{riskData.weather.rain_72h_mm} mm</strong></div>
-                <div>Soil Moisture: <strong>{riskData.weather.soil_moisture}%</strong></div>
+                <div>Soil Moisture: <strong>{typeof riskData.weather.soil_moisture === 'number' ? (riskData.weather.soil_moisture > 1 ? `${riskData.weather.soil_moisture}%` : `${Math.round(riskData.weather.soil_moisture * 100)}%`) : 'N/A'}</strong></div>
                 <div>Slope Angle: <strong>{selectedZone.slope}°</strong></div>
+                <div>NASADEM Elevation: <strong>{riskData.terrain_elevation?.elevationMeters ? `${riskData.terrain_elevation.elevationMeters.toFixed(1)} m` : `${selectedZone.elev} m`}</strong></div>
+                <div>Corridor: <strong>{riskData.evacuation_plan?.primary_corridor?.split('(')[0]?.trim() || 'Active'}</strong></div>
               </div>
             )}
 

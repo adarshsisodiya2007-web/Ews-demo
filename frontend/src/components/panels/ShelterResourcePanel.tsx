@@ -82,6 +82,19 @@ export const MOCK_SHELTERS: Shelter[] = [
     medicalTeam: 'Mizoram SDRF Medical Team',
     waterSupplyLitres: 15000,
     status: 'ALMOST_FULL'
+  },
+  {
+    id: 's6',
+    name: 'Shillong Multi-Purpose Hall Relief Camp',
+    zone: 'Shillong Ridge (NER)',
+    lat: 25.5790,
+    lng: 91.8940,
+    totalBeds: 500,
+    occupiedBeds: 180,
+    foodStockDays: 9,
+    medicalTeam: 'Meghalaya State Disaster Response (SDRF) & NEIGRIHMS',
+    waterSupplyLitres: 20000,
+    status: 'AVAILABLE'
   }
 ];
 

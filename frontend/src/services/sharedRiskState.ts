@@ -13,8 +13,11 @@
 
 import { RegionRisk, RiskAssessmentResponse, RiskDetail, AlertItem, RoadStatus, Severity } from '../types';
 
+export type CanonicalAreaId = 'MEPPADI' | 'MUNNAR' | 'GUWAHATI_HILLS' | 'SHILLONG_RIDGE' | 'AIZAWL_SLOPES';
+
 export interface CanonicalArea {
   id: string;
+  canonicalId: CanonicalAreaId;
   name: string;
   district: string;
   state: string;
@@ -27,57 +30,63 @@ export interface CanonicalArea {
 export const CANONICAL_AREAS: CanonicalArea[] = [
   {
     id: '11111111-0001-0001-0001-000000000001',
+    canonicalId: 'MEPPADI',
     name: 'Meppadi, Wayanad (Testbed)',
     district: 'Wayanad',
     state: 'Kerala',
     lat: 11.5534,
     lon: 76.1320,
     slope: 38.5,
-    elev: 879.0
+    elev: 876.5
   },
   {
     id: '22222222-0002-0002-0002-000000000002',
+    canonicalId: 'MUNNAR',
     name: 'Munnar, Idukki (Western Ghats)',
     district: 'Idukki',
     state: 'Kerala',
     lat: 10.0889,
     lon: 77.0595,
     slope: 42.0,
-    elev: 1532.0
+    elev: 1450.0
   },
   {
     id: '33333333-0003-0003-0003-000000000003',
+    canonicalId: 'GUWAHATI_HILLS',
     name: 'Guwahati Hills (NER)',
     district: 'Kamrup Metropolitan',
     state: 'Assam',
     lat: 26.1445,
     lon: 91.7362,
     slope: 28.0,
-    elev: 120.0
+    elev: 55.7
   },
   {
     id: '44444444-0004-0004-0004-000000000004',
+    canonicalId: 'SHILLONG_RIDGE',
     name: 'Shillong Ridge (NER)',
     district: 'East Khasi Hills',
     state: 'Meghalaya',
     lat: 25.5788,
     lon: 91.8933,
     slope: 34.0,
-    elev: 1496.0
+    elev: 1428.3
   },
   {
     id: '55555555-0005-0005-0005-000000000005',
+    canonicalId: 'AIZAWL_SLOPES',
     name: 'Aizawl Slopes (NER)',
     district: 'Aizawl',
     state: 'Mizoram',
     lat: 23.7271,
     lon: 92.7176,
     slope: 45.0,
-    elev: 1132.0
+    elev: 1070.3
   }
 ];
 
 export interface AreaRiskState {
+  canonicalId: CanonicalAreaId;
   areaName: string;
   severity: Severity;
   score: number;             // 0.0 - 1.0 (e.g. 0.88)
@@ -85,11 +94,17 @@ export interface AreaRiskState {
   rain24h: number;           // mm
   rain72h: number;           // mm
   soilMoisture: number;      // 0.0 - 1.0 (e.g. 0.88)
+  slope: number;             // deg
+  elev: number;              // meters
   roadStatus: RoadStatus;
   actionProtocol: string;
   evacuationStatus: string;
   primaryCorridor: string;
   safeRoute: string;
+  nearestShelter: string;
+  shelterDistanceKm: number;
+  estimatedTimeMin: number;
+  citizenReportsCount: number;
 }
 
 export interface DemoScenario {
@@ -103,6 +118,25 @@ export interface DemoScenario {
   areas: Record<string, AreaRiskState>;
 }
 
+// Canonical Shelters per Area
+export const AREA_SHELTERS: Record<CanonicalAreaId, { name: string; distanceKm: number }> = {
+  MEPPADI: { name: 'Meppadi Govt Higher Secondary School Camp', distanceKm: 1.2 },
+  MUNNAR: { name: 'Munnar Govt High School Community Shelter', distanceKm: 0.9 },
+  GUWAHATI_HILLS: { name: 'Guwahati Stadium Relief Complex', distanceKm: 2.1 },
+  SHILLONG_RIDGE: { name: 'Shillong Multi-Purpose Hall Relief Camp', distanceKm: 0.8 },
+  AIZAWL_SLOPES: { name: 'Aizawl Synod Conference Relief Center', distanceKm: 1.5 }
+};
+
+/** Helper to construct area risk state indexed by both ID and Name */
+function createScenarioAreas(areaList: AreaRiskState[]): Record<string, AreaRiskState> {
+  const map: Record<string, AreaRiskState> = {};
+  for (const a of areaList) {
+    map[a.canonicalId] = a;
+    map[a.areaName] = a;
+  }
+  return map;
+}
+
 export const DEMO_SCENARIOS: DemoScenario[] = [
   {
     id: 'scenario-a',
@@ -112,8 +146,9 @@ export const DEMO_SCENARIOS: DemoScenario[] = [
     highCount: 1,
     moderateCount: 1,
     lowCount: 1,
-    areas: {
-      'Shillong Ridge (NER)': {
+    areas: createScenarioAreas([
+      {
+        canonicalId: 'SHILLONG_RIDGE',
         areaName: 'Shillong Ridge (NER)',
         severity: 'CRITICAL',
         score: 0.88,
@@ -121,13 +156,20 @@ export const DEMO_SCENARIOS: DemoScenario[] = [
         rain24h: 210.0,
         rain72h: 385.0,
         soilMoisture: 0.88,
+        slope: 34.0,
+        elev: 1428.3,
         roadStatus: 'BLOCKED',
         actionProtocol: 'Immediate Evacuation & Highway Closure. High debris-flow susceptibility on Shillong Bypass.',
         evacuationStatus: 'REROUTED',
         primaryCorridor: 'NH-6 / Shillong Bypass (BLOCKED - Severe Slope Failure)',
-        safeRoute: 'Recommended Evacuation Route: Mawlai-Umsning Alternative Link (Subject to real-time ground confirmation)'
+        safeRoute: 'Recommended Evacuation Route: Mawlai-Umsning Alternative Link (Subject to real-time ground confirmation)',
+        nearestShelter: AREA_SHELTERS.SHILLONG_RIDGE.name,
+        shelterDistanceKm: AREA_SHELTERS.SHILLONG_RIDGE.distanceKm,
+        estimatedTimeMin: 45,
+        citizenReportsCount: 4
       },
-      'Meppadi, Wayanad (Testbed)': {
+      {
+        canonicalId: 'MEPPADI',
         areaName: 'Meppadi, Wayanad (Testbed)',
         severity: 'CRITICAL',
         score: 0.84,
@@ -135,13 +177,20 @@ export const DEMO_SCENARIOS: DemoScenario[] = [
         rain24h: 195.0,
         rain72h: 360.0,
         soilMoisture: 0.84,
+        slope: 38.5,
+        elev: 876.5,
         roadStatus: 'BLOCKED',
         actionProtocol: 'Immediate Evacuation & Highway Closure. Critical runoff along tea estate slopes.',
         evacuationStatus: 'REROUTED',
         primaryCorridor: 'NH-766 / Meppadi-Chooralmala Rd (BLOCKED - High Debris Flow)',
-        safeRoute: 'Recommended Evacuation Route: Kalpetta Bypass Corridor (Subject to ground confirmation)'
+        safeRoute: 'Recommended Evacuation Route: Kalpetta Bypass Corridor (Subject to ground confirmation)',
+        nearestShelter: AREA_SHELTERS.MEPPADI.name,
+        shelterDistanceKm: AREA_SHELTERS.MEPPADI.distanceKm,
+        estimatedTimeMin: 45,
+        citizenReportsCount: 3
       },
-      'Aizawl Slopes (NER)': {
+      {
+        canonicalId: 'AIZAWL_SLOPES',
         areaName: 'Aizawl Slopes (NER)',
         severity: 'HIGH',
         score: 0.68,
@@ -149,13 +198,20 @@ export const DEMO_SCENARIOS: DemoScenario[] = [
         rain24h: 135.0,
         rain72h: 250.0,
         soilMoisture: 0.72,
+        slope: 45.0,
+        elev: 1070.3,
         roadStatus: 'AT_RISK',
         actionProtocol: 'High Landslide Risk. Restrict heavy transit, alert NDRF field units, monitor hillside cracks.',
         evacuationStatus: 'CAUTION',
         primaryCorridor: 'NH-54 / Chaltlang Corridor (AT_RISK - Single Lane Transit)',
-        safeRoute: 'Recommended Evacuation Route: Durtlang Hill Road via West Ridge'
+        safeRoute: 'Recommended Evacuation Route: Durtlang Hill Road via West Ridge',
+        nearestShelter: AREA_SHELTERS.AIZAWL_SLOPES.name,
+        shelterDistanceKm: AREA_SHELTERS.AIZAWL_SLOPES.distanceKm,
+        estimatedTimeMin: 32,
+        citizenReportsCount: 1
       },
-      'Munnar, Idukki (Western Ghats)': {
+      {
+        canonicalId: 'MUNNAR',
         areaName: 'Munnar, Idukki (Western Ghats)',
         severity: 'MODERATE',
         score: 0.48,
@@ -163,13 +219,20 @@ export const DEMO_SCENARIOS: DemoScenario[] = [
         rain24h: 75.0,
         rain72h: 150.0,
         soilMoisture: 0.55,
+        slope: 42.0,
+        elev: 1450.0,
         roadStatus: 'OPEN',
         actionProtocol: 'Issue Pre-warning. Prepare emergency shelters and monitor geotechnical sensors.',
         evacuationStatus: 'CLEAR',
         primaryCorridor: 'NH-85 / Kochi-Dhanushkodi Rd (OPEN)',
-        safeRoute: 'Standard Transit Route: NH-85'
+        safeRoute: 'Standard Transit Route: NH-85',
+        nearestShelter: AREA_SHELTERS.MUNNAR.name,
+        shelterDistanceKm: AREA_SHELTERS.MUNNAR.distanceKm,
+        estimatedTimeMin: 20,
+        citizenReportsCount: 0
       },
-      'Guwahati Hills (NER)': {
+      {
+        canonicalId: 'GUWAHATI_HILLS',
         areaName: 'Guwahati Hills (NER)',
         severity: 'LOW',
         score: 0.22,
@@ -177,13 +240,19 @@ export const DEMO_SCENARIOS: DemoScenario[] = [
         rain24h: 20.0,
         rain72h: 45.0,
         soilMoisture: 0.35,
+        slope: 28.0,
+        elev: 55.7,
         roadStatus: 'OPEN',
         actionProtocol: 'Normal Monitoring Active. Telemetry stable.',
         evacuationStatus: 'CLEAR',
         primaryCorridor: 'GS Road / Kamakhya Corridor (OPEN)',
-        safeRoute: 'Standard Transit Route: GS Road'
+        safeRoute: 'Standard Transit Route: GS Road',
+        nearestShelter: AREA_SHELTERS.GUWAHATI_HILLS.name,
+        shelterDistanceKm: AREA_SHELTERS.GUWAHATI_HILLS.distanceKm,
+        estimatedTimeMin: 20,
+        citizenReportsCount: 0
       }
-    }
+    ])
   },
   {
     id: 'scenario-b',
@@ -193,8 +262,9 @@ export const DEMO_SCENARIOS: DemoScenario[] = [
     highCount: 1,
     moderateCount: 1,
     lowCount: 1,
-    areas: {
-      'Meppadi, Wayanad (Testbed)': {
+    areas: createScenarioAreas([
+      {
+        canonicalId: 'MEPPADI',
         areaName: 'Meppadi, Wayanad (Testbed)',
         severity: 'CRITICAL',
         score: 0.92,
@@ -202,13 +272,20 @@ export const DEMO_SCENARIOS: DemoScenario[] = [
         rain24h: 235.0,
         rain72h: 420.0,
         soilMoisture: 0.92,
+        slope: 38.5,
+        elev: 876.5,
         roadStatus: 'BLOCKED',
         actionProtocol: 'Immediate Evacuation & Highway Closure. Massive slope saturation in Chooralmala tea estates.',
         evacuationStatus: 'REROUTED',
         primaryCorridor: 'NH-766 / Meppadi-Chooralmala Rd (BLOCKED - Severe Sludge Flow)',
-        safeRoute: 'Recommended Evacuation Route: Kalpetta Bypass Corridor'
+        safeRoute: 'Recommended Evacuation Route: Kalpetta Bypass Corridor',
+        nearestShelter: AREA_SHELTERS.MEPPADI.name,
+        shelterDistanceKm: AREA_SHELTERS.MEPPADI.distanceKm,
+        estimatedTimeMin: 45,
+        citizenReportsCount: 5
       },
-      'Munnar, Idukki (Western Ghats)': {
+      {
+        canonicalId: 'MUNNAR',
         areaName: 'Munnar, Idukki (Western Ghats)',
         severity: 'CRITICAL',
         score: 0.86,
@@ -216,13 +293,20 @@ export const DEMO_SCENARIOS: DemoScenario[] = [
         rain24h: 190.0,
         rain72h: 340.0,
         soilMoisture: 0.86,
+        slope: 42.0,
+        elev: 1450.0,
         roadStatus: 'BLOCKED',
         actionProtocol: 'Immediate Evacuation & Highway Closure. Extreme debris-flow threat near Gap Road.',
         evacuationStatus: 'REROUTED',
         primaryCorridor: 'Gap Road / NH-85 (BLOCKED - Landslide Debris)',
-        safeRoute: 'Recommended Evacuation Route: Devikulam-Poopara Bypass (Subject to ground confirmation)'
+        safeRoute: 'Recommended Evacuation Route: Devikulam-Poopara Bypass (Subject to ground confirmation)',
+        nearestShelter: AREA_SHELTERS.MUNNAR.name,
+        shelterDistanceKm: AREA_SHELTERS.MUNNAR.distanceKm,
+        estimatedTimeMin: 45,
+        citizenReportsCount: 3
       },
-      'Shillong Ridge (NER)': {
+      {
+        canonicalId: 'SHILLONG_RIDGE',
         areaName: 'Shillong Ridge (NER)',
         severity: 'HIGH',
         score: 0.72,
@@ -230,13 +314,20 @@ export const DEMO_SCENARIOS: DemoScenario[] = [
         rain24h: 145.0,
         rain72h: 260.0,
         soilMoisture: 0.74,
+        slope: 34.0,
+        elev: 1428.3,
         roadStatus: 'AT_RISK',
         actionProtocol: 'High Landslide Risk. Monitor hillside retaining walls and restrict heavy traffic.',
         evacuationStatus: 'CAUTION',
         primaryCorridor: 'NH-6 (AT_RISK - Mudslides Reported)',
-        safeRoute: 'Recommended Evacuation Route: Mawlai Link Road'
+        safeRoute: 'Recommended Evacuation Route: Mawlai Link Road',
+        nearestShelter: AREA_SHELTERS.SHILLONG_RIDGE.name,
+        shelterDistanceKm: AREA_SHELTERS.SHILLONG_RIDGE.distanceKm,
+        estimatedTimeMin: 32,
+        citizenReportsCount: 2
       },
-      'Aizawl Slopes (NER)': {
+      {
+        canonicalId: 'AIZAWL_SLOPES',
         areaName: 'Aizawl Slopes (NER)',
         severity: 'MODERATE',
         score: 0.45,
@@ -244,13 +335,20 @@ export const DEMO_SCENARIOS: DemoScenario[] = [
         rain24h: 70.0,
         rain72h: 140.0,
         soilMoisture: 0.52,
+        slope: 45.0,
+        elev: 1070.3,
         roadStatus: 'OPEN',
         actionProtocol: 'Issue Pre-warning. Continuous telemetry monitoring active.',
         evacuationStatus: 'CLEAR',
         primaryCorridor: 'NH-54 (OPEN)',
-        safeRoute: 'Standard Transit Route: NH-54'
+        safeRoute: 'Standard Transit Route: NH-54',
+        nearestShelter: AREA_SHELTERS.AIZAWL_SLOPES.name,
+        shelterDistanceKm: AREA_SHELTERS.AIZAWL_SLOPES.distanceKm,
+        estimatedTimeMin: 20,
+        citizenReportsCount: 0
       },
-      'Guwahati Hills (NER)': {
+      {
+        canonicalId: 'GUWAHATI_HILLS',
         areaName: 'Guwahati Hills (NER)',
         severity: 'LOW',
         score: 0.18,
@@ -258,13 +356,19 @@ export const DEMO_SCENARIOS: DemoScenario[] = [
         rain24h: 18.0,
         rain72h: 40.0,
         soilMoisture: 0.32,
+        slope: 28.0,
+        elev: 55.7,
         roadStatus: 'OPEN',
         actionProtocol: 'Normal Monitoring Active. Telemetry stable.',
         evacuationStatus: 'CLEAR',
         primaryCorridor: 'GS Road (OPEN)',
-        safeRoute: 'Standard Transit Route: GS Road'
+        safeRoute: 'Standard Transit Route: GS Road',
+        nearestShelter: AREA_SHELTERS.GUWAHATI_HILLS.name,
+        shelterDistanceKm: AREA_SHELTERS.GUWAHATI_HILLS.distanceKm,
+        estimatedTimeMin: 20,
+        citizenReportsCount: 0
       }
-    }
+    ])
   },
   {
     id: 'scenario-c',
@@ -274,8 +378,9 @@ export const DEMO_SCENARIOS: DemoScenario[] = [
     highCount: 1,
     moderateCount: 2,
     lowCount: 1,
-    areas: {
-      'Aizawl Slopes (NER)': {
+    areas: createScenarioAreas([
+      {
+        canonicalId: 'AIZAWL_SLOPES',
         areaName: 'Aizawl Slopes (NER)',
         severity: 'CRITICAL',
         score: 0.85,
@@ -283,13 +388,20 @@ export const DEMO_SCENARIOS: DemoScenario[] = [
         rain24h: 200.0,
         rain72h: 370.0,
         soilMoisture: 0.86,
+        slope: 45.0,
+        elev: 1070.3,
         roadStatus: 'BLOCKED',
         actionProtocol: 'Immediate Evacuation & Highway Closure. High shear-strain detection along Chaltlang ridge.',
         evacuationStatus: 'REROUTED',
         primaryCorridor: 'NH-54 / Sairang Arterial (BLOCKED - Severe Slump)',
-        safeRoute: 'Recommended Evacuation Route: Lengpui-Sikulpuia Perimeter Bypass'
+        safeRoute: 'Recommended Evacuation Route: Lengpui-Sikulpuia Perimeter Bypass',
+        nearestShelter: AREA_SHELTERS.AIZAWL_SLOPES.name,
+        shelterDistanceKm: AREA_SHELTERS.AIZAWL_SLOPES.distanceKm,
+        estimatedTimeMin: 45,
+        citizenReportsCount: 4
       },
-      'Shillong Ridge (NER)': {
+      {
+        canonicalId: 'SHILLONG_RIDGE',
         areaName: 'Shillong Ridge (NER)',
         severity: 'HIGH',
         score: 0.65,
@@ -297,13 +409,20 @@ export const DEMO_SCENARIOS: DemoScenario[] = [
         rain24h: 130.0,
         rain72h: 240.0,
         soilMoisture: 0.68,
+        slope: 34.0,
+        elev: 1428.3,
         roadStatus: 'AT_RISK',
         actionProtocol: 'High Landslide Risk. Pre-position disaster rescue equipment and restrict heavy transit.',
         evacuationStatus: 'CAUTION',
         primaryCorridor: 'NH-6 (AT_RISK)',
-        safeRoute: 'Recommended Evacuation Route: Mawlai Link Road'
+        safeRoute: 'Recommended Evacuation Route: Mawlai Link Road',
+        nearestShelter: AREA_SHELTERS.SHILLONG_RIDGE.name,
+        shelterDistanceKm: AREA_SHELTERS.SHILLONG_RIDGE.distanceKm,
+        estimatedTimeMin: 32,
+        citizenReportsCount: 2
       },
-      'Meppadi, Wayanad (Testbed)': {
+      {
+        canonicalId: 'MEPPADI',
         areaName: 'Meppadi, Wayanad (Testbed)',
         severity: 'MODERATE',
         score: 0.42,
@@ -311,13 +430,20 @@ export const DEMO_SCENARIOS: DemoScenario[] = [
         rain24h: 65.0,
         rain72h: 135.0,
         soilMoisture: 0.50,
+        slope: 38.5,
+        elev: 876.5,
         roadStatus: 'OPEN',
         actionProtocol: 'Issue Pre-warning. Soil saturation moderate, slope sensors nominal.',
         evacuationStatus: 'CLEAR',
         primaryCorridor: 'NH-766 (OPEN)',
-        safeRoute: 'Standard Transit Route: NH-766'
+        safeRoute: 'Standard Transit Route: NH-766',
+        nearestShelter: AREA_SHELTERS.MEPPADI.name,
+        shelterDistanceKm: AREA_SHELTERS.MEPPADI.distanceKm,
+        estimatedTimeMin: 20,
+        citizenReportsCount: 0
       },
-      'Munnar, Idukki (Western Ghats)': {
+      {
+        canonicalId: 'MUNNAR',
         areaName: 'Munnar, Idukki (Western Ghats)',
         severity: 'MODERATE',
         score: 0.39,
@@ -325,13 +451,20 @@ export const DEMO_SCENARIOS: DemoScenario[] = [
         rain24h: 55.0,
         rain72h: 120.0,
         soilMoisture: 0.46,
+        slope: 42.0,
+        elev: 1450.0,
         roadStatus: 'OPEN',
         actionProtocol: 'Issue Pre-warning. Rain subsidence detected.',
         evacuationStatus: 'CLEAR',
         primaryCorridor: 'NH-85 (OPEN)',
-        safeRoute: 'Standard Transit Route: NH-85'
+        safeRoute: 'Standard Transit Route: NH-85',
+        nearestShelter: AREA_SHELTERS.MUNNAR.name,
+        shelterDistanceKm: AREA_SHELTERS.MUNNAR.distanceKm,
+        estimatedTimeMin: 20,
+        citizenReportsCount: 0
       },
-      'Guwahati Hills (NER)': {
+      {
+        canonicalId: 'GUWAHATI_HILLS',
         areaName: 'Guwahati Hills (NER)',
         severity: 'LOW',
         score: 0.15,
@@ -339,13 +472,19 @@ export const DEMO_SCENARIOS: DemoScenario[] = [
         rain24h: 15.0,
         rain72h: 35.0,
         soilMoisture: 0.28,
+        slope: 28.0,
+        elev: 55.7,
         roadStatus: 'OPEN',
         actionProtocol: 'Normal Monitoring Active. Cloud cover light, stability high.',
         evacuationStatus: 'CLEAR',
         primaryCorridor: 'GS Road (OPEN)',
-        safeRoute: 'Standard Transit Route: GS Road'
+        safeRoute: 'Standard Transit Route: GS Road',
+        nearestShelter: AREA_SHELTERS.GUWAHATI_HILLS.name,
+        shelterDistanceKm: AREA_SHELTERS.GUWAHATI_HILLS.distanceKm,
+        estimatedTimeMin: 20,
+        citizenReportsCount: 0
       }
-    }
+    ])
   }
 ];
 
@@ -354,6 +493,27 @@ export const SCENARIO_INTERVAL_MS = 5 * 60 * 1000; // 300,000 ms
 
 // In-memory road status modifications during session
 const sessionRoadOverrides: Record<string, RoadStatus> = {};
+
+/** Resolves any area query (canonicalId, UUID, name or substring) to canonical area object */
+export function resolveCanonicalArea(query?: string | null): CanonicalArea {
+  if (!query) return CANONICAL_AREAS[0];
+  const q = query.trim().toUpperCase();
+
+  // Exact ID or canonical ID match
+  const byId = CANONICAL_AREAS.find(a => a.canonicalId === q || a.id === query);
+  if (byId) return byId;
+
+  // Substring or partial name match
+  const byName = CANONICAL_AREAS.find(a =>
+    a.name.toUpperCase().includes(q) ||
+    q.includes(a.name.toUpperCase()) ||
+    a.canonicalId.includes(q) ||
+    q.includes(a.canonicalId) ||
+    a.district.toUpperCase().includes(q) ||
+    q.includes(a.district.toUpperCase())
+  );
+  return byName || CANONICAL_AREAS[0];
+}
 
 /** Get current scenario index deterministically from clock epoch or manual override */
 export function getSynchronizedScenarioIndex(): number {
@@ -425,7 +585,8 @@ export function getSharedRegionRisks(): RegionRisk[] {
   const scenario = getActiveScenario();
 
   return CANONICAL_AREAS.map(area => {
-    const state = scenario.areas[area.name] || {
+    const state: AreaRiskState = scenario.areas[area.canonicalId] || scenario.areas[area.name] || {
+      canonicalId: area.canonicalId,
       areaName: area.name,
       severity: 'LOW',
       score: 0.20,
@@ -433,17 +594,27 @@ export function getSharedRegionRisks(): RegionRisk[] {
       rain24h: 15.0,
       rain72h: 30.0,
       soilMoisture: 0.30,
+      slope: area.slope,
+      elev: area.elev,
       roadStatus: 'OPEN',
       actionProtocol: 'Normal Monitoring Active.',
       evacuationStatus: 'CLEAR',
       primaryCorridor: 'Main Arterial Corridor',
-      safeRoute: 'Standard Route'
+      safeRoute: 'Standard Route',
+      nearestShelter: AREA_SHELTERS[area.canonicalId]?.name || 'District Emergency Shelter',
+      shelterDistanceKm: AREA_SHELTERS[area.canonicalId]?.distanceKm || 2.0,
+      estimatedTimeMin: 20,
+      citizenReportsCount: 0
     };
 
-    const roadStatus = sessionRoadOverrides[area.id] || sessionRoadOverrides[area.name] || state.roadStatus;
+    const roadStatus = sessionRoadOverrides[area.canonicalId] ||
+                       sessionRoadOverrides[area.id] ||
+                       sessionRoadOverrides[area.name] ||
+                       state.roadStatus;
 
     return {
       regionId: area.id,
+      canonicalId: area.canonicalId,
       name: area.name,
       district: area.district,
       state: area.state,
@@ -453,6 +624,18 @@ export function getSharedRegionRisks(): RegionRisk[] {
       computedScore: state.computedScore,
       computedAt: new Date().toISOString(),
       roadStatus,
+      primaryCorridor: state.primaryCorridor,
+      safeRoute: state.safeRoute,
+      rain24h: state.rain24h,
+      rain72h: state.rain72h,
+      soilMoisture: state.soilMoisture,
+      slope: area.slope,
+      elev: area.elev,
+      nearestShelter: state.nearestShelter,
+      shelterDistanceKm: state.shelterDistanceKm,
+      estimatedTimeMin: state.estimatedTimeMin,
+      actionProtocol: state.actionProtocol,
+      citizenReportsCount: state.citizenReportsCount,
       contributingFactors: {
         rainfall: {
           score: Number((state.rain24h / 220.0).toFixed(2)),
@@ -496,17 +679,18 @@ export function getSharedRegionRisks(): RegionRisk[] {
  * - SatarkCitizenApp (Android)
  * - api.ts fetchRiskAssessment fallback
  */
-export function getSharedRiskForZone(zoneName: string): RiskAssessmentResponse {
+export function getSharedRiskForZone(zoneKey?: string | null): RiskAssessmentResponse {
   const scenario = getActiveScenario();
-  // Find matching canonical area (exact or prefix match)
-  const canonical = CANONICAL_AREAS.find(a => 
-    a.name.toLowerCase() === zoneName.toLowerCase() ||
-    zoneName.toLowerCase().includes(a.name.toLowerCase()) ||
-    a.name.toLowerCase().includes(zoneName.toLowerCase())
-  ) || CANONICAL_AREAS[0];
+  const canonical = resolveCanonicalArea(zoneKey);
+  const state: AreaRiskState = scenario.areas[canonical.canonicalId] ||
+                              scenario.areas[canonical.name] ||
+                              scenario.areas[CANONICAL_AREAS[0].name];
 
-  const state = scenario.areas[canonical.name] || scenario.areas[CANONICAL_AREAS[0].name];
-  const roadStatus = sessionRoadOverrides[canonical.id] || sessionRoadOverrides[canonical.name] || state.roadStatus;
+  const roadStatus = sessionRoadOverrides[canonical.canonicalId] ||
+                     sessionRoadOverrides[canonical.id] ||
+                     sessionRoadOverrides[canonical.name] ||
+                     state.roadStatus;
+
   const isCrit = state.severity === 'CRITICAL';
   const isHigh = state.severity === 'HIGH';
 
@@ -524,9 +708,19 @@ export function getSharedRiskForZone(zoneName: string): RiskAssessmentResponse {
       critical_rain_trigger: isCrit || state.rain24h >= 100.0,
       source: 'MCDA_ESTIMATED_TELEMETRY'
     },
+    terrain_elevation: {
+      available: true,
+      latitude: canonical.lat,
+      longitude: canonical.lon,
+      elevationMeters: canonical.elev,
+      source: 'OpenTopography',
+      dataset: 'NASADEM_30M',
+      resolutionMeters: 30
+    },
     assessment: {
       score: state.score,
-      level: ((state.severity === 'CRITICAL' || state.severity === 'HIGH') ? 'RED' : (state.severity === 'MODERATE' ? 'AMBER' : 'GREEN')) as 'RED' | 'AMBER' | 'GREEN',
+      level: ((isCrit || isHigh) ? 'RED' : (state.severity === 'MODERATE' ? 'AMBER' : 'GREEN')) as 'RED' | 'AMBER' | 'GREEN',
+      severity: state.severity,
       action_protocol: state.actionProtocol,
       feature_breakdown: {
         norm_slope: Number((canonical.slope / 50.0).toFixed(2)),
@@ -543,6 +737,8 @@ export function getSharedRiskForZone(zoneName: string): RiskAssessmentResponse {
       safe_evacuation_route: state.safeRoute,
       action: state.actionProtocol,
       rerouted: isCrit,
+      corridor_source: 'SATARK Operational Corridor Model (SIH 2026)',
+      nearest_verified_shelter: `${state.nearestShelter} (${state.shelterDistanceKm} km)`,
       blocked_segments: (isCrit || roadStatus === 'BLOCKED')
         ? [[canonical.lat - 0.003, canonical.lon - 0.012], [canonical.lat + 0.017, canonical.lon + 0.008]]
         : [],
@@ -551,7 +747,7 @@ export function getSharedRiskForZone(zoneName: string): RiskAssessmentResponse {
         [canonical.lat - 0.033, canonical.lon - 0.002],
         [canonical.lat - 0.013, canonical.lon + 0.038]
       ],
-      estimated_evacuation_time_min: isCrit ? 45 : isHigh ? 32 : 20
+      estimated_evacuation_time_min: state.estimatedTimeMin
     }
   };
 }
@@ -562,7 +758,8 @@ export function getSharedRiskForZone(zoneName: string): RiskAssessmentResponse {
  */
 export function getSharedRiskDetail(regionId: string): RiskDetail | null {
   const regions = getSharedRegionRisks();
-  const region = regions.find(r => r.regionId === regionId) || regions.find(r => r.name.includes(regionId));
+  const canonical = resolveCanonicalArea(regionId);
+  const region = regions.find(r => r.regionId === canonical.id || r.canonicalId === canonical.canonicalId) || regions[0];
   if (!region) return null;
 
   const readings = [];
@@ -612,8 +809,10 @@ export function getSharedRecentAlerts(): AlertItem[] {
 /** Update road corridor status across both portals */
 export function updateSharedRoadStatus(regionId: string, status: RoadStatus): void {
   sessionRoadOverrides[regionId] = status;
-  const canonical = CANONICAL_AREAS.find(a => a.id === regionId);
+  const canonical = resolveCanonicalArea(regionId);
   if (canonical) {
+    sessionRoadOverrides[canonical.id] = status;
+    sessionRoadOverrides[canonical.canonicalId] = status;
     sessionRoadOverrides[canonical.name] = status;
   }
   if (typeof window !== 'undefined') {

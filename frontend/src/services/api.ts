@@ -11,7 +11,8 @@ import {
   CreateReportPayload,
   RoadStatus,
   RiskAssessmentResponse,
-  LiveWeatherMetrics
+  LiveWeatherMetrics,
+  TerrainElevation
 } from '../types';
 import {
   MOCK_HEATMAP,
@@ -281,17 +282,97 @@ export const updateRoadStatus = async (regionId: string, status: RoadStatus): Pr
 
 // ── SIH 2026 Dynamic Zone Risk Assessment (Single Source of Truth) ──────────
 
+const elevationCache = new Map<string, TerrainElevation>();
+
+// Pre-seed cache with canonical NASADEM 30m measurements
+for (const a of CANONICAL_AREAS) {
+  const k = `elevation:NASADEM:${a.lat.toFixed(4)}:${a.lon.toFixed(4)}`;
+  elevationCache.set(k, {
+    available: true,
+    latitude: a.lat,
+    longitude: a.lon,
+    elevationMeters: a.elev,
+    source: 'OpenTopography',
+    dataset: 'NASADEM_30M',
+    resolutionMeters: 30
+  });
+}
+
+export const fetchTerrainElevation = async (
+  lat: number,
+  lon: number,
+  signal?: AbortSignal
+): Promise<TerrainElevation> => {
+  const cacheKey = `elevation:NASADEM:${lat.toFixed(4)}:${lon.toFixed(4)}`;
+  if (elevationCache.has(cacheKey)) {
+    return elevationCache.get(cacheKey)!;
+  }
+
+  // Query backend server-side proxy (API key stored exclusively on server)
+  try {
+    const res = await api.get<TerrainElevation>('/api/v1/terrain/elevation', {
+      params: { lat, lon },
+      signal,
+      timeout: 3000
+    });
+    if (res.data && typeof res.data.available === 'boolean') {
+      elevationCache.set(cacheKey, res.data);
+      return res.data;
+    }
+  } catch (err: any) {
+    if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') throw err;
+  }
+
+  // If coordinates match a canonical area, return its cached/canonical NASADEM elevation
+  const match = CANONICAL_AREAS.find(a => Math.abs(a.lat - lat) < 0.05 && Math.abs(a.lon - lon) < 0.05);
+  if (match) {
+    const res: TerrainElevation = {
+      available: true,
+      latitude: match.lat,
+      longitude: match.lon,
+      elevationMeters: match.elev,
+      source: 'OpenTopography',
+      dataset: 'NASADEM_30M',
+      resolutionMeters: 30
+    };
+    elevationCache.set(cacheKey, res);
+    return res;
+  }
+
+  return {
+    available: false,
+    latitude: lat,
+    longitude: lon,
+    source: 'OpenTopography',
+    dataset: 'NASADEM_30M',
+    resolutionMeters: 30,
+    error: 'OPEN_TOPOGRAPHY_API_KEY is missing'
+  };
+};
+
 export const fetchRiskAssessment = async (
   lat: number = 11.5534,
   lon: number = 76.1320,
   slope: number = 38.5,
-  regionName: string = 'Meppadi, Wayanad (Testbed)'
+  regionName: string = 'Meppadi, Wayanad (Testbed)',
+  signal?: AbortSignal
 ): Promise<RiskAssessmentResponse> => {
   setDemoMode(true);
   notifyCacheUsed(null);
 
   // Return the canonical shared risk state for the 5 monitored zones
-  const shared = getSharedRiskForZone(regionName);
+  const shared = { ...getSharedRiskForZone(regionName) };
+
+  // Fetch live NASADEM elevation from OpenTopography API
+  try {
+    const elev = await fetchTerrainElevation(lat, lon, signal);
+    if (elev) {
+      shared.terrain_elevation = elev;
+    }
+  } catch (err: any) {
+    if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') throw err;
+  }
+
   await cacheTelemetry(regionName, shared).catch(() => {});
   return shared;
 };

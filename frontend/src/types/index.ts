@@ -20,6 +20,7 @@ export interface ContributingFactors {
 
 export interface RegionRisk {
   regionId: string;
+  canonicalId?: string;
   name: string;
   district: string;
   state: string;
@@ -30,6 +31,18 @@ export interface RegionRisk {
   computedAt: string;
   contributingFactors: ContributingFactors;
   roadStatus: RoadStatus | null;
+  primaryCorridor?: string;
+  safeRoute?: string;
+  rain24h?: number;
+  rain72h?: number;
+  soilMoisture?: number;
+  slope?: number;
+  elev?: number;
+  nearestShelter?: string;
+  shelterDistanceKm?: number;
+  estimatedTimeMin?: number;
+  actionProtocol?: string;
+  citizenReportsCount?: number;
 }
 
 export interface RiskDetail extends RegionRisk {
@@ -132,6 +145,7 @@ export interface LiveWeatherMetrics {
 export interface LandslideAssessment {
   score: number;
   level: 'RED' | 'AMBER' | 'GREEN';
+  severity?: Severity;
   action_protocol: string;
   feature_breakdown?: {
     norm_slope: number;
@@ -139,6 +153,18 @@ export interface LandslideAssessment {
     norm_r72: number;
     norm_moisture: number;
   };
+}
+
+export interface TerrainElevation {
+  available: boolean;
+  latitude?: number;
+  longitude?: number;
+  elevationMeters?: number;
+  source: string;
+  dataset: string;
+  resolutionMeters?: number;
+  error?: string;
+  isFallback?: boolean;
 }
 
 export interface EvacuationPlan {
@@ -152,6 +178,8 @@ export interface EvacuationPlan {
   blocked_segments: [number, number][];
   safe_route_geometry: [number, number][];
   estimated_evacuation_time_min: number;
+  corridor_source?: string;
+  nearest_verified_shelter?: string;
 }
 
 export interface RiskAssessmentResponse {
@@ -162,6 +190,7 @@ export interface RiskAssessmentResponse {
     region_name: string;
   };
   weather: LiveWeatherMetrics;
+  terrain_elevation?: TerrainElevation;
   assessment: LandslideAssessment;
   evacuation_plan: EvacuationPlan;
 }

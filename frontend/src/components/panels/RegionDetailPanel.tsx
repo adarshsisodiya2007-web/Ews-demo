@@ -126,6 +126,39 @@ export const RegionDetailPanel: React.FC<Props> = ({ regionId, onClose, userRole
               </select>
             </div>
           )}
+
+          <hr style={{ border: 'none', borderTop: '1px solid var(--color-base-600)', margin: '16px 0' }} />
+
+          <h3 style={{ fontSize: '0.85rem', letterSpacing: '0.05em', marginBottom: '12px', color: 'var(--color-base-000)' }}>
+            🛰️ Terrain &amp; Evacuation Protocol
+          </h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.78rem', color: 'var(--color-base-200)' }}>
+            <div>
+              <strong style={{ color: 'var(--color-base-100)' }}>Elevation:</strong> {detail.elev !== undefined ? `${detail.elev} m (NASADEM 30m)` : 'N/A'}
+            </div>
+            <div>
+              <strong style={{ color: 'var(--color-base-100)' }}>Primary Corridor:</strong> {detail.primaryCorridor || 'N/A'}
+            </div>
+            <div>
+              <strong style={{ color: 'var(--color-base-100)' }}>Safe Route:</strong> {detail.safeRoute || 'N/A'}
+            </div>
+            {detail.nearestShelter && (
+              <div>
+                <strong style={{ color: 'var(--color-base-100)' }}>Nearest Shelter:</strong> {detail.nearestShelter} ({detail.shelterDistanceKm || 1.2} km)
+              </div>
+            )}
+            {detail.estimatedTimeMin !== undefined && (
+              <div>
+                <strong style={{ color: 'var(--color-base-100)' }}>Est. Evacuation Time:</strong> {detail.estimatedTimeMin} min
+              </div>
+            )}
+            {detail.actionProtocol && (
+              <div style={{ marginTop: '4px', padding: '8px', background: 'var(--color-base-800)', borderRadius: '4px', borderLeft: '3px solid #38bdf8' }}>
+                <strong style={{ color: '#38bdf8' }}>Action Protocol:</strong>
+                <div style={{ marginTop: '2px', color: '#f8fafc' }}>{detail.actionProtocol}</div>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

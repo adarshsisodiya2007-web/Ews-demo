@@ -325,49 +325,19 @@ export function buildPrioritizedIncidents(
       ? `Potential incident cluster: ${nearbyReports.length} reports detected within ~15 km of this sector`
       : undefined;
 
-    // Real factor metrics from backend / shared state
-    const rainScore = region.contributingFactors?.rainfall?.score ?? 0.3;
-    const moistureScore = region.contributingFactors?.soilMoisture?.score ?? 0.35;
-    const slopeScore = region.contributingFactors?.slope?.score ?? 0.4;
-
-    const rain24Mm = Math.round(rainScore * 200);
-    const rain72Mm = Math.round(rain24Mm * 1.8);
-    const soilMoisturePct = Math.round(moistureScore * 100);
-    const slopeDeg = Math.round(18 + slopeScore * 32);
+    // Direct factor metrics from shared state / backend
+    const rain24Mm = region.rain24h !== undefined ? region.rain24h : Math.round((region.contributingFactors?.rainfall?.score ?? 0.3) * 200);
+    const rain72Mm = region.rain72h !== undefined ? region.rain72h : Math.round(rain24Mm * 1.8);
+    const soilMoisturePct = region.soilMoisture !== undefined ? Math.round(region.soilMoisture * 100) : Math.round((region.contributingFactors?.soilMoisture?.score ?? 0.35) * 100);
+    const slopeDeg = region.slope !== undefined ? region.slope : Math.round(18 + (region.contributingFactors?.slope?.score ?? 0.4) * 32);
 
     const riskScore = (region.computedScore || 40) / 100;
     const riskLevel: 'RED' | 'AMBER' | 'GREEN' =
       region.severity === 'CRITICAL' || region.severity === 'HIGH' ? 'RED'
       : region.severity === 'MODERATE' ? 'AMBER' : 'GREEN';
 
-    const riskLevelScore = riskLevel === 'RED' ? 1.0 : riskLevel === 'AMBER' ? 0.6 : 0.15;
-    const rainfallNorm = normalize(rain24Mm, 0, 200);
-    const popScore = populationScore(region.centroidLat, region.centroidLng);
-    const reportScore = normalize(nearbyReports.length, 0, 10);
-    const recency = recencyScore(region.computedAt || new Date().toISOString());
-
-    // Priority weighted formula aligned strictly with canonical severity
-    let priority_score =
-      0.35 * riskLevelScore +
-      0.25 * rainfallNorm +
-      0.20 * popScore +
-      0.15 * reportScore +
-      0.05 * recency;
-
-    if (region.roadStatus === 'BLOCKED') {
-      priority_score = Math.min(1.0, priority_score + 0.12);
-    }
-
-    // Guarantee priority order: CRITICAL > HIGH > MODERATE > LOW
-    if (region.severity === 'CRITICAL') {
-      priority_score = Math.max(0.82, priority_score);
-    } else if (region.severity === 'HIGH') {
-      priority_score = Math.min(0.79, Math.max(0.62, priority_score));
-    } else if (region.severity === 'MODERATE') {
-      priority_score = Math.min(0.59, Math.max(0.42, priority_score));
-    } else {
-      priority_score = Math.min(0.39, priority_score);
-    }
+    // Priority score equals the canonical MCDA risk score, guaranteeing exact numerical equality
+    const priority_score = riskScore;
 
     const criticality_label: CriticalityLabel =
       region.severity === 'CRITICAL' ? 'LIFE-THREATENING'
@@ -403,8 +373,9 @@ export function buildPrioritizedIncidents(
       reasoning.push(`💧 Saturated soil moisture: ~${soilMoisturePct}% field capacity increases liquefaction potential`);
     }
 
-    if (nearbyReports.length > 0) {
-      reasoning.push(`📋 Ground corroboration: ${nearbyReports.length} citizen incident report(s) logged in this sector`);
+    if (nearbyReports.length > 0 || (region.citizenReportsCount && region.citizenReportsCount > 0)) {
+      const cnt = region.citizenReportsCount || nearbyReports.length;
+      reasoning.push(`📋 Ground corroboration: ${cnt} citizen incident report(s) logged in this sector`);
     }
 
     if (region.roadStatus === 'BLOCKED') {
@@ -417,24 +388,14 @@ export function buildPrioritizedIncidents(
       reasoning.push(`👥 Potential incident cluster: ${nearbyReports.length} reports within proximity indicate concentrated hazard impact`);
     }
 
-    // Nearest shelter lookup
-    const demoShelters = [
-      { name: 'Meppadi Relief Camp A', lat: 11.5540, lon: 76.1340 },
-      { name: 'Wayanad District Sports Complex', lat: 11.6050, lon: 76.0820 },
-      { name: 'Munnar Higher Secondary Shelter', lat: 10.0890, lon: 77.0600 },
-      { name: 'Guwahati Dispur Shelter Center', lat: 26.1450, lon: 91.7370 },
-      { name: 'Aizawl Community Hall', lat: 23.7280, lon: 92.7180 },
-      { name: 'Shillong Multi-Purpose Hall', lat: 25.5790, lon: 91.8940 },
-    ];
-    let nearestShelter = { name: 'District Emergency Center', distanceKm: 4.5 };
-    let minDist = 9999;
-    for (const sh of demoShelters) {
-      const d = calculateHaversineDistanceKm(region.centroidLat, region.centroidLng, sh.lat, sh.lon);
-      if (d < minDist) {
-        minDist = d;
-        nearestShelter = { name: sh.name, distanceKm: d };
-      }
-    }
+    // Canonical shelter lookup
+    const nearestShelter = region.nearestShelter ? {
+      name: region.nearestShelter,
+      distanceKm: region.shelterDistanceKm || 1.2
+    } : {
+      name: 'District Emergency Center',
+      distanceKm: 2.0
+    };
 
     return {
       id: `inc-${region.regionId.substring(0, 8)}`,
@@ -455,12 +416,12 @@ export function buildPrioritizedIncidents(
       soil_moisture_pct: soilMoisturePct,
       slope_deg: slopeDeg,
       road_status: region.roadStatus,
-      citizen_reports_count: nearbyReports.length,
+      citizen_reports_count: (region.citizenReportsCount !== undefined) ? region.citizenReportsCount : nearbyReports.length,
       correlated_reports: nearbyReports,
       is_cluster: isCluster,
       cluster_description: clusterDesc,
       agent_reasoning: reasoning,
-      recommended_action: getRecommendedAction(criticality_label, region.name),
+      recommended_action: region.actionProtocol || getRecommendedAction(criticality_label, region.name),
       affected_population_estimate: formatPopulation(region.centroidLat, region.centroidLng),
       confidence_pct: Math.min(95, Math.max(68, Math.round(65 + priority_score * 30))),
       nearest_shelter: nearestShelter,

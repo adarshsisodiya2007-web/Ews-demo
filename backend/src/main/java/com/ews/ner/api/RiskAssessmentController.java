@@ -48,7 +48,7 @@ public class RiskAssessmentController {
         double riskScore = ((Number) assessment.getOrDefault("score", 0.0)).doubleValue();
 
         // 4. Dynamic Safe Road Rerouting
-        Map<String, Object> evacuationPlan = routingService.calculateEvacuationPlan(regionName, riskScore, false);
+        Map<String, Object> evacuationPlan = routingService.calculateEvacuationPlan(regionName, riskScore, false, lat, lon);
 
         Map<String, Object> response = new HashMap<>();
         Map<String, Object> location = new HashMap<>();

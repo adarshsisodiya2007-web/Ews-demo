@@ -19,7 +19,9 @@ import {
   getActiveScenario,
   advanceToNextScenario,
   isScenarioOverrideActive,
-  setScenarioOverride
+  setScenarioOverride,
+  CANONICAL_AREAS,
+  CanonicalArea
 } from '../services/sharedRiskState';
 import { RiskAssessmentResponse } from '../types';
 
@@ -52,51 +54,14 @@ export const CitizenPortal: React.FC = () => {
     };
   }, []);
   
-  const [selectedZone, setSelectedZone] = useState({
-    name: 'Meppadi, Wayanad (Testbed)',
-    lat: 11.5534,
-    lon: 76.1320,
-    slope: 38.5
-  });
+  const ZONES: CanonicalArea[] = CANONICAL_AREAS;
+  const [selectedZone, setSelectedZone] = useState<CanonicalArea>(() => CANONICAL_AREAS[0]);
 
   const [currentScenario, setCurrentScenario] = useState(() => getActiveScenario());
   const [isOverride, setIsOverride] = useState(() => isScenarioOverrideActive());
 
-  useEffect(() => {
-    const unsub = subscribeToScenario(() => {
-      setCurrentScenario(getActiveScenario());
-      setIsOverride(isScenarioOverrideActive());
-      setLoading(true);
-      fetchRiskAssessment(selectedZone.lat, selectedZone.lon, selectedZone.slope, selectedZone.name)
-        .then(res => {
-          setData(res);
-          setLoading(false);
-          const lvl: string = res.assessment.level;
-          if ((lvl === 'CRITICAL' || lvl === 'RED') && lastAlertLevel.current !== 'CRITICAL' && lastAlertLevel.current !== 'RED') {
-            playCriticalSiren();
-            speakAlert(selectedZone.name, 'CRITICAL', res.assessment.action_protocol);
-          } else if ((lvl === 'HIGH' || lvl === 'AMBER') && lastAlertLevel.current !== 'HIGH' && lastAlertLevel.current !== 'AMBER') {
-            playWarningBeep();
-          } else if (lvl === 'LOW' || lvl === 'GREEN' || lvl === 'MODERATE') {
-            stopSiren();
-          }
-          lastAlertLevel.current = lvl;
-        })
-        .catch(() => setLoading(false));
-    });
-    return () => unsub();
-  }, [selectedZone]);
-
   const lastAlertLevel = useRef<string | null>(null);
   const notificationSent = useRef<Set<string>>(new Set());
-
-  const ZONES = [
-    { name: 'Meppadi, Wayanad (Testbed)', lat: 11.5534, lon: 76.1320, slope: 38.5 },
-    { name: 'Munnar, Idukki (Western Ghats)', lat: 10.0889, lon: 77.0595, slope: 42.0 },
-    { name: 'Guwahati Hills (NER)', lat: 26.1445, lon: 91.7362, slope: 28.0 },
-    { name: 'Shillong Ridge (NER)', lat: 25.5788, lon: 91.8933, slope: 34.0 },
-    { name: 'Aizawl Slopes (NER)', lat: 23.7271, lon: 92.7176, slope: 45.0 }
-  ];
 
   // If user location detected, find nearest zone
   useEffect(() => {
@@ -179,12 +144,17 @@ export const CitizenPortal: React.FC = () => {
   }, [userLocation, selectedZone]);
 
   useEffect(() => {
-    setLoading(true);
-    fetchRiskAssessment(selectedZone.lat, selectedZone.lon, selectedZone.slope, selectedZone.name)
-      .then(async (res) => {
+    let isCancelled = false;
+    let abortCtrl = new AbortController();
+
+    const doFetch = async () => {
+      setLoading(true);
+      try {
+        const res = await fetchRiskAssessment(selectedZone.lat, selectedZone.lon, selectedZone.slope, selectedZone.name, abortCtrl.signal);
+        if (isCancelled) return;
         setData(res);
         setLoading(false);
-        const level: string = res.assessment.level;
+        const level: string = res.assessment.severity || res.assessment.level;
         const alertKey = `${selectedZone.name}-${level}`;
 
         // Trigger sound on CRITICAL or HIGH
@@ -209,9 +179,26 @@ export const CitizenPortal: React.FC = () => {
           });
           notificationSent.current.add(alertKey);
         }
-      })
-      .catch(() => setLoading(false));
-  }, [selectedZone]);
+      } catch (err: any) {
+        if (isCancelled || err?.name === 'CanceledError' || err?.code === 'ERR_CANCELED') return;
+        setLoading(false);
+      }
+    };
+
+    doFetch();
+
+    const unsub = subscribeToScenario(() => {
+      setCurrentScenario(getActiveScenario());
+      setIsOverride(isScenarioOverrideActive());
+      doFetch();
+    });
+
+    return () => {
+      isCancelled = true;
+      abortCtrl.abort();
+      unsub();
+    };
+  }, [selectedZone, notification]);
 
   const t = {
     en: {
@@ -224,7 +211,7 @@ export const CitizenPortal: React.FC = () => {
       rain24: '24h Cumulative Rain',
       rain72: '72h Total Rainfall',
       soil: 'Soil Moisture Saturation',
-      elevation: 'NASA SRTM 30m Elevation',
+      elevation: 'NASADEM 30m Elevation',
       slope: 'Terrain Slope Angle',
       roadStatus: 'Highway Corridor Status',
       safeRoute: 'Recommended Evacuation Route (Subject to ground confirmation)',
@@ -664,14 +651,17 @@ export const CitizenPortal: React.FC = () => {
                   📍 {t.location} {userLocation && <span style={{ color: theme === 'dark' ? '#22c55e' : '#15803d', marginLeft: '6px' }}>● GPS Auto-Detected</span>}
                 </label>
                 <select value={selectedZone.name}
-                  onChange={e => { const z = ZONES.find(x => x.name === e.target.value); if (z) setSelectedZone(z); }}
+                  onChange={e => {
+                    const z = ZONES.find(x => x.name === e.target.value || x.canonicalId === e.target.value || x.id === e.target.value);
+                    if (z) setSelectedZone(z);
+                  }}
                   style={{
                     padding: '8px 14px', borderRadius: '8px',
                     background: theme === 'dark' ? '#1e293b' : '#f1f5f9',
                     color: fg, border: `1px solid ${brd}`,
                     fontSize: '0.9rem', fontWeight: 600, cursor: 'pointer'
                   }}>
-                  {ZONES.map(z => <option key={z.name} value={z.name}>{z.name}</option>)}
+                  {ZONES.map(z => <option key={z.canonicalId} value={z.name}>{z.name}</option>)}
                 </select>
               </div>
               <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
@@ -698,7 +688,7 @@ export const CitizenPortal: React.FC = () => {
                 <div>
                   <div style={{ fontSize: '0.8rem', fontWeight: 700, color: theme === 'dark' ? '#94a3b8' : '#334155', textTransform: 'uppercase' }}>{t.aiScore}</div>
                   <div style={{ fontSize: '2rem', fontWeight: 900, color: isRed ? (theme === 'dark' ? '#ef4444' : '#b91c1c') : isAmber ? (theme === 'dark' ? '#f59e0b' : '#b45309') : (theme === 'dark' ? '#22c55e' : '#15803d'), marginTop: '4px' }}>
-                    {loading ? 'Analyzing…' : `${data?.assessment?.level || 'MODERATE'} RISK (${(data?.assessment?.score ?? 0.42).toFixed(2)})`}
+                    {loading ? 'Analyzing…' : `${data?.assessment?.severity || (data?.assessment?.level === 'RED' ? 'CRITICAL' : data?.assessment?.level === 'AMBER' ? 'HIGH' : 'LOW')} RISK (${(data?.assessment?.score ?? 0.42).toFixed(2)})`}
                   </div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
@@ -731,7 +721,17 @@ export const CitizenPortal: React.FC = () => {
                 { icon: '🌧️', label: t.rain24, value: `${data?.weather?.rain_24h_mm ?? 142.0} mm`, sub: 'Open-Meteo & OpenWeather', color: (data?.weather?.rain_24h_mm ?? 0) > 100 ? (theme === 'dark' ? '#ef4444' : '#dc2626') : (theme === 'dark' ? '#38bdf8' : '#0284c7') },
                 { icon: '📊', label: t.rain72, value: `${data?.weather?.rain_72h_mm ?? 285.0} mm`, sub: '3-Day Antecedent Rain', color: theme === 'dark' ? '#f8fafc' : '#0f172a' },
                 { icon: '🌱', label: t.soil, value: `${data?.weather?.soil_moisture ?? 0.52} m³/m³`, sub: 'Topsoil 0-1cm Layer', color: theme === 'dark' ? '#f8fafc' : '#0f172a' },
-                { icon: '🛰️', label: t.elevation, value: '876.5 m', sub: 'NASA SRTM 30m DEM', color: theme === 'dark' ? '#38bdf8' : '#0284c7' },
+                {
+                  icon: '🛰️',
+                  label: t.elevation,
+                  value: data?.terrain_elevation?.available && typeof data.terrain_elevation.elevationMeters === 'number'
+                    ? `${data.terrain_elevation.elevationMeters.toFixed(1)} m`
+                    : data?.terrain_elevation?.error
+                      ? 'Key Req.'
+                      : `${selectedZone.elev} m`,
+                  sub: 'OpenTopography NASADEM 30m',
+                  color: theme === 'dark' ? '#38bdf8' : '#0284c7'
+                },
               ].map(({ icon, label, value, sub, color }) => (
                 <div key={label} style={{ background: card, border: `1px solid ${brd}`, borderRadius: '12px', padding: '16px' }}>
                   <div style={{ fontSize: '0.75rem', color: theme === 'dark' ? '#94a3b8' : '#475569', fontWeight: 600 }}>{icon} {label}</div>
@@ -748,9 +748,9 @@ export const CitizenPortal: React.FC = () => {
               </h3>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '14px' }}>
                 {[
-                  { label: t.roadStatus, value: data?.evacuation_plan?.primary_corridor || 'NH-766 Blocked', color: theme === 'dark' ? '#f87171' : '#b91c1c', prefix: '⛔' },
-                  { label: t.safeRoute, value: data?.evacuation_plan?.safe_evacuation_route || 'Active via SH-59 Bypass', color: theme === 'dark' ? '#4ade80' : '#15803d', prefix: '✅' },
-                  { label: t.estTime, value: `${data?.evacuation_plan?.estimated_evacuation_time_min ?? 42} Minutes`, color: theme === 'dark' ? '#f8fafc' : '#0f172a', prefix: '⏱️' },
+                  { label: t.roadStatus, value: data?.evacuation_plan?.primary_corridor || 'Corridor Monitoring Active', color: theme === 'dark' ? '#f87171' : '#b91c1c', prefix: '⛔' },
+                  { label: t.safeRoute, value: data?.evacuation_plan?.safe_evacuation_route || 'Standard Transit Corridor Active', color: theme === 'dark' ? '#4ade80' : '#15803d', prefix: '✅' },
+                  { label: t.estTime, value: `${data?.evacuation_plan?.estimated_evacuation_time_min ?? 30} Minutes`, color: theme === 'dark' ? '#f8fafc' : '#0f172a', prefix: '⏱️' },
                 ].map(({ label, value, color, prefix }) => (
                   <div key={label} style={{ background: theme === 'dark' ? '#1e293b' : '#f8fafc', border: `1px solid ${brd}`, padding: '14px', borderRadius: '10px' }}>
                     <div style={{ fontSize: '0.75rem', color: theme === 'dark' ? '#94a3b8' : '#475569' }}>{label}:</div>
@@ -758,16 +758,64 @@ export const CitizenPortal: React.FC = () => {
                   </div>
                 ))}
               </div>
+              <div style={{ marginTop: '12px', fontSize: '0.74rem', color: theme === 'dark' ? '#94a3b8' : '#64748b', display: 'flex', flexWrap: 'wrap', gap: '16px' }}>
+                <span>Corridor Source: <strong>{data?.evacuation_plan?.corridor_source || 'SATARK Operational Corridor Model (SIH 2026)'}</strong></span>
+                {data?.evacuation_plan?.nearest_verified_shelter && (
+                  <span>Designated Shelter: <strong>{data.evacuation_plan.nearest_verified_shelter}</strong></span>
+                )}
+              </div>
             </div>
 
-            {/* Survival Guide */}
+            {/* Survival Guide / Emergency Survival Protocol (Part 16) */}
             <div style={{ background: card, border: `1px solid ${brd}`, borderRadius: '16px', padding: '24px' }}>
-              <h3 style={{ margin: '0 0 12px 0', fontSize: '1.1rem', fontWeight: 800, color: fg }}>🛡️ {t.survivalGuide}</h3>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px', marginBottom: '16px' }}>
+                <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: fg }}>
+                  🛡️ {t.survivalGuide} — {selectedZone.name}
+                </h3>
+                <span style={{
+                  padding: '4px 10px',
+                  borderRadius: '20px',
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  background: isRed ? '#dc262622' : isAmber ? '#f59e0b22' : '#16a34a22',
+                  color: isRed ? '#ef4444' : isAmber ? '#f59e0b' : '#22c55e',
+                  border: `1px solid ${isRed ? '#dc262655' : isAmber ? '#f59e0b55' : '#16a34a55'}`
+                }}>
+                  {data?.assessment?.level || 'MONITORING'} PROTOCOL · SCORE {Math.round((data?.assessment?.score ?? 0) * 100)}/100
+                </span>
+              </div>
+
+              {/* Area Profile Strip */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                gap: '10px',
+                padding: '12px 16px',
+                background: theme === 'dark' ? '#0f172a' : '#f1f5f9',
+                borderRadius: '10px',
+                marginBottom: '16px',
+                fontSize: '0.8rem'
+              }}>
+                <div><strong>Terrain:</strong> Slope {selectedZone.slope}° · {data?.terrain_elevation?.elevationMeters ? `${data.terrain_elevation.elevationMeters.toFixed(1)}m` : `${selectedZone.elev}m`} NASADEM</div>
+                <div><strong>Hydro-Met:</strong> 24h: {data?.weather?.rain_24h_mm ?? 0}mm | 72h: {data?.weather?.rain_72h_mm ?? 0}mm</div>
+                <div><strong>Primary Corridor:</strong> {data?.evacuation_plan?.primary_corridor?.split('(')[0]?.trim() || 'Highway Corridor'}</div>
+                <div><strong>Designated Shelter:</strong> {data?.evacuation_plan?.nearest_verified_shelter || 'District Relief Camp'}</div>
+              </div>
+
+              {/* Actionable 4-Point Safety Checklist */}
               <ul style={{ paddingLeft: '20px', lineHeight: '1.9', color: theme === 'dark' ? '#cbd5e1' : '#1e293b', fontSize: '0.9rem', margin: 0 }}>
-                <li><strong>Muddy water or sudden stream surge</strong> indicates uphill slope failure — move immediately.</li>
-                <li><strong>Do not use NH-766</strong> when blocked. Follow designated SH-59 green bypass on the GIS map.</li>
-                <li><strong>Rumbling sounds or cracking trees</strong> — move perpendicular to slope, not downhill.</li>
-                <li><strong>Emergency Helplines:</strong> National Disaster: <strong>1070</strong> | State Control Room: <strong>1077</strong>.</li>
+                <li>
+                  <strong>1. Immediate Physical Safety:</strong> Move perpendicular to the slope face immediately. Rumbling sounds, tilted trees, or sudden muddy runoff indicate active slope displacement — never flee downhill directly into the runoff channel.
+                </li>
+                <li>
+                  <strong>2. Transit Restrictions &amp; Detours:</strong> {data?.evacuation_plan?.rerouted ? `Primary corridor (${data.evacuation_plan.primary_corridor}) is BLOCKED or hazardous. Strict detour in effect via: ${data.evacuation_plan.safe_evacuation_route} (Est. transit: ${data.evacuation_plan.estimated_evacuation_time_min} mins).` : `Corridor ${data?.evacuation_plan?.primary_corridor || 'Primary Route'} is currently open. Maintain vigilance and monitor slope drainage.`}
+                </li>
+                <li>
+                  <strong>3. Designated Relief Shelter Navigation:</strong> Proceed toward <strong>{data?.evacuation_plan?.nearest_verified_shelter || 'the nearest designated relief shelter'}</strong> for medical triage, food rations, and verified safe emergency bedding.
+                </li>
+                <li>
+                  <strong>4. Emergency Communications:</strong> National Disaster Helpline: <strong>1070</strong> | State Control Room: <strong>1077</strong>. In case of cellular tower blackout, switch to <strong>Tab 4: Offline SOS Mesh</strong> for local peer-to-peer distress relay.
+                </li>
               </ul>
             </div>
           </>
@@ -778,7 +826,7 @@ export const CitizenPortal: React.FC = () => {
           <Terrain3DVisualizer
             zoneName={selectedZone.name}
             slope={selectedZone.slope}
-            elevation={876.5}
+            elevation={data?.terrain_elevation?.elevationMeters ?? selectedZone.elev ?? 876.5}
           />
         )}
 
