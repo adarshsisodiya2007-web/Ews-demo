@@ -20,6 +20,7 @@ import {
   getCachedIncidents,
   getCachedShelters
 } from '../../services/offlineStore';
+import { subscribeToScenario } from '../../services/sharedRiskState';
 import {
   RegionRisk,
   RoadStatus,
@@ -88,6 +89,8 @@ const DISTRICT_COORDINATES: Record<string, { lat: number; lng: number; zoom: num
   'Hojai': { lat: 26.0022, lng: 92.8622, zoom: 10 },
   'East Khasi Hills': { lat: 25.5788, lng: 91.8933, zoom: 10 },
   'Aizawl': { lat: 23.7271, lng: 92.7176, zoom: 10 },
+  'Wayanad': { lat: 11.5513, lng: 76.1264, zoom: 11 },
+  'Idukki': { lat: 10.0889, lng: 77.0595, zoom: 11 },
   'Kohima': { lat: 25.6751, lng: 94.1086, zoom: 10 },
   'East Sikkim': { lat: 27.3389, lng: 88.6065, zoom: 10 },
   'Papum Pare': { lat: 27.0900, lng: 93.6200, zoom: 10 }
@@ -214,7 +217,13 @@ export const SatarkOfficerApp: React.FC<Props> = ({ onSwitchToCitizen }) => {
   useEffect(() => {
     loadAllOfficerData();
     const iv = setInterval(loadAllOfficerData, 45000);
-    return () => clearInterval(iv);
+    const unsub = subscribeToScenario(() => {
+      loadAllOfficerData();
+    });
+    return () => {
+      clearInterval(iv);
+      unsub();
+    };
   }, []);
 
   // Map Modes, Live GPS, and Navigation State

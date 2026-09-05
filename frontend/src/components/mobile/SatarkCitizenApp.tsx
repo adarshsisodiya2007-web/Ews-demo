@@ -38,6 +38,13 @@ import {
   RiskAssessmentResponse,
   RegionRisk
 } from '../../types';
+import {
+  CANONICAL_AREAS,
+  getSharedRiskForZone,
+  subscribeToScenario,
+  getActiveScenario,
+  advanceToNextScenario
+} from '../../services/sharedRiskState';
 import { PhotoCapture } from '../report/PhotoCapture';
 import { OfflineRescueMode } from '../emergency/OfflineRescueMode';
 import { OfflineHowItWorksIllustration } from '../emergency/OfflineHowItWorksIllustration';
@@ -166,14 +173,13 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
 
   const isLight = theme === 'light';
 
-  // Zone Presets
+  // 5 Canonical Monitored Areas (Single Source of Truth)
   const ZONES = [
-    { name: 'Guwahati Hills (NER)', district: 'Kamrup', lat: 26.1445, lon: 91.7362, slope: 32.0, state: 'Assam' },
-    { name: 'Shillong Ridge (NER)', district: 'East Khasi Hills', lat: 25.5788, lon: 91.8933, slope: 38.5, state: 'Meghalaya' },
-    { name: 'Aizawl Slopes (NER)', district: 'Aizawl', lat: 23.7271, lon: 92.7176, slope: 45.0, state: 'Mizoram' },
     { name: 'Meppadi, Wayanad (Testbed)', district: 'Wayanad', lat: 11.5534, lon: 76.1320, slope: 38.5, state: 'Kerala' },
-    { name: 'Gangtok Corridor (NER)', district: 'East Sikkim', lat: 27.3389, lon: 88.6065, slope: 41.0, state: 'Sikkim' },
-    { name: 'Kohima Escarpment (NER)', district: 'Kohima', lat: 25.6751, lon: 94.1086, slope: 36.0, state: 'Nagaland' }
+    { name: 'Munnar, Idukki (Western Ghats)', district: 'Idukki', lat: 10.0889, lon: 77.0595, slope: 42.0, state: 'Kerala' },
+    { name: 'Guwahati Hills (NER)', district: 'Kamrup Metropolitan', lat: 26.1445, lon: 91.7362, slope: 28.0, state: 'Assam' },
+    { name: 'Shillong Ridge (NER)', district: 'East Khasi Hills', lat: 25.5788, lon: 91.8933, slope: 34.0, state: 'Meghalaya' },
+    { name: 'Aizawl Slopes (NER)', district: 'Aizawl', lat: 23.7271, lon: 92.7176, slope: 45.0, state: 'Mizoram' }
   ];
   const [selectedZone, setSelectedZone] = useState(ZONES[0]);
   const [showZoneSheet, setShowZoneSheet] = useState(false);
@@ -249,60 +255,24 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
 
   useEffect(() => {
     let isMounted = true;
-    if (isDemoMode) return;
-    setLoadingRisk(true);
-    fetchRiskAssessment(selectedZone.lat, selectedZone.lon, selectedZone.slope, selectedZone.name)
-      .then(res => { if (isMounted) setRiskData(res); })
-      .catch(async () => {
-        const cached = await getCachedHeatmapWithMeta();
-        if (isMounted && cached?.data && cached.data.length > 0) {
-          const match = cached.data.find(r => r.name.toLowerCase().includes(selectedZone.district.toLowerCase()));
-          if (match) {
-            setRiskData({
-              location: {
-                lat: match.centroidLat,
-                lon: match.centroidLng,
-                slope_deg: selectedZone.slope,
-                region_name: match.name
-              },
-              weather: {
-                rain_24h_mm: Math.round(match.contributingFactors.rainfall.score * 150),
-                rain_72h_mm: Math.round(match.contributingFactors.rainfall.score * 300),
-                soil_moisture: Math.round(match.contributingFactors.soilMoisture.score * 100),
-                critical_rain_trigger: match.severity === 'CRITICAL' || match.severity === 'HIGH',
-                source: 'Cached Fallback Data'
-              },
-              assessment: {
-                score: match.computedScore,
-                level: match.severity === 'CRITICAL' ? 'RED' : match.severity === 'HIGH' ? 'AMBER' : 'GREEN',
-                action_protocol: match.severity === 'CRITICAL' ? 'Immediate Evacuation Required. Move to designated safe shelter.' : 'Heightened vigilance along hill slopes. Avoid unpaved corridors.',
-                feature_breakdown: {
-                  norm_slope: match.contributingFactors.slope.score,
-                  norm_r24: match.contributingFactors.rainfall.score,
-                  norm_r72: match.contributingFactors.rainfall.score * 0.9,
-                  norm_moisture: match.contributingFactors.soilMoisture.score
-                }
-              },
-              evacuation_plan: {
-                region: match.name,
-                risk_score: match.computedScore,
-                status: match.severity === 'CRITICAL' ? 'REROUTED' : 'CLEAR',
-                primary_corridor: 'Main Hill Access Road',
-                safe_evacuation_route: 'Designated Valley Bypass Road',
-                action: match.severity === 'CRITICAL' ? 'Evacuate to Red Cross Relief Camp' : 'Maintain standard advisory',
-                rerouted: match.severity === 'CRITICAL',
-                blocked_segments: [],
-                safe_route_geometry: [[match.centroidLat, match.centroidLng]],
-                estimated_evacuation_time_min: 15
-              }
-            });
-          }
-        }
-      })
-      .finally(() => { if (isMounted) setLoadingRisk(false); });
+    const load = () => {
+      setLoadingRisk(true);
+      fetchRiskAssessment(selectedZone.lat, selectedZone.lon, selectedZone.slope, selectedZone.name)
+        .then(res => { if (isMounted) { setRiskData(res); setLoadingRisk(false); } })
+        .catch(() => { if (isMounted) setLoadingRisk(false); });
+    };
 
-    return () => { isMounted = false; };
-  }, [selectedZone, isDemoMode]);
+    load();
+    const unsub = subscribeToScenario(() => {
+      load();
+    });
+
+    return () => {
+      isMounted = false;
+      unsub();
+    };
+  }, [selectedZone]);
+
 
   // Area-Specific Emergency Alert & Critical Horn Logic with Deduplication
   useEffect(() => {

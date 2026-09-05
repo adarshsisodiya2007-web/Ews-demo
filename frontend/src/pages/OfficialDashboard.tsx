@@ -7,6 +7,11 @@ import { RegionRisk, Severity } from '../types';
 import { fetchHeatmap } from '../services/api';
 import { OfflineStatusHeader } from '../components/layout/OfflineStatusHeader';
 import { AIPriorityPanel } from '../components/AIPriorityPanel';
+import {
+  subscribeToScenario,
+  getActiveScenario,
+  advanceToNextScenario
+} from '../services/sharedRiskState';
 
 /** Read role safely from localStorage (set during login) */
 function getStoredRole(): string {
@@ -25,6 +30,7 @@ const OfficialDashboard = () => {
   const [viewMode, setViewMode]             = useState<'map' | 'ai_priority'>('map');
 
   const role = getStoredRole();
+  const [currentScenario, setCurrentScenario] = useState(() => getActiveScenario());
 
   useEffect(() => {
     const load = () =>
@@ -32,8 +38,17 @@ const OfficialDashboard = () => {
         .then(data => { setHeatmapData(data); setLastUpdated(new Date()); setLoading(false); })
         .catch(() => setLoading(false));
     load();
-    const iv = setInterval(load, 60000);
-    return () => clearInterval(iv);
+
+    const unsub = subscribeToScenario(() => {
+      setCurrentScenario(getActiveScenario());
+      load();
+    });
+
+    const iv = setInterval(load, 30000);
+    return () => {
+      unsub();
+      clearInterval(iv);
+    };
   }, []);
 
   const handleLangToggle = () => {
@@ -145,6 +160,28 @@ const OfficialDashboard = () => {
           overflowX: 'auto',
           paddingTop: isMobile ? '4px' : '0'
         }}>
+          <button
+            onClick={() => advanceToNextScenario()}
+            title="Synchronized Demonstration Scenario (Rotates every 5m · Click to switch for SIH evaluation)"
+            style={{
+              padding: '4px 10px',
+              borderRadius: '6px',
+              border: '1px solid #0284c7',
+              background: 'rgba(2, 132, 199, 0.25)',
+              color: '#38bdf8',
+              fontSize: '0.74rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
+              whiteSpace: 'nowrap',
+              flexShrink: 0
+            }}
+          >
+            <span>🧪 DEMO: {currentScenario.label.split(' ')[1] || 'A'}</span>
+            <span style={{ opacity: 0.75, fontSize: '0.62rem' }}>⟳ Switch</span>
+          </button>
           <a
             href="/responder"
             style={{

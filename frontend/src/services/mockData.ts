@@ -6,42 +6,103 @@
 
 import { RegionRisk, RiskDetail, AlertItem, CitizenReport, SensorReading } from '../types';
 
-// ── 30 NER Regions with realistic risk distribution ──────────────────────────
+// ── Canonical 5 Monitored Areas (Single Source of Truth) ─────────────────────
 export const MOCK_HEATMAP: RegionRisk[] = [
-  // ASSAM — Kamrup Metropolitan
-  { regionId: '11111111-0001-0001-0001-000000000001', name: 'Guwahati Hills', district: 'Kamrup Metropolitan', state: 'Assam', centroidLat: 26.14, centroidLng: 91.73, severity: 'HIGH', computedScore: 67, computedAt: new Date().toISOString(), roadStatus: 'OPEN', contributingFactors: { rainfall: { score: 0.72, weight: 0.35, contribution: 0.252, label: '108mm/24h, 260mm/72h' }, soilMoisture: { score: 0.75, weight: 0.25, contribution: 0.1875, label: 'Soil 75% saturated' }, slope: { score: 0.71, weight: 0.20, contribution: 0.142, label: 'Slope angle 32.0°' }, history: { score: 0.67, weight: 0.12, contribution: 0.0804, label: '2 event(s) in past 5 years' }, citizenReports: { score: 0.40, weight: 0.08, contribution: 0.032, label: '2 unresolved field report(s)' } } },
-  { regionId: '11111111-0001-0001-0001-000000000002', name: 'North Guwahati Slope', district: 'Kamrup Metropolitan', state: 'Assam', centroidLat: 26.19, centroidLng: 91.68, severity: 'MODERATE', computedScore: 41, computedAt: new Date().toISOString(), roadStatus: 'OPEN', contributingFactors: { rainfall: { score: 0.45, weight: 0.35, contribution: 0.1575, label: '67mm/24h, 180mm/72h' }, soilMoisture: { score: 0.55, weight: 0.25, contribution: 0.1375, label: 'Soil 55% saturated' }, slope: { score: 0.55, weight: 0.20, contribution: 0.11, label: 'Slope angle 25.0°' }, history: { score: 0.33, weight: 0.12, contribution: 0.0396, label: '1 event(s) in past 5 years' }, citizenReports: { score: 0.20, weight: 0.08, contribution: 0.016, label: '1 unresolved field report(s)' } } },
-  { regionId: '11111111-0001-0001-0001-000000000003', name: 'Mirza Foothills', district: 'Kamrup', state: 'Assam', centroidLat: 26.05, centroidLng: 91.50, severity: 'LOW', computedScore: 18, computedAt: new Date().toISOString(), roadStatus: 'OPEN', contributingFactors: { rainfall: { score: 0.22, weight: 0.35, contribution: 0.077, label: '33mm/24h, 90mm/72h' }, soilMoisture: { score: 0.30, weight: 0.25, contribution: 0.075, label: 'Soil 30% saturated' }, slope: { score: 0.33, weight: 0.20, contribution: 0.066, label: 'Slope angle 15.0°' }, history: { score: 0.00, weight: 0.12, contribution: 0.0, label: '0 event(s) in past 5 years' }, citizenReports: { score: 0.00, weight: 0.08, contribution: 0.0, label: '0 unresolved field report(s)' } } },
-
-  // MEGHALAYA — East Khasi Hills
-  { regionId: '22222222-0002-0002-0002-000000000001', name: 'Cherapunjee Escarpment', district: 'East Khasi Hills', state: 'Meghalaya', centroidLat: 25.27, centroidLng: 91.73, severity: 'CRITICAL', computedScore: 91, computedAt: new Date().toISOString(), roadStatus: 'BLOCKED', contributingFactors: { rainfall: { score: 0.98, weight: 0.35, contribution: 0.343, label: '147mm/24h, 390mm/72h' }, soilMoisture: { score: 0.94, weight: 0.25, contribution: 0.235, label: 'Soil 94% saturated' }, slope: { score: 0.89, weight: 0.20, contribution: 0.178, label: 'Slope angle 40.0°' }, history: { score: 1.00, weight: 0.12, contribution: 0.12, label: '3+ event(s) in past 5 years' }, citizenReports: { score: 0.80, weight: 0.08, contribution: 0.064, label: '4 unresolved field report(s)' } } },
-  { regionId: '22222222-0002-0002-0002-000000000002', name: 'Sohra South Slope', district: 'East Khasi Hills', state: 'Meghalaya', centroidLat: 25.23, centroidLng: 91.70, severity: 'CRITICAL', computedScore: 87, computedAt: new Date().toISOString(), roadStatus: 'AT_RISK', contributingFactors: { rainfall: { score: 0.92, weight: 0.35, contribution: 0.322, label: '138mm/24h, 360mm/72h' }, soilMoisture: { score: 0.90, weight: 0.25, contribution: 0.225, label: 'Soil 90% saturated' }, slope: { score: 0.84, weight: 0.20, contribution: 0.168, label: 'Slope angle 38.0°' }, history: { score: 0.67, weight: 0.12, contribution: 0.0804, label: '2 event(s) in past 5 years' }, citizenReports: { score: 0.60, weight: 0.08, contribution: 0.048, label: '3 unresolved field report(s)' } } },
-  { regionId: '22222222-0002-0002-0002-000000000003', name: 'Mawsynram Ridge', district: 'East Khasi Hills', state: 'Meghalaya', centroidLat: 25.30, centroidLng: 91.58, severity: 'HIGH', computedScore: 73, computedAt: new Date().toISOString(), roadStatus: 'AT_RISK', contributingFactors: { rainfall: { score: 0.82, weight: 0.35, contribution: 0.287, label: '123mm/24h, 310mm/72h' }, soilMoisture: { score: 0.80, weight: 0.25, contribution: 0.2, label: 'Soil 80% saturated' }, slope: { score: 0.76, weight: 0.20, contribution: 0.152, label: 'Slope angle 34.0°' }, history: { score: 0.33, weight: 0.12, contribution: 0.0396, label: '1 event(s) in past 5 years' }, citizenReports: { score: 0.20, weight: 0.08, contribution: 0.016, label: '1 unresolved field report(s)' } } },
-  { regionId: '22222222-0002-0002-0002-000000000004', name: 'Shillong Peak Zone', district: 'East Khasi Hills', state: 'Meghalaya', centroidLat: 25.57, centroidLng: 91.88, severity: 'MODERATE', computedScore: 38, computedAt: new Date().toISOString(), roadStatus: 'OPEN', contributingFactors: { rainfall: { score: 0.40, weight: 0.35, contribution: 0.14, label: '60mm/24h, 160mm/72h' }, soilMoisture: { score: 0.50, weight: 0.25, contribution: 0.125, label: 'Soil 50% saturated' }, slope: { score: 0.60, weight: 0.20, contribution: 0.12, label: 'Slope angle 27.0°' }, history: { score: 0.00, weight: 0.12, contribution: 0.0, label: '0 event(s) in past 5 years' }, citizenReports: { score: 0.00, weight: 0.08, contribution: 0.0, label: '0 unresolved field report(s)' } } },
-
-  // MIZORAM — Aizawl District
-  { regionId: '33333333-0003-0003-0003-000000000001', name: 'Chaltlang Range', district: 'Aizawl', state: 'Mizoram', centroidLat: 23.74, centroidLng: 92.72, severity: 'CRITICAL', computedScore: 82, computedAt: new Date().toISOString(), roadStatus: 'BLOCKED', contributingFactors: { rainfall: { score: 0.88, weight: 0.35, contribution: 0.308, label: '132mm/24h, 340mm/72h' }, soilMoisture: { score: 0.87, weight: 0.25, contribution: 0.2175, label: 'Soil 87% saturated' }, slope: { score: 0.82, weight: 0.20, contribution: 0.164, label: 'Slope angle 37.0°' }, history: { score: 0.67, weight: 0.12, contribution: 0.0804, label: '2 event(s) in past 5 years' }, citizenReports: { score: 0.60, weight: 0.08, contribution: 0.048, label: '3 unresolved field report(s)' } } },
-  { regionId: '33333333-0003-0003-0003-000000000002', name: 'Aizawl North Slope', district: 'Aizawl', state: 'Mizoram', centroidLat: 23.77, centroidLng: 92.69, severity: 'HIGH', computedScore: 61, computedAt: new Date().toISOString(), roadStatus: 'AT_RISK', contributingFactors: { rainfall: { score: 0.68, weight: 0.35, contribution: 0.238, label: '102mm/24h, 250mm/72h' }, soilMoisture: { score: 0.70, weight: 0.25, contribution: 0.175, label: 'Soil 70% saturated' }, slope: { score: 0.78, weight: 0.20, contribution: 0.156, label: 'Slope angle 35.0°' }, history: { score: 0.33, weight: 0.12, contribution: 0.0396, label: '1 event(s) in past 5 years' }, citizenReports: { score: 0.20, weight: 0.08, contribution: 0.016, label: '1 unresolved field report(s)' } } },
-  { regionId: '33333333-0003-0003-0003-000000000003', name: 'Durtlang Hills', district: 'Aizawl', state: 'Mizoram', centroidLat: 23.80, centroidLng: 92.73, severity: 'HIGH', computedScore: 58, computedAt: new Date().toISOString(), roadStatus: 'OPEN', contributingFactors: { rainfall: { score: 0.65, weight: 0.35, contribution: 0.2275, label: '97mm/24h, 240mm/72h' }, soilMoisture: { score: 0.65, weight: 0.25, contribution: 0.1625, label: 'Soil 65% saturated' }, slope: { score: 0.75, weight: 0.20, contribution: 0.15, label: 'Slope angle 34.0°' }, history: { score: 0.33, weight: 0.12, contribution: 0.0396, label: '1 event(s) in past 5 years' }, citizenReports: { score: 0.20, weight: 0.08, contribution: 0.016, label: '1 unresolved field report(s)' } } },
-  { regionId: '33333333-0003-0003-0003-000000000004', name: 'Lunglei Slope', district: 'Lunglei', state: 'Mizoram', centroidLat: 22.89, centroidLng: 92.73, severity: 'MODERATE', computedScore: 44, computedAt: new Date().toISOString(), roadStatus: 'OPEN', contributingFactors: { rainfall: { score: 0.50, weight: 0.35, contribution: 0.175, label: '75mm/24h, 195mm/72h' }, soilMoisture: { score: 0.55, weight: 0.25, contribution: 0.1375, label: 'Soil 55% saturated' }, slope: { score: 0.60, weight: 0.20, contribution: 0.12, label: 'Slope angle 27.0°' }, history: { score: 0.33, weight: 0.12, contribution: 0.0396, label: '1 event(s) in past 5 years' }, citizenReports: { score: 0.00, weight: 0.08, contribution: 0.0, label: '0 unresolved field report(s)' } } },
-
-  // MANIPUR
-  { regionId: '44444444-0004-0004-0004-000000000001', name: 'Imphal West Hills', district: 'Imphal West', state: 'Manipur', centroidLat: 24.82, centroidLng: 93.91, severity: 'HIGH', computedScore: 64, computedAt: new Date().toISOString(), roadStatus: 'AT_RISK', contributingFactors: { rainfall: { score: 0.70, weight: 0.35, contribution: 0.245, label: '105mm/24h, 265mm/72h' }, soilMoisture: { score: 0.72, weight: 0.25, contribution: 0.18, label: 'Soil 72% saturated' }, slope: { score: 0.68, weight: 0.20, contribution: 0.136, label: 'Slope angle 31.0°' }, history: { score: 0.67, weight: 0.12, contribution: 0.0804, label: '2 event(s) in past 5 years' }, citizenReports: { score: 0.20, weight: 0.08, contribution: 0.016, label: '1 unresolved field report(s)' } } },
-  { regionId: '44444444-0004-0004-0004-000000000002', name: 'Senapati Foothills', district: 'Senapati', state: 'Manipur', centroidLat: 25.27, centroidLng: 94.02, severity: 'MODERATE', computedScore: 37, computedAt: new Date().toISOString(), roadStatus: 'OPEN', contributingFactors: { rainfall: { score: 0.40, weight: 0.35, contribution: 0.14, label: '60mm/24h, 155mm/72h' }, soilMoisture: { score: 0.48, weight: 0.25, contribution: 0.12, label: 'Soil 48% saturated' }, slope: { score: 0.55, weight: 0.20, contribution: 0.11, label: 'Slope angle 25.0°' }, history: { score: 0.33, weight: 0.12, contribution: 0.0396, label: '1 event(s) in past 5 years' }, citizenReports: { score: 0.00, weight: 0.08, contribution: 0.0, label: '0 unresolved field report(s)' } } },
-
-  // NAGALAND
-  { regionId: '55555555-0005-0005-0005-000000000001', name: 'Kohima Ridge', district: 'Kohima', state: 'Nagaland', centroidLat: 25.67, centroidLng: 94.11, severity: 'HIGH', computedScore: 57, computedAt: new Date().toISOString(), roadStatus: 'OPEN', contributingFactors: { rainfall: { score: 0.62, weight: 0.35, contribution: 0.217, label: '93mm/24h, 235mm/72h' }, soilMoisture: { score: 0.66, weight: 0.25, contribution: 0.165, label: 'Soil 66% saturated' }, slope: { score: 0.73, weight: 0.20, contribution: 0.146, label: 'Slope angle 33.0°' }, history: { score: 0.33, weight: 0.12, contribution: 0.0396, label: '1 event(s) in past 5 years' }, citizenReports: { score: 0.20, weight: 0.08, contribution: 0.016, label: '1 unresolved field report(s)' } } },
-  { regionId: '55555555-0005-0005-0005-000000000002', name: 'Dimapur Approach', district: 'Dimapur', state: 'Nagaland', centroidLat: 25.91, centroidLng: 93.72, severity: 'LOW', computedScore: 16, computedAt: new Date().toISOString(), roadStatus: 'OPEN', contributingFactors: { rainfall: { score: 0.18, weight: 0.35, contribution: 0.063, label: '27mm/24h, 70mm/72h' }, soilMoisture: { score: 0.25, weight: 0.25, contribution: 0.0625, label: 'Soil 25% saturated' }, slope: { score: 0.28, weight: 0.20, contribution: 0.056, label: 'Slope angle 13.0°' }, history: { score: 0.00, weight: 0.12, contribution: 0.0, label: '0 event(s) in past 5 years' }, citizenReports: { score: 0.00, weight: 0.08, contribution: 0.0, label: '0 unresolved field report(s)' } } },
-
-  // ARUNACHAL PRADESH
-  { regionId: '66666666-0006-0006-0006-000000000001', name: 'Itanagar Slopes', district: 'Papum Pare', state: 'Arunachal Pradesh', centroidLat: 27.09, centroidLng: 93.62, severity: 'MODERATE', computedScore: 42, computedAt: new Date().toISOString(), roadStatus: 'OPEN', contributingFactors: { rainfall: { score: 0.46, weight: 0.35, contribution: 0.161, label: '69mm/24h, 180mm/72h' }, soilMoisture: { score: 0.52, weight: 0.25, contribution: 0.13, label: 'Soil 52% saturated' }, slope: { score: 0.58, weight: 0.20, contribution: 0.116, label: 'Slope angle 26.0°' }, history: { score: 0.33, weight: 0.12, contribution: 0.0396, label: '1 event(s) in past 5 years' }, citizenReports: { score: 0.00, weight: 0.08, contribution: 0.0, label: '0 unresolved field report(s)' } } },
-  { regionId: '66666666-0006-0006-0006-000000000002', name: 'Tawang Valley', district: 'Tawang', state: 'Arunachal Pradesh', centroidLat: 27.59, centroidLng: 91.87, severity: 'MODERATE', computedScore: 35, computedAt: new Date().toISOString(), roadStatus: 'OPEN', contributingFactors: { rainfall: { score: 0.38, weight: 0.35, contribution: 0.133, label: '57mm/24h, 145mm/72h' }, soilMoisture: { score: 0.44, weight: 0.25, contribution: 0.11, label: 'Soil 44% saturated' }, slope: { score: 0.56, weight: 0.20, contribution: 0.112, label: 'Slope angle 25.0°' }, history: { score: 0.33, weight: 0.12, contribution: 0.0396, label: '1 event(s) in past 5 years' }, citizenReports: { score: 0.00, weight: 0.08, contribution: 0.0, label: '0 unresolved field report(s)' } } },
-
-  // TRIPURA
-  { regionId: '77777777-0007-0007-0007-000000000001', name: 'Agartala Hill', district: 'West Tripura', state: 'Tripura', centroidLat: 23.84, centroidLng: 91.28, severity: 'LOW', computedScore: 22, computedAt: new Date().toISOString(), roadStatus: 'OPEN', contributingFactors: { rainfall: { score: 0.27, weight: 0.35, contribution: 0.0945, label: '40mm/24h, 105mm/72h' }, soilMoisture: { score: 0.33, weight: 0.25, contribution: 0.0825, label: 'Soil 33% saturated' }, slope: { score: 0.36, weight: 0.20, contribution: 0.072, label: 'Slope angle 16.0°' }, history: { score: 0.00, weight: 0.12, contribution: 0.0, label: '0 event(s) in past 5 years' }, citizenReports: { score: 0.00, weight: 0.08, contribution: 0.0, label: '0 unresolved field report(s)' } } },
-
-  // SIKKIM
-  { regionId: '88888888-0008-0008-0008-000000000001', name: 'Gangtok Slope', district: 'East Sikkim', state: 'Sikkim', centroidLat: 27.33, centroidLng: 88.61, severity: 'HIGH', computedScore: 69, computedAt: new Date().toISOString(), roadStatus: 'AT_RISK', contributingFactors: { rainfall: { score: 0.75, weight: 0.35, contribution: 0.2625, label: '112mm/24h, 280mm/72h' }, soilMoisture: { score: 0.77, weight: 0.25, contribution: 0.1925, label: 'Soil 77% saturated' }, slope: { score: 0.80, weight: 0.20, contribution: 0.16, label: 'Slope angle 36.0°' }, history: { score: 0.67, weight: 0.12, contribution: 0.0804, label: '2 event(s) in past 5 years' }, citizenReports: { score: 0.20, weight: 0.08, contribution: 0.016, label: '1 unresolved field report(s)' } } },
+  {
+    regionId: '11111111-0001-0001-0001-000000000001',
+    name: 'Meppadi, Wayanad (Testbed)',
+    district: 'Wayanad',
+    state: 'Kerala',
+    centroidLat: 11.5534,
+    centroidLng: 76.1320,
+    severity: 'CRITICAL',
+    computedScore: 84,
+    computedAt: new Date().toISOString(),
+    roadStatus: 'BLOCKED',
+    contributingFactors: {
+      rainfall: { score: 0.89, weight: 0.35, contribution: 0.3115, label: '195mm/24h, 360mm/72h' },
+      soilMoisture: { score: 0.84, weight: 0.25, contribution: 0.21, label: 'Soil 84% saturated' },
+      slope: { score: 0.77, weight: 0.20, contribution: 0.154, label: 'Slope angle 38.5°' },
+      history: { score: 0.85, weight: 0.12, contribution: 0.102, label: 'Historical recurring failure zone' },
+      citizenReports: { score: 0.75, weight: 0.08, contribution: 0.06, label: 'Corroborated by field reports' }
+    }
+  },
+  {
+    regionId: '22222222-0002-0002-0002-000000000002',
+    name: 'Munnar, Idukki (Western Ghats)',
+    district: 'Idukki',
+    state: 'Kerala',
+    centroidLat: 10.0889,
+    centroidLng: 77.0595,
+    severity: 'MODERATE',
+    computedScore: 48,
+    computedAt: new Date().toISOString(),
+    roadStatus: 'OPEN',
+    contributingFactors: {
+      rainfall: { score: 0.34, weight: 0.35, contribution: 0.119, label: '75mm/24h, 150mm/72h' },
+      soilMoisture: { score: 0.55, weight: 0.25, contribution: 0.1375, label: 'Soil 55% saturated' },
+      slope: { score: 0.84, weight: 0.20, contribution: 0.168, label: 'Slope angle 42.0°' },
+      history: { score: 0.20, weight: 0.12, contribution: 0.024, label: 'Low historical recurrence' },
+      citizenReports: { score: 0.10, weight: 0.08, contribution: 0.008, label: 'No unverified reports' }
+    }
+  },
+  {
+    regionId: '33333333-0003-0003-0003-000000000003',
+    name: 'Guwahati Hills (NER)',
+    district: 'Kamrup Metropolitan',
+    state: 'Assam',
+    centroidLat: 26.1445,
+    centroidLng: 91.7362,
+    severity: 'LOW',
+    computedScore: 22,
+    computedAt: new Date().toISOString(),
+    roadStatus: 'OPEN',
+    contributingFactors: {
+      rainfall: { score: 0.09, weight: 0.35, contribution: 0.0315, label: '20mm/24h, 45mm/72h' },
+      soilMoisture: { score: 0.35, weight: 0.25, contribution: 0.0875, label: 'Soil 35% saturated' },
+      slope: { score: 0.56, weight: 0.20, contribution: 0.112, label: 'Slope angle 28.0°' },
+      history: { score: 0.20, weight: 0.12, contribution: 0.024, label: 'Low historical recurrence' },
+      citizenReports: { score: 0.10, weight: 0.08, contribution: 0.008, label: 'No unverified reports' }
+    }
+  },
+  {
+    regionId: '44444444-0004-0004-0004-000000000004',
+    name: 'Shillong Ridge (NER)',
+    district: 'East Khasi Hills',
+    state: 'Meghalaya',
+    centroidLat: 25.5788,
+    centroidLng: 91.8933,
+    severity: 'CRITICAL',
+    computedScore: 88,
+    computedAt: new Date().toISOString(),
+    roadStatus: 'BLOCKED',
+    contributingFactors: {
+      rainfall: { score: 0.95, weight: 0.35, contribution: 0.3325, label: '210mm/24h, 385mm/72h' },
+      soilMoisture: { score: 0.88, weight: 0.25, contribution: 0.22, label: 'Soil 88% saturated' },
+      slope: { score: 0.68, weight: 0.20, contribution: 0.136, label: 'Slope angle 34.0°' },
+      history: { score: 0.85, weight: 0.12, contribution: 0.102, label: 'Historical recurring failure zone' },
+      citizenReports: { score: 0.75, weight: 0.08, contribution: 0.06, label: 'Corroborated by field reports' }
+    }
+  },
+  {
+    regionId: '55555555-0005-0005-0005-000000000005',
+    name: 'Aizawl Slopes (NER)',
+    district: 'Aizawl',
+    state: 'Mizoram',
+    centroidLat: 23.7271,
+    centroidLng: 92.7176,
+    severity: 'HIGH',
+    computedScore: 68,
+    computedAt: new Date().toISOString(),
+    roadStatus: 'AT_RISK',
+    contributingFactors: {
+      rainfall: { score: 0.61, weight: 0.35, contribution: 0.2135, label: '135mm/24h, 250mm/72h' },
+      soilMoisture: { score: 0.72, weight: 0.25, contribution: 0.18, label: 'Soil 72% saturated' },
+      slope: { score: 0.90, weight: 0.20, contribution: 0.18, label: 'Slope angle 45.0°' },
+      history: { score: 0.60, weight: 0.12, contribution: 0.072, label: 'Active shear-strain history' },
+      citizenReports: { score: 0.50, weight: 0.08, contribution: 0.04, label: 'Corroborated by field reports' }
+    }
+  }
 ];
 
 // ── Sensor readings (last 24h, simulated monsoon pattern) ───────────────────

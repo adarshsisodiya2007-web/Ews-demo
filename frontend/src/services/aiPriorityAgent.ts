@@ -1,5 +1,6 @@
 import { RegionRisk, CitizenReport, RoadStatus } from '../types';
 import { calculateHaversineDistanceKm } from '../utils/geoUtils';
+import { getSharedRegionRisks } from './sharedRiskState';
 
 /**
  * AI Priority Agent — Ranks and prioritizes disaster alerts & operational incidents
@@ -310,28 +311,9 @@ export function buildPrioritizedIncidents(
   regions: RegionRisk[],
   reports: CitizenReport[]
 ): PrioritizedIncident[] {
-  if (!regions || regions.length === 0) {
-    const demo = runAIPriorityAgent(getDemoAlerts());
-    return demo.map(d => ({
-      ...d,
-      regionId: d.id,
-      district: d.zone.split(',')[1]?.trim() || d.zone,
-      state: 'Northeast Region',
-      priority_level: (d.criticality_label === 'LIFE-THREATENING' ? 'CRITICAL'
-        : d.criticality_label === 'URGENT' ? 'HIGH'
-        : d.criticality_label === 'MONITOR' ? 'MEDIUM' : 'LOW') as 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW',
-      soil_moisture_pct: Math.round(d.soil_moisture * 100),
-      road_status: (d.risk_level === 'RED' ? 'BLOCKED' : d.risk_level === 'AMBER' ? 'AT_RISK' : 'OPEN') as RoadStatus,
-      correlated_reports: [],
-      is_cluster: d.citizen_reports_count >= 4,
-      cluster_description: d.citizen_reports_count >= 4
-        ? `Potential incident cluster: ${d.citizen_reports_count} ground reports detected in this sector`
-        : undefined,
-      nearest_shelter: { name: 'District Emergency Camp', distanceKm: 3.2 }
-    }));
-  }
+  const effectiveRegions = (regions && regions.length > 0) ? regions : getSharedRegionRisks();
 
-  const scoredIncidents: PrioritizedIncident[] = regions.map(region => {
+  const scoredIncidents: PrioritizedIncident[] = effectiveRegions.map(region => {
     // Correlate citizen reports within 15 km of region centroid
     const nearbyReports = (reports || []).filter(r => {
       const dist = calculateHaversineDistanceKm(region.centroidLat, region.centroidLng, r.geoLat, r.geoLng);
@@ -343,12 +325,12 @@ export function buildPrioritizedIncidents(
       ? `Potential incident cluster: ${nearbyReports.length} reports detected within ~15 km of this sector`
       : undefined;
 
-    // Real factor metrics from backend
+    // Real factor metrics from backend / shared state
     const rainScore = region.contributingFactors?.rainfall?.score ?? 0.3;
     const moistureScore = region.contributingFactors?.soilMoisture?.score ?? 0.35;
     const slopeScore = region.contributingFactors?.slope?.score ?? 0.4;
 
-    const rain24Mm = Math.round(rainScore * 180);
+    const rain24Mm = Math.round(rainScore * 200);
     const rain72Mm = Math.round(rain24Mm * 1.8);
     const soilMoisturePct = Math.round(moistureScore * 100);
     const slopeDeg = Math.round(18 + slopeScore * 32);
@@ -364,7 +346,7 @@ export function buildPrioritizedIncidents(
     const reportScore = normalize(nearbyReports.length, 0, 10);
     const recency = recencyScore(region.computedAt || new Date().toISOString());
 
-    // Priority weighted formula
+    // Priority weighted formula aligned strictly with canonical severity
     let priority_score =
       0.35 * riskLevelScore +
       0.25 * rainfallNorm +
@@ -376,11 +358,27 @@ export function buildPrioritizedIncidents(
       priority_score = Math.min(1.0, priority_score + 0.12);
     }
 
-    const criticality_label = getCriticalityLabel(priority_score, riskLevel);
+    // Guarantee priority order: CRITICAL > HIGH > MODERATE > LOW
+    if (region.severity === 'CRITICAL') {
+      priority_score = Math.max(0.82, priority_score);
+    } else if (region.severity === 'HIGH') {
+      priority_score = Math.min(0.79, Math.max(0.62, priority_score));
+    } else if (region.severity === 'MODERATE') {
+      priority_score = Math.min(0.59, Math.max(0.42, priority_score));
+    } else {
+      priority_score = Math.min(0.39, priority_score);
+    }
+
+    const criticality_label: CriticalityLabel =
+      region.severity === 'CRITICAL' ? 'LIFE-THREATENING'
+      : region.severity === 'HIGH' ? 'URGENT'
+      : region.severity === 'MODERATE' ? 'MONITOR'
+      : 'ROUTINE';
+
     const priority_level: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' =
-      criticality_label === 'LIFE-THREATENING' || priority_score >= 0.70 ? 'CRITICAL'
-      : criticality_label === 'URGENT' || priority_score >= 0.50 ? 'HIGH'
-      : criticality_label === 'MONITOR' || priority_score >= 0.30 ? 'MEDIUM'
+      region.severity === 'CRITICAL' ? 'CRITICAL'
+      : region.severity === 'HIGH' ? 'HIGH'
+      : region.severity === 'MODERATE' ? 'MEDIUM'
       : 'LOW';
 
     // AI Reasoning breakdown based on actual data

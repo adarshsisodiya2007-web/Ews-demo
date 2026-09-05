@@ -20,6 +20,14 @@ import {
   getMockRiskDetail,
 } from './mockData';
 import {
+  getSharedRegionRisks,
+  getSharedRiskForZone,
+  getSharedRiskDetail,
+  getSharedRecentAlerts,
+  updateSharedRoadStatus,
+  CANONICAL_AREAS
+} from './sharedRiskState';
+import {
   cacheHeatmap,
   getCachedHeatmapWithMeta,
   cacheTelemetry,
@@ -120,47 +128,48 @@ api.interceptors.response.use(
 export const fetchHeatmap = async (): Promise<RegionRisk[]> => {
   try {
     const res = await api.get<RegionRisk[]>('/api/risk/heatmap');
-    setDemoMode(false);
-    notifyCacheUsed(null);
-    // Cache to IndexedDB for offline resilience
-    await cacheHeatmap(res.data).catch(() => {});
-    return res.data;
-  } catch {
-    setDemoMode(true);
-    // Check IndexedDB cache first
-    try {
-      const cached = await getCachedHeatmapWithMeta();
-      if (cached && cached.data && cached.data.length > 0) {
-        notifyCacheUsed(cached.timestamp);
-        return cached.data;
+    // If backend returns regions, check if they map to the 5 canonical monitored areas
+    if (res.data && res.data.length > 0) {
+      const canonicalNames = CANONICAL_AREAS.map(a => a.name.toLowerCase());
+      const filtered = res.data.filter(r =>
+        canonicalNames.some(cn => r.name.toLowerCase().includes(cn) || cn.includes(r.name.toLowerCase()))
+      );
+      if (filtered.length === 5) {
+        setDemoMode(false);
+        notifyCacheUsed(null);
+        await cacheHeatmap(filtered).catch(() => {});
+        return filtered;
       }
-    } catch {}
+    }
+  } catch {}
 
-    notifyCacheUsed(null);
-    return MOCK_HEATMAP;
-  }
+  setDemoMode(true);
+  notifyCacheUsed(null);
+  const shared = getSharedRegionRisks();
+  await cacheHeatmap(shared).catch(() => {});
+  return shared;
 };
 
 export const fetchRiskDetail = async (regionId: string): Promise<RiskDetail> => {
   try {
     const res = await api.get<RiskDetail>(`/api/risk/regions/${regionId}`);
-    return res.data;
-  } catch {
-    setDemoMode(true);
-    const detail = getMockRiskDetail(regionId);
-    if (!detail) throw new Error('Region not found in mock data');
-    return detail;
-  }
+    if (res.data && res.data.name) return res.data;
+  } catch {}
+
+  setDemoMode(true);
+  const detail = getSharedRiskDetail(regionId) || getMockRiskDetail(regionId);
+  if (!detail) throw new Error('Region not found in risk state');
+  return detail;
 };
 
 export const fetchRecentAlerts = async (): Promise<AlertItem[]> => {
   try {
     const res = await api.get<AlertItem[]>('/api/alerts/recent');
-    return res.data;
-  } catch {
-    setDemoMode(true);
-    return MOCK_ALERTS;
-  }
+    if (res.data && res.data.length > 0) return res.data;
+  } catch {}
+
+  setDemoMode(true);
+  return getSharedRecentAlerts();
 };
 
 export const fetchRecentReports = async (): Promise<CitizenReport[]> => {
@@ -264,19 +273,13 @@ export const login = async (username: string, password: string): Promise<{
 };
 
 export const updateRoadStatus = async (regionId: string, status: RoadStatus): Promise<void> => {
-  // Send both param and body for robust backend compatibility
-  await api.patch(`/api/regions/${regionId}/road-status`, { status }, { params: { status } });
+  updateSharedRoadStatus(regionId, status);
+  try {
+    await api.patch(`/api/regions/${regionId}/road-status`, { status }, { params: { status } });
+  } catch {}
 };
 
-// ── SIH 2026 Dynamic Zone Risk Profiles ─────────────────────────────────────
-
-const ZONE_PROFILES: Record<string, { r24: number; r72: number; soil: number; elev: number }> = {
-  'Meppadi, Wayanad (Testbed)': { r24: 142.0, r72: 285.0, soil: 0.52, elev: 879.0 },
-  'Munnar, Idukki (Western Ghats)': { r24: 88.0, r72: 176.0, soil: 0.43, elev: 1532.0 },
-  'Guwahati Hills (NER)': { r24: 72.0, r72: 145.0, soil: 0.38, elev: 120.0 },
-  'Shillong Ridge (NER)': { r24: 32.0, r72: 68.0, soil: 0.22, elev: 1496.0 },
-  'Aizawl Slopes (NER)': { r24: 118.0, r72: 230.0, soil: 0.61, elev: 1132.0 }
-};
+// ── SIH 2026 Dynamic Zone Risk Assessment (Single Source of Truth) ──────────
 
 export const fetchRiskAssessment = async (
   lat: number = 11.5534,
@@ -284,104 +287,14 @@ export const fetchRiskAssessment = async (
   slope: number = 38.5,
   regionName: string = 'Meppadi, Wayanad (Testbed)'
 ): Promise<RiskAssessmentResponse> => {
-  if (isBackendAvailableOrConfigured()) {
-    try {
-      const res = await api.get<RiskAssessmentResponse>('/api/v1/risk-assessment', {
-        params: { lat, lon, slope, regionName }
-      });
-      if (res.data && typeof res.data === 'object' && res.data.assessment) {
-        setDemoMode(false);
-        notifyCacheUsed(null);
-        await cacheTelemetry(regionName, res.data).catch(() => {});
-        return res.data;
-      }
-    } catch {
-      // Fall through to offline cache or honest MCDA calculation
-    }
-  }
-
   setDemoMode(true);
-
-  // Try reading cached telemetry from IndexedDB
-  try {
-    const cached = await getCachedTelemetry(regionName);
-    if (cached && cached.data && cached.data.assessment) {
-      notifyCacheUsed(cached.timestamp);
-      return cached.data;
-    }
-  } catch {}
-
   notifyCacheUsed(null);
 
-  // Honest MCDA multi-factor mathematical calculation based on slope, rainfall, and topsoil saturation
-  const profile = ZONE_PROFILES[regionName] || {
-    r24: Math.min(180, Math.max(20, slope * 2.8)),
-    r72: Math.min(320, Math.max(50, slope * 5.5)),
-    soil: Math.min(0.65, Math.max(0.20, slope / 70.0)),
-    elev: 800.0
-  };
-
-    const norm_slope = Math.min(1.0, slope / 50.0);
-    const norm_r24 = Math.min(1.0, profile.r24 / 200.0);
-    const norm_r72 = Math.min(1.0, profile.r72 / 350.0);
-    const norm_moisture = Math.min(1.0, profile.soil / 0.60);
-
-    const score = Number((0.35 * norm_slope + 0.30 * norm_r24 + 0.20 * norm_moisture + 0.15 * norm_r72).toFixed(2));
-    const isRed = score >= 0.70 || profile.r24 >= 110.0;
-    const isAmber = !isRed && (score >= 0.40 || profile.r24 >= 60.0);
-    const level = isRed ? 'RED' : isAmber ? 'AMBER' : 'GREEN';
-
-    const action = isRed
-      ? 'Immediate Evacuation & Highway Closure. High debris-flow susceptibility.'
-      : isAmber
-      ? 'Issue Pre-warning. Prepare emergency shelters and restrict heavy transit.'
-      : 'Normal Monitoring Active. Conditions stable.';
-
-    const status = isRed ? 'REROUTED' : 'CLEAR';
-    const primary_corridor = isRed ? 'NH-766 (BLOCKED - Landslide Hazard Zone)' : 'NH-766 (OPEN)';
-    // Truthful wording complying with Section H
-    const safe_route = isRed
-      ? 'Recommended Evacuation Route: SH-59 Bypass (Subject to real-time ground confirmation)'
-      : 'Standard Transit Route: NH-766';
-
-    return {
-      location: { lat, lon, slope_deg: slope, region_name: regionName },
-      weather: {
-        rain_24h_mm: profile.r24,
-        rain_72h_mm: profile.r72,
-        soil_moisture: profile.soil,
-        critical_rain_trigger: profile.r24 >= 100.0,
-        source: 'MCDA_ESTIMATED_TELEMETRY'
-      },
-      assessment: {
-        score,
-        level,
-        action_protocol: action,
-        feature_breakdown: {
-          norm_slope: Number(norm_slope.toFixed(2)),
-          norm_r24: Number(norm_r24.toFixed(2)),
-          norm_r72: Number(norm_r72.toFixed(2)),
-          norm_moisture: Number(norm_moisture.toFixed(2))
-        }
-      },
-      evacuation_plan: {
-        region: regionName,
-        risk_score: score,
-        status,
-        primary_corridor,
-        safe_evacuation_route: safe_route,
-        action,
-        rerouted: isRed,
-        blocked_segments: isRed ? [[lat - 0.003, lon - 0.012], [lat + 0.017, lon + 0.008]] : [],
-        safe_route_geometry: [
-          [lat - 0.003, lon - 0.012],
-          [lat - 0.033, lon - 0.002],
-          [lat - 0.013, lon + 0.038]
-        ],
-        estimated_evacuation_time_min: isRed ? 42 : 25
-      }
-    };
-  };
+  // Return the canonical shared risk state for the 5 monitored zones
+  const shared = getSharedRiskForZone(regionName);
+  await cacheTelemetry(regionName, shared).catch(() => {});
+  return shared;
+};
 
 export const fetchLiveWeather = async (
   lat: number = 11.5534,

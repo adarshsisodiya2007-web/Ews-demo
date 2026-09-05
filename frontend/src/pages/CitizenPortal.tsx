@@ -14,6 +14,13 @@ import { OfflineVectorMap } from '../components/map/OfflineVectorMap';
 import { calculateHaversineDistanceKm, calculateCompassBearing } from '../utils/geoUtils';
 import { getCachedHeatmapWithMeta, getCachedIncidents } from '../services/offlineStore';
 import { isCitizenAuthenticated, getCachedCitizenProfile, logoutCitizen } from '../services/citizenAuthService';
+import {
+  subscribeToScenario,
+  getActiveScenario,
+  advanceToNextScenario,
+  isScenarioOverrideActive,
+  setScenarioOverride
+} from '../services/sharedRiskState';
 import { RiskAssessmentResponse } from '../types';
 
 export const CitizenPortal: React.FC = () => {
@@ -51,6 +58,34 @@ export const CitizenPortal: React.FC = () => {
     lon: 76.1320,
     slope: 38.5
   });
+
+  const [currentScenario, setCurrentScenario] = useState(() => getActiveScenario());
+  const [isOverride, setIsOverride] = useState(() => isScenarioOverrideActive());
+
+  useEffect(() => {
+    const unsub = subscribeToScenario(() => {
+      setCurrentScenario(getActiveScenario());
+      setIsOverride(isScenarioOverrideActive());
+      setLoading(true);
+      fetchRiskAssessment(selectedZone.lat, selectedZone.lon, selectedZone.slope, selectedZone.name)
+        .then(res => {
+          setData(res);
+          setLoading(false);
+          const lvl: string = res.assessment.level;
+          if ((lvl === 'CRITICAL' || lvl === 'RED') && lastAlertLevel.current !== 'CRITICAL' && lastAlertLevel.current !== 'RED') {
+            playCriticalSiren();
+            speakAlert(selectedZone.name, 'CRITICAL', res.assessment.action_protocol);
+          } else if ((lvl === 'HIGH' || lvl === 'AMBER') && lastAlertLevel.current !== 'HIGH' && lastAlertLevel.current !== 'AMBER') {
+            playWarningBeep();
+          } else if (lvl === 'LOW' || lvl === 'GREEN' || lvl === 'MODERATE') {
+            stopSiren();
+          }
+          lastAlertLevel.current = lvl;
+        })
+        .catch(() => setLoading(false));
+    });
+    return () => unsub();
+  }, [selectedZone]);
 
   const lastAlertLevel = useRef<string | null>(null);
   const notificationSent = useRef<Set<string>>(new Set());
@@ -149,16 +184,16 @@ export const CitizenPortal: React.FC = () => {
       .then(async (res) => {
         setData(res);
         setLoading(false);
-        const level = res.assessment.level;
+        const level: string = res.assessment.level;
         const alertKey = `${selectedZone.name}-${level}`;
 
-        // Trigger sound on RED or AMBER
-        if (level === 'RED' && lastAlertLevel.current !== 'RED') {
+        // Trigger sound on CRITICAL or HIGH
+        if ((level === 'CRITICAL' || level === 'RED') && lastAlertLevel.current !== 'CRITICAL' && lastAlertLevel.current !== 'RED') {
           playCriticalSiren();
-          speakAlert(selectedZone.name, 'RED', res.assessment.action_protocol);
-        } else if (level === 'AMBER' && lastAlertLevel.current !== 'AMBER') {
+          speakAlert(selectedZone.name, 'CRITICAL', res.assessment.action_protocol);
+        } else if ((level === 'HIGH' || level === 'AMBER') && lastAlertLevel.current !== 'HIGH' && lastAlertLevel.current !== 'AMBER') {
           playWarningBeep();
-        } else if (level === 'GREEN') {
+        } else if (level === 'LOW' || level === 'GREEN' || level === 'MODERATE') {
           stopSiren();
         }
         lastAlertLevel.current = level;
@@ -167,7 +202,7 @@ export const CitizenPortal: React.FC = () => {
         if (!notificationSent.current.has(alertKey) && notification === 'granted') {
           await sendRiskAlert({
             zone: selectedZone.name,
-            level,
+            level: res.assessment.level,
             score: res.assessment.score,
             action: res.assessment.action_protocol,
             rain24h: res.weather.rain_24h_mm,
@@ -262,8 +297,9 @@ export const CitizenPortal: React.FC = () => {
     }
   }[lang];
 
-  const isRed   = data?.assessment?.level === 'RED';
-  const isAmber = data?.assessment?.level === 'AMBER';
+  const currentLevel: string | undefined = data?.assessment?.level;
+  const isRed   = currentLevel === 'CRITICAL' || currentLevel === 'RED';
+  const isAmber = currentLevel === 'HIGH' || currentLevel === 'MODERATE' || currentLevel === 'AMBER';
 
   const bg   = theme === 'dark' ? '#0b1329' : '#f8fafc';
   const fg   = theme === 'dark' ? '#f1f5f9' : '#0f172a';
@@ -349,6 +385,26 @@ export const CitizenPortal: React.FC = () => {
               >
                 Citizen Safety
               </span>
+              <button
+                onClick={() => advanceToNextScenario()}
+                title="Synchronized Demonstration Scenario (Rotates every 5m · Click to switch for SIH evaluation)"
+                style={{
+                  background: theme === 'dark' ? 'rgba(234, 88, 12, 0.2)' : 'rgba(234, 88, 12, 0.12)',
+                  color: theme === 'dark' ? '#fdba74' : '#c2410c',
+                  border: theme === 'dark' ? '1px solid rgba(234, 88, 12, 0.4)' : '1px solid rgba(234, 88, 12, 0.3)',
+                  borderRadius: '6px',
+                  padding: '1px 8px',
+                  fontSize: '0.70rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}
+              >
+                <span>🧪 DEMO: {currentScenario.label.split(' ')[1] || 'A'}</span>
+                <span style={{ opacity: 0.75, fontSize: '0.62rem' }}>⟳ Switch</span>
+              </button>
             </div>
             <div style={{ fontSize: '0.72rem', color: muted, marginTop: '2px', letterSpacing: '0.01em' }}>
               National Early Warning Network {userLocation ? `· 📍 ${userLocation.detectedZone}` : ''}

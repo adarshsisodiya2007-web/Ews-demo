@@ -13,11 +13,12 @@ import {
 import { RegionRisk, CitizenReport, RoadStatus } from '../types';
 import { fetchHeatmap, fetchRecentReports, updateRoadStatus } from '../services/api';
 import { getCachedHeatmapWithMeta, getCachedIncidents, queueRoadStatus } from '../services/offlineStore';
+import { subscribeToScenario } from '../services/sharedRiskState';
 
 const PRIORITY_CONFIG = {
   CRITICAL: { color: '#fca5a5', bg: 'rgba(239, 68, 68, 0.15)', border: '#ef4444', icon: '🔴', label: 'CRITICAL' },
   HIGH:     { color: '#fdba74', bg: 'rgba(249, 115, 22, 0.15)', border: '#f97316', icon: '🟠', label: 'HIGH' },
-  MEDIUM:   { color: '#fde047', bg: 'rgba(234, 179, 8, 0.15)',  border: '#eab308', icon: '🟡', label: 'MEDIUM' },
+  MEDIUM:   { color: '#fde047', bg: 'rgba(234, 179, 8, 0.15)',  border: '#eab308', icon: '🟡', label: 'MODERATE' },
   LOW:      { color: '#86efac', bg: 'rgba(34, 197, 94, 0.12)',  border: '#22c55e', icon: '🟢', label: 'LOW' },
 };
 
@@ -89,8 +90,14 @@ export const AIPriorityPanel: React.FC<Props> = ({
 
   useEffect(() => {
     loadData();
-    const timer = setInterval(loadData, 60000); // 1 minute live sync
-    return () => clearInterval(timer);
+    const unsub = subscribeToScenario(() => {
+      loadData();
+    });
+    const timer = setInterval(loadData, 30000); // 30s live sync
+    return () => {
+      unsub();
+      clearInterval(timer);
+    };
   }, [loadData]);
 
   // Road status toggle action
@@ -325,7 +332,7 @@ export const AIPriorityPanel: React.FC<Props> = ({
             fontSize: '0.78rem', fontWeight: 800, cursor: 'pointer'
           }}
         >
-          🟡 MEDIUM ({mediumCount})
+          🟡 MODERATE ({mediumCount})
         </button>
 
         <button
