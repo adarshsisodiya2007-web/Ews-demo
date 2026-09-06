@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { fetchRiskAssessment } from '../services/api';
+import { fetchRiskAssessment, fetchRecentReports } from '../services/api';
 import { sendRiskAlert } from '../services/notificationService';
 import { useAlertSound } from '../hooks/useAlertSound';
 import { usePermissions } from '../hooks/usePermissions';
@@ -12,7 +12,7 @@ import { OfflineStatusHeader } from '../components/layout/OfflineStatusHeader';
 import { OfflineRescueMode } from '../components/emergency/OfflineRescueMode';
 import { OfflineVectorMap } from '../components/map/OfflineVectorMap';
 import { calculateHaversineDistanceKm, calculateCompassBearing } from '../utils/geoUtils';
-import { getCachedHeatmapWithMeta, getCachedIncidents } from '../services/offlineStore';
+import { getCachedHeatmapWithMeta, getCachedIncidents, cacheIncidents } from '../services/offlineStore';
 import { isCitizenAuthenticated, getCachedCitizenProfile, logoutCitizen } from '../services/citizenAuthService';
 import {
   subscribeToScenario,
@@ -85,8 +85,17 @@ export const CitizenPortal: React.FC = () => {
 
   // Proximity Calculation: Find closest high-risk landslide hazard zone or incident from cached data
   useEffect(() => {
-    const checkNearbyHazards = async () => {
+    const refreshAndCheckHazards = async () => {
       try {
+        if (navigator.onLine) {
+          try {
+            const liveReports = await fetchRecentReports();
+            if (liveReports && liveReports.length > 0) {
+              await cacheIncidents(liveReports);
+            }
+          } catch {}
+        }
+
         const citizenLat = userLocation?.lat || selectedZone.lat;
         const citizenLon = userLocation?.lon || selectedZone.lon;
 
@@ -116,12 +125,13 @@ export const CitizenPortal: React.FC = () => {
 
         if (cachedR?.data && cachedR.data.length > 0) {
           for (const rep of cachedR.data) {
-            if (rep.category === 'CRACK' || rep.category === 'SLOPE_MOVEMENT' || rep.category === 'BLOCKED_ROAD') {
+            if ((rep.category === 'CRACK' || rep.category === 'SLOPE_MOVEMENT' || rep.category === 'BLOCKED_ROAD') &&
+                rep.status !== 'RESOLVED' && rep.status !== 'DISMISSED') {
               const dist = calculateHaversineDistanceKm(citizenLat, citizenLon, rep.geoLat, rep.geoLng);
               const bearing = calculateCompassBearing(citizenLat, citizenLon, rep.geoLat, rep.geoLng);
               if (!closest || dist < closest.distKm) {
                 closest = {
-                  name: `Incident: ${rep.category.replace('_', ' ')}`,
+                  name: `Incident: ${rep.category.replace('_', ' ')} (${rep.status})`,
                   distKm: dist,
                   bearing,
                   severity: 'HIGH',
@@ -140,7 +150,15 @@ export const CitizenPortal: React.FC = () => {
       } catch {}
     };
 
-    checkNearbyHazards();
+    refreshAndCheckHazards();
+    const iv = setInterval(refreshAndCheckHazards, 15000);
+    window.addEventListener('ews-sync-completed', refreshAndCheckHazards);
+    window.addEventListener('ews-reports-updated', refreshAndCheckHazards);
+    return () => {
+      clearInterval(iv);
+      window.removeEventListener('ews-sync-completed', refreshAndCheckHazards);
+      window.removeEventListener('ews-reports-updated', refreshAndCheckHazards);
+    };
   }, [userLocation, selectedZone]);
 
   useEffect(() => {

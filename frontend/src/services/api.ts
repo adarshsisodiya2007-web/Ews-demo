@@ -12,7 +12,8 @@ import {
   RoadStatus,
   RiskAssessmentResponse,
   LiveWeatherMetrics,
-  TerrainElevation
+  TerrainElevation,
+  ReportStatus
 } from '../types';
 import {
   MOCK_HEATMAP,
@@ -223,6 +224,11 @@ export const submitReport = async (payload: CreateReportPayload): Promise<Citize
   };
 
   const res = await api.post<CitizenReport>('/api/reports', backendPayload);
+  return res.data;
+};
+
+export const updateReportStatus = async (reportId: string, status: ReportStatus): Promise<CitizenReport> => {
+  const res = await api.patch<CitizenReport>(`/api/reports/${reportId}/status?status=${status}`);
   return res.data;
 };
 

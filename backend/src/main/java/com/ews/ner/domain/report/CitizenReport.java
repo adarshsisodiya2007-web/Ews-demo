@@ -45,5 +45,5 @@ public class CitizenReport {
 
     public enum ReporterType { CITIZEN, FIELD_OFFICER }
     public enum ReportCategory { CRACK, SLOPE_MOVEMENT, BLOCKED_ROAD, FLOODING, OTHER }
-    public enum ReportStatus { PENDING, VERIFIED, RESOLVED, DISMISSED }
+    public enum ReportStatus { PENDING, ACKNOWLEDGED, DISPATCHED, VERIFIED, RESOLVED, DISMISSED }
 }

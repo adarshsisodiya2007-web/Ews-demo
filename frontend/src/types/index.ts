@@ -1,7 +1,7 @@
 export type Severity = 'LOW' | 'MODERATE' | 'HIGH' | 'CRITICAL';
 export type RoadStatus = 'OPEN' | 'BLOCKED' | 'AT_RISK';
 export type ReportCategory = 'CRACK' | 'SLOPE_MOVEMENT' | 'BLOCKED_ROAD' | 'FLOODING' | 'OTHER' | 'INJURED_PEOPLE' | 'TRAPPED_CITIZENS';
-export type ReportStatus = 'PENDING' | 'VERIFIED' | 'RESOLVED' | 'DISMISSED';
+export type ReportStatus = 'PENDING' | 'ACKNOWLEDGED' | 'DISPATCHED' | 'VERIFIED' | 'RESOLVED' | 'DISMISSED';
 
 export interface FactorScore {
   score: number;       // 0–1

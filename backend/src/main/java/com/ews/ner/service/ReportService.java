@@ -72,7 +72,8 @@ public class ReportService {
         CitizenReport report = reportRepo.findById(reportId)
             .orElseThrow(() -> new IllegalArgumentException("Report not found"));
         report.setStatus(status);
-        reportRepo.save(report);
+        report = reportRepo.save(report);
+        liveFeed.broadcastReport(report);
         
         if (report.getRegionId() != null) {
             riskService.computeAndSave(report.getRegionId());
@@ -81,7 +82,7 @@ public class ReportService {
     }
     
     public List<CitizenReport> getReportsForRegion(UUID regionId) {
-        return reportRepo.findByRegionIdAndStatusIn(regionId, List.of(ReportStatus.PENDING, ReportStatus.VERIFIED));
+        return reportRepo.findByRegionIdAndStatusIn(regionId, List.of(ReportStatus.PENDING, ReportStatus.ACKNOWLEDGED, ReportStatus.DISPATCHED, ReportStatus.VERIFIED));
     }
     
     public List<CitizenReport> getRecentReports() {

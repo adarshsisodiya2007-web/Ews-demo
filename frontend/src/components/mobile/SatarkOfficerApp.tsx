@@ -10,7 +10,8 @@ import {
   submitReport,
   uploadPhoto,
   deleteCitizenReport,
-  cleanupCitizenReports
+  cleanupCitizenReports,
+  updateReportStatus
 } from '../../services/api';
 import {
   queueRoadStatus,
@@ -26,6 +27,7 @@ import {
   RoadStatus,
   ReportCategory,
   CitizenReport,
+  ReportStatus,
   AlertItem,
   Severity,
   CreateReportPayload
@@ -216,12 +218,19 @@ export const SatarkOfficerApp: React.FC<Props> = ({ onSwitchToCitizen }) => {
 
   useEffect(() => {
     loadAllOfficerData();
-    const iv = setInterval(loadAllOfficerData, 45000);
+    const iv = setInterval(loadAllOfficerData, 12000);
+    const handleSyncUpdate = () => {
+      loadAllOfficerData();
+    };
+    window.addEventListener('ews-sync-completed', handleSyncUpdate);
+    window.addEventListener('ews-reports-updated', handleSyncUpdate);
     const unsub = subscribeToScenario(() => {
       loadAllOfficerData();
     });
     return () => {
       clearInterval(iv);
+      window.removeEventListener('ews-sync-completed', handleSyncUpdate);
+      window.removeEventListener('ews-reports-updated', handleSyncUpdate);
       unsub();
     };
   }, []);
@@ -439,7 +448,20 @@ export const SatarkOfficerApp: React.FC<Props> = ({ onSwitchToCitizen }) => {
     }
   };
 
-  // ── INCIDENT DELETE & CLEANUP ──
+  // ── INCIDENT STATUS UPDATE, DELETE & CLEANUP ──
+  const handleUpdateReportStatus = async (id: string, status: ReportStatus) => {
+    setReports(prev => prev.map(r => r.id === id ? { ...r, status } : r));
+    try {
+      await updateReportStatus(id, status);
+      setCleanupNotice(`✅ Status updated to ${status}`);
+    } catch (err: any) {
+      setCleanupNotice(`❌ Error: ${err.message || 'Status update failed'}`);
+      loadAllOfficerData();
+    } finally {
+      setTimeout(() => setCleanupNotice(null), 3500);
+    }
+  };
+
   const handleDeleteReport = async (id: string) => {
     try {
       await deleteCitizenReport(id);
@@ -1387,16 +1409,29 @@ export const SatarkOfficerApp: React.FC<Props> = ({ onSwitchToCitizen }) => {
                   }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{
-                      background: rep.category === 'TRAPPED_CITIZENS' || rep.category === 'INJURED_PEOPLE' ? '#ef4444' : '#2563eb',
-                      color: '#ffffff',
-                      padding: '2px 6px',
-                      borderRadius: '4px',
-                      fontSize: '0.68rem',
-                      fontWeight: 800
-                    }}>
-                      {rep.category}
-                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span style={{
+                        background: rep.category === 'TRAPPED_CITIZENS' || rep.category === 'INJURED_PEOPLE' ? '#ef4444' : '#2563eb',
+                        color: '#ffffff',
+                        padding: '2px 6px',
+                        borderRadius: '4px',
+                        fontSize: '0.68rem',
+                        fontWeight: 800
+                      }}>
+                        {rep.category}
+                      </span>
+                      <span style={{
+                        background: rep.status === 'RESOLVED' ? '#3b82f620' : rep.status === 'DISPATCHED' ? '#ea580c20' : rep.status === 'VERIFIED' ? '#22c55e20' : '#f59e0b20',
+                        color: rep.status === 'RESOLVED' ? '#60a5fa' : rep.status === 'DISPATCHED' ? '#fb923c' : rep.status === 'VERIFIED' ? '#4ade80' : '#fcd34d',
+                        border: `1px solid ${rep.status === 'RESOLVED' ? '#3b82f6' : rep.status === 'DISPATCHED' ? '#ea580c' : rep.status === 'VERIFIED' ? '#22c55e' : '#f59e0b'}`,
+                        padding: '1px 6px',
+                        borderRadius: '10px',
+                        fontSize: '0.66rem',
+                        fontWeight: 800
+                      }}>
+                        {rep.status}
+                      </span>
+                    </div>
                     <span style={{ fontSize: '0.7rem', color: textMuted }}>
                       {new Date(rep.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
@@ -1423,6 +1458,29 @@ export const SatarkOfficerApp: React.FC<Props> = ({ onSwitchToCitizen }) => {
                     >
                       Delete
                     </button>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '4px', marginTop: '4px', flexWrap: 'wrap', alignItems: 'center' }}>
+                    {(['DISPATCHED', 'VERIFIED', 'RESOLVED'] as const).map(st => (
+                      <button
+                        key={st}
+                        onClick={() => handleUpdateReportStatus(rep.id, st)}
+                        style={{
+                          background: rep.status === st
+                            ? (st === 'RESOLVED' ? '#2563eb' : st === 'DISPATCHED' ? '#ea580c' : '#16a34a')
+                            : (isLight ? '#f1f5f9' : '#1e293b'),
+                          color: rep.status === st ? '#ffffff' : textMuted,
+                          border: `1px solid ${rep.status === st ? 'transparent' : borderCol}`,
+                          borderRadius: '6px',
+                          padding: '3px 8px',
+                          fontSize: '0.68rem',
+                          fontWeight: rep.status === st ? 800 : 600,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        {rep.status === st ? `✓ ${st}` : `Mark ${st}`}
+                      </button>
+                    ))}
                   </div>
                 </div>
               ))}
