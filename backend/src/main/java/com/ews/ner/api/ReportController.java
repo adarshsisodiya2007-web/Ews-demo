@@ -52,6 +52,11 @@ public class ReportController {
         return ResponseEntity.ok(reportService.getRecentReports());
     }
 
+    @GetMapping("/beacons/active")
+    public ResponseEntity<List<CitizenReport>> getActiveBeacons() {
+        return ResponseEntity.ok(reportService.getActiveBeacons());
+    }
+
     @PatchMapping("/{id}/status")
     public ResponseEntity<CitizenReport> updateStatus(
             @PathVariable UUID id, 

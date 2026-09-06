@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   getEmergencyDistressState,
   getBeaconHistory,
@@ -6,10 +6,13 @@ import {
   getCachedIncidents,
   EmergencyDistressState,
 } from '../../services/offlineStore';
+import { fetchActiveBeacons, updateReportStatus } from '../../services/api';
+import { CitizenReport } from '../../types';
 import { calculateHaversineDistanceKm, calculateCompassBearing } from '../../utils/geoUtils';
 
 export interface DetectedSignal {
   beaconId: string;
+  reportId?: string;
   status: 'ACTIVE' | 'RESCUE_IN_PROGRESS' | 'RESOLVED';
   source: 'STORED_CITIZEN_BEACON' | 'OFFLINE_QUEUE' | 'DEMO';
   distanceKm: number | null;
@@ -66,62 +69,159 @@ export const BleRescueScanner: React.FC<Props> = ({
   const [detectedSignals, setDetectedSignals] = useState<DetectedSignal[]>(DEMO_SIGNALS);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [actionNotice, setActionNotice] = useState<string | null>(null);
+  const serverReportsRef = useRef<Map<string, CitizenReport>>(new Map());
 
-  // Automatically check if there's an active citizen beacon on mount
+  // Automatically fetch active beacons on mount and refresh periodically
   useEffect(() => {
-    checkActiveCitizenBeacon();
-  }, []);
+    refreshAllSignals();
+    const interval = setInterval(() => {
+      refreshAllSignals();
+    }, 8000);
+    return () => clearInterval(interval);
+  }, [officerLat, officerLng]);
 
-  const checkActiveCitizenBeacon = () => {
-    const citizenBeacon = getEmergencyDistressState();
-    if (citizenBeacon && citizenBeacon.active) {
-      addCitizenBeaconToSignals(citizenBeacon);
+  const refreshAllSignals = async (): Promise<DetectedSignal[]> => {
+    const newSignals: DetectedSignal[] = [];
+    const seenBeaconIds = new Set<string>();
+
+    // 1. Fetch live canonical beacons from backend database
+    try {
+      const serverBeacons = await fetchActiveBeacons();
+      for (const rep of serverBeacons) {
+        let bId = rep.beaconId;
+        if (!bId && rep.description) {
+          const match = rep.description.match(/EWS-[A-Z0-9]{5,8}/i);
+          if (match) bId = match[0].toUpperCase();
+        }
+        if (!bId) {
+          bId = rep.clientReportId ? `EWS-${rep.clientReportId.slice(-6).toUpperCase()}` : `EWS-${rep.id.slice(0, 6).toUpperCase()}`;
+        }
+
+        if (seenBeaconIds.has(bId)) continue;
+        seenBeaconIds.add(bId);
+        serverReportsRef.current.set(bId, rep);
+
+        const lat = rep.geoLat;
+        const lng = rep.geoLng;
+        const dist = calculateHaversineDistanceKm(officerLat, officerLng, lat, lng);
+        const brg = calculateCompassBearing(officerLat, officerLng, lat, lng);
+        const inProgress = rep.status === 'DISPATCHED' || rep.status === 'VERIFIED';
+
+        newSignals.push({
+          beaconId: bId,
+          reportId: rep.id,
+          status: inProgress ? 'RESCUE_IN_PROGRESS' : 'ACTIVE',
+          source: 'STORED_CITIZEN_BEACON',
+          distanceKm: dist,
+          bearing: brg,
+          lat,
+          lng,
+          priority: 'HIGH',
+          priorityReason: rep.description || 'Citizen Active Emergency Distress Beacon (Backend Synchronized)',
+          medicalUrgent: true,
+          timeDetected: rep.createdAt ? new Date(rep.createdAt).toLocaleTimeString() : 'Active',
+        });
+      }
+    } catch (err) {
+      console.warn('Could not fetch active beacons from backend:', err);
     }
-  };
 
-  const addCitizenBeaconToSignals = (beacon: EmergencyDistressState) => {
-    const dist = calculateHaversineDistanceKm(officerLat, officerLng, beacon.lat, beacon.lng);
-    const brg = calculateCompassBearing(officerLat, officerLng, beacon.lat, beacon.lng);
+    // 2. Check local browser distress state (if officer is testing citizen on same device)
+    const citizenBeacon = getEmergencyDistressState();
+    if (citizenBeacon && citizenBeacon.active && !seenBeaconIds.has(citizenBeacon.beaconId)) {
+      seenBeaconIds.add(citizenBeacon.beaconId);
+      const dist = calculateHaversineDistanceKm(officerLat, officerLng, citizenBeacon.lat, citizenBeacon.lng);
+      const brg = calculateCompassBearing(officerLat, officerLng, citizenBeacon.lat, citizenBeacon.lng);
 
-    const signal: DetectedSignal = {
-      beaconId: beacon.beaconId,
-      status: beacon.status === 'ACTIVE' ? 'ACTIVE' : 'RESCUE_IN_PROGRESS',
-      source: 'STORED_CITIZEN_BEACON',
-      distanceKm: dist,
-      bearing: brg,
-      lat: beacon.lat,
-      lng: beacon.lng,
-      priority: 'HIGH',
-      priorityReason: 'Citizen Active Emergency Distress Beacon (100% Verified Local Signal)',
-      medicalUrgent: beacon.medicalUrgent || true,
-      timeDetected: new Date(beacon.activatedAt).toLocaleTimeString(),
-    };
+      newSignals.push({
+        beaconId: citizenBeacon.beaconId,
+        status: citizenBeacon.status === 'ACTIVE' ? 'ACTIVE' : 'RESCUE_IN_PROGRESS',
+        source: 'STORED_CITIZEN_BEACON',
+        distanceKm: dist,
+        bearing: brg,
+        lat: citizenBeacon.lat,
+        lng: citizenBeacon.lng,
+        priority: 'HIGH',
+        priorityReason: citizenBeacon.notes || 'Citizen Active Emergency Distress Beacon (Local Device)',
+        medicalUrgent: citizenBeacon.medicalUrgent || true,
+        timeDetected: new Date(citizenBeacon.activatedAt).toLocaleTimeString(),
+      });
+    }
+
+    // 3. Check pending offline emergency reports
+    try {
+      const pending = await getPendingReports();
+      for (const r of pending) {
+        const desc = r.payload.description || '';
+        const isEmergency = desc.includes('DISTRESS') || desc.includes('EMERGENCY SOS') || r.payload.medicalUrgent;
+        if (!isEmergency) continue;
+
+        let bId = r.payload.beaconId;
+        if (!bId) {
+          const match = desc.match(/EWS-[A-Z0-9]{5,8}/i);
+          if (match) bId = match[0].toUpperCase();
+        }
+        if (!bId) {
+          bId = `EWS-${r.clientReportId.slice(-6).toUpperCase()}`;
+        }
+
+        if (seenBeaconIds.has(bId)) continue;
+        seenBeaconIds.add(bId);
+
+        const lat = r.payload.geoLat;
+        const lng = r.payload.geoLng;
+        const dist = calculateHaversineDistanceKm(officerLat, officerLng, lat, lng);
+        const brg = calculateCompassBearing(officerLat, officerLng, lat, lng);
+
+        newSignals.push({
+          beaconId: bId,
+          status: 'ACTIVE',
+          source: 'OFFLINE_QUEUE',
+          distanceKm: dist,
+          bearing: brg,
+          lat,
+          lng,
+          priority: 'HIGH',
+          priorityReason: desc || 'IndexedDB Offline Report Queue (Urgent Medical Extraction)',
+          medicalUrgent: true,
+          timeDetected: new Date(r.timestamp).toLocaleTimeString(),
+        });
+      }
+    } catch {}
 
     setDetectedSignals(prev => {
-      const filtered = prev.filter(s => s.beaconId !== beacon.beaconId);
-      return [signal, ...filtered];
+      // Preserve any in-progress status set by officer in this session
+      const updated = newSignals.map(sig => {
+        const existing = prev.find(p => p.beaconId === sig.beaconId);
+        if (existing && existing.status === 'RESCUE_IN_PROGRESS') {
+          return { ...sig, status: 'RESCUE_IN_PROGRESS' as const, responderNotes: existing.responderNotes };
+        }
+        return sig;
+      });
+
+      // Keep demo signals only if no real signals exist
+      if (updated.length === 0) {
+        return prev.length > 0 ? prev : DEMO_SIGNALS;
+      }
+      return updated;
     });
+
+    return newSignals;
   };
 
-  const handleScanBle = () => {
+  const handleScanBle = async () => {
     setIsScanning(true);
     setScannerStatus('SCANNING FOR BLE PACKETS (30s timeout)…');
     setActionNotice(null);
 
-    // Simulate genuine scan interval looking for local/stored signals
-    setTimeout(() => {
-      // Check stored citizen beacons and pending reports
-      checkActiveCitizenBeacon();
-      const history = getBeaconHistory();
-      if (history.length > 0) {
-        history.forEach(b => {
-          if (b.active) addCitizenBeaconToSignals(b);
-        });
-      }
-
+    try {
+      const signals = await refreshAllSignals();
+      setIsScanning(false);
+      setScannerStatus(`SCAN COMPLETE — ${signals.length} active emergency signal(s) synchronized`);
+    } catch {
       setIsScanning(false);
       setScannerStatus('SCAN COMPLETE — Signals refreshed from local radio environment & storage');
-    }, 2500);
+    }
   };
 
   const handleClearDetections = () => {
@@ -132,69 +232,17 @@ export const BleRescueScanner: React.FC<Props> = ({
 
   const handleLoadStoredCitizenBeacon = async () => {
     setActionNotice(null);
-    const active = getEmergencyDistressState();
-    const history = getBeaconHistory();
-    const pending = await getPendingReports();
+    const signals = await refreshAllSignals();
 
-    let found = false;
-
-    if (active) {
-      addCitizenBeaconToSignals(active);
-      found = true;
-      setActionNotice(`✅ Loaded active citizen beacon [${active.beaconId}] at Lat ${active.lat.toFixed(4)}, Lon ${active.lng.toFixed(4)}.`);
-    } else if (history.length > 0) {
-      addCitizenBeaconToSignals(history[0]);
-      found = true;
-      setActionNotice(`✅ Loaded recent citizen beacon [${history[0].beaconId}] from offline history.`);
-    }
-
-    // Also check pending emergency reports
-    const emergencyReport = pending.find(r => r.payload.description?.includes('[DISTRESS BEACON') || r.payload.medicalUrgent);
-    if (emergencyReport && (!active || emergencyReport.clientReportId !== active.clientReportId)) {
-      const lat = emergencyReport.payload.geoLat;
-      const lng = emergencyReport.payload.geoLng;
-      const dist = calculateHaversineDistanceKm(officerLat, officerLng, lat, lng);
-      const brg = calculateCompassBearing(officerLat, officerLng, lat, lng);
-      const bId = emergencyReport.payload.beaconId || `EWS-${emergencyReport.clientReportId.slice(-6).toUpperCase()}`;
-
-      const item: DetectedSignal = {
-        beaconId: bId,
-        status: 'ACTIVE',
-        source: 'OFFLINE_QUEUE',
-        distanceKm: dist,
-        bearing: brg,
-        lat,
-        lng,
-        priority: 'HIGH',
-        priorityReason: 'IndexedDB Offline Report Queue (Urgent Medical Extraction)',
-        medicalUrgent: true,
-        timeDetected: new Date(emergencyReport.timestamp).toLocaleTimeString(),
-      };
-
-      setDetectedSignals(prev => [item, ...prev.filter(x => x.beaconId !== bId)]);
-      found = true;
-      setActionNotice(`✅ Loaded queued emergency report with Beacon ID [${bId}].`);
-    }
-
-    if (!found) {
-      // Load fallback prototype demonstration beacon
-      const demoBeacon: EmergencyDistressState = {
-        beaconId: 'EWS-296SFS',
-        status: 'ACTIVE',
-        active: true,
-        createdAt: Date.now(),
-        activatedAt: Date.now(),
-        lat: officerLat + 0.005,
-        lng: officerLng + 0.003,
-        medicalUrgent: true,
-        emergencyType: 'Citizen Trapped',
-      };
-      addCitizenBeaconToSignals(demoBeacon);
-      setActionNotice('ℹ️ No live citizen beacon active in browser memory. Loaded verified prototype test beacon [EWS-296SFS].');
+    if (signals.length > 0) {
+      const first = signals[0];
+      setActionNotice(`✅ Loaded active citizen beacon [${first.beaconId}] at Lat ${first.lat.toFixed(4)}, Lon ${first.lng.toFixed(4)}.`);
+    } else {
+      setActionNotice('ℹ️ No live citizen beacon active in backend database or browser storage.');
     }
   };
 
-  const handleStartRescue = (beaconId: string) => {
+  const handleStartRescue = async (beaconId: string) => {
     setDetectedSignals(prev =>
       prev.map(s =>
         s.beaconId === beaconId
@@ -207,6 +255,16 @@ export const BleRescueScanner: React.FC<Props> = ({
       )
     );
     setActionNotice(`🚑 RESCUE RESPONSE INITIATED for ${beaconId}. GPS coordinates locked to navigator.`);
+
+    // Sync status change to backend database if report ID is available
+    const rep = serverReportsRef.current.get(beaconId);
+    if (rep && rep.id) {
+      try {
+        await updateReportStatus(rep.id, 'DISPATCHED');
+      } catch (err) {
+        console.warn('Failed to update report status on backend:', err);
+      }
+    }
   };
 
   const filteredSignals = detectedSignals.filter(s =>
@@ -385,7 +443,7 @@ export const BleRescueScanner: React.FC<Props> = ({
       <div style={{ marginBottom: '16px' }}>
         <input
           type="text"
-          placeholder="🔍 Search by Beacon ID (e.g. EWS-296SFS) or Emergency Category…"
+          placeholder="🔍 Search by Beacon ID (e.g. EWS-XXXXXX) or Emergency Category…"
           value={searchQuery}
           onChange={e => setSearchQuery(e.target.value)}
           style={{

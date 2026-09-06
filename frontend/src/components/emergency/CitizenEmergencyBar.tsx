@@ -129,33 +129,43 @@ export const CitizenEmergencyBar: React.FC<Props> = ({
       startOpticalStrobe();
       playCriticalSiren();
 
-      const beaconId = generateBeaconId();
+      const existing = getEmergencyDistressState();
+      const beaconId = (existing && existing.active && existing.beaconId) ? existing.beaconId : generateBeaconId();
+      const clientReportId = (existing && existing.active && existing.clientReportId) ? existing.clientReportId : generateClientReportId();
+
       const distressState: EmergencyDistressState = {
         beaconId,
         status: 'ACTIVE',
         active: true,
-        createdAt: Date.now(),
-        activatedAt: Date.now(),
+        createdAt: (existing && existing.active && existing.createdAt) ? existing.createdAt : Date.now(),
+        activatedAt: (existing && existing.active && existing.activatedAt) ? existing.activatedAt : Date.now(),
         lat: currentLat,
         lng: currentLng,
         notes: 'Acoustic siren + optical screen beacon active',
+        clientReportId,
+        syncStatus: navigator.onLine ? 'SYNCHRONIZED' : 'PENDING_SYNC',
       };
       setEmergencyDistressState(distressState);
 
       // Queue an emergency distress packet in IndexedDB
-      const clientReportId = generateClientReportId();
       const payload: CreateReportPayload = {
         geoLat: currentLat,
         geoLng: currentLng,
         category: 'TRAPPED_CITIZENS',
-        description: `[SIGNAL RESCUE BEACON ACTIVE] Continuous emergency distress beacon broadcasting at Lat ${currentLat.toFixed(4)}, Lon ${currentLng.toFixed(4)}.`,
+        description: `[DISTRESS BEACON ${beaconId} ACTIVE] Continuous emergency distress beacon broadcasting at Lat ${currentLat.toFixed(4)}, Lon ${currentLng.toFixed(4)}.`,
         reporterType: 'CITIZEN',
         clientReportId,
+        beaconId,
+        medicalUrgent: true,
       };
 
       try {
         if (navigator.onLine) {
-          await submitReport(payload);
+          const created = await submitReport(payload);
+          if (created?.beaconId && created.beaconId !== beaconId) {
+            distressState.beaconId = created.beaconId;
+            setEmergencyDistressState(distressState);
+          }
         } else {
           await queueReport(payload);
         }

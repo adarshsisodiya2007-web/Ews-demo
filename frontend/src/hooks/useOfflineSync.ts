@@ -8,6 +8,8 @@ import {
   getPendingRoadStatuses,
   updatePendingRoadStatus,
   removePendingRoadStatus,
+  getEmergencyDistressState,
+  setEmergencyDistressState,
 } from '../services/offlineStore';
 import { submitReport, uploadPhoto, updateRoadStatus } from '../services/api';
 import { PendingReportItem, PendingRoadStatusItem } from '../types';
@@ -68,10 +70,24 @@ export function useOfflineSync() {
           }
 
           // Submit report with idempotency key (clientReportId)
-          await submitReport({
+          const syncedReport = await submitReport({
             ...item.payload,
             photoUrl: finalPhotoUrl,
           });
+
+          // If this report was an active emergency distress beacon, update the local distress state
+          try {
+            const distress = getEmergencyDistressState();
+            if (distress && (distress.clientReportId === item.clientReportId || (syncedReport?.beaconId && distress.beaconId === syncedReport.beaconId))) {
+              if (syncedReport?.beaconId) {
+                distress.beaconId = syncedReport.beaconId;
+              }
+              distress.syncStatus = 'SYNCHRONIZED';
+              setEmergencyDistressState(distress);
+            }
+          } catch (dErr) {
+            console.warn('Could not update distress state after sync:', dErr);
+          }
 
           // Server acknowledged — safe to remove local queued data and blob
           if (item.payload.photoBlobKey) {

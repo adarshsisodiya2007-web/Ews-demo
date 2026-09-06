@@ -36,7 +36,7 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/**", "/api/risk/**", "/actuator/health", "/api/regions/**", "/api/v1/**", "/api/weather/**", "/api/alerts/**", "/ws/**").permitAll()
                 .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/reports", "/api/reports/", "/api/reports/upload").permitAll()
-                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/reports/recent", "/api/reports/region/**").permitAll()
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/reports/recent", "/api/reports/region/**", "/api/reports/beacons/**").permitAll()
                 .requestMatchers(org.springframework.http.HttpMethod.PATCH, "/api/reports/**").permitAll()
                 .requestMatchers(org.springframework.http.HttpMethod.DELETE, "/api/reports/**").hasAnyRole("ADMIN", "DISTRICT_OFFICIAL", "FIELD_OFFICER")
                 .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/reports/cleanup").hasAnyRole("ADMIN", "DISTRICT_OFFICIAL", "FIELD_OFFICER")

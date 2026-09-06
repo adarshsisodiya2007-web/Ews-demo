@@ -214,15 +214,16 @@ export const OfflineRescueMode: React.FC<Props> = ({
   // ── BEACON LIFECYCLE ──────────────────────────────────────────────────────────
 
   const handleStartBeacon = async (source = 'Signal Rescuers') => {
-    const beaconId = generateBeaconId();
-    const clientReportId = generateClientReportId();
+    const existing = getEmergencyDistressState();
+    const beaconId = (existing && existing.active && existing.beaconId) ? existing.beaconId : generateBeaconId();
+    const clientReportId = (existing && existing.active && existing.clientReportId) ? existing.clientReportId : generateClientReportId();
 
     const newBeacon: EmergencyDistressState = {
       beaconId,
       status: 'ACTIVE',
       active: true,
-      createdAt: Date.now(),
-      activatedAt: Date.now(),
+      createdAt: (existing && existing.active && existing.createdAt) ? existing.createdAt : Date.now(),
+      activatedAt: (existing && existing.active && existing.activatedAt) ? existing.activatedAt : Date.now(),
       lat: citizenLat,
       lng: citizenLng,
       medicalUrgent: true,
@@ -251,10 +252,16 @@ export const OfflineRescueMode: React.FC<Props> = ({
 
     try {
       if (isOnline) {
-        await submitReport(payload);
+        const created = await submitReport(payload);
+        const resolvedId = created?.beaconId || beaconId;
+        if (created?.beaconId && created.beaconId !== beaconId) {
+          newBeacon.beaconId = created.beaconId;
+          setBeaconState(newBeacon);
+          setEmergencyDistressState(newBeacon);
+        }
         setFeedbackMsg({
           type: 'success',
-          text: `📡 BEACON ${beaconId} ACTIVE & Synchronized with emergency server (GPS: ${citizenLat.toFixed(6)}, ${citizenLng.toFixed(6)}).`,
+          text: `📡 BEACON ${resolvedId} ACTIVE & Synchronized with emergency server (GPS: ${citizenLat.toFixed(6)}, ${citizenLng.toFixed(6)}).`,
         });
       } else {
         await queueReport(payload);

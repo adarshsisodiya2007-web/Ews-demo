@@ -274,7 +274,7 @@ export const getCachedGisData = async (key: string): Promise<CachedRecord<any> |
 // ── EMERGENCY DISTRESS BEACON STATE (SIGNAL RESCUERS) ─────────────────────────
 
 export interface EmergencyDistressState {
-  beaconId: string;       // e.g. EWS-296SFS
+  beaconId: string;       // e.g. EWS-R1E53Y
   status: 'ACTIVE' | 'STOPPED';
   active: boolean;
   createdAt: number;

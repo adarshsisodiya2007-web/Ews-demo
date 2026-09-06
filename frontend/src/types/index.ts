@@ -68,6 +68,8 @@ export interface CitizenReport {
   syncedAt: string | null;
   geoLat: number;
   geoLng: number;
+  clientReportId?: string | null;
+  beaconId?: string | null;
 }
 
 export interface AlertItem {

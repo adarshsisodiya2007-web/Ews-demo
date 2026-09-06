@@ -20,4 +20,6 @@ public class CitizenReportDTO {
     private OffsetDateTime syncedAt;
     private BigDecimal geoLat;
     private BigDecimal geoLng;
+    private String clientReportId;
+    private String beaconId;
 }

@@ -20,6 +20,7 @@ public class CreateReportRequest {
     private ReporterType reporterType;
     private String photoUrl;
     private String clientReportId;
+    private String beaconId;
 
     public BigDecimal getLat() {
         return geoLat;

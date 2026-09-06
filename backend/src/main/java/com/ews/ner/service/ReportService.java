@@ -27,11 +27,35 @@ public class ReportService {
 
     @Transactional
     public CitizenReport createReport(CreateReportRequest req, UUID reporterId, String photoUrl) {
+        String beaconId = req.getBeaconId();
+        if ((beaconId == null || beaconId.isBlank()) && req.getDescription() != null) {
+            java.util.regex.Matcher m = java.util.regex.Pattern.compile("EWS-[A-Z0-9]{5,8}").matcher(req.getDescription());
+            if (m.find()) {
+                beaconId = m.group();
+            }
+        }
+
         if (req.getClientReportId() != null && !req.getClientReportId().isBlank()) {
             java.util.Optional<CitizenReport> existing = reportRepo.findByClientReportId(req.getClientReportId());
             if (existing.isPresent()) {
+                CitizenReport existingReport = existing.get();
+                if (existingReport.getBeaconId() == null && beaconId != null) {
+                    existingReport.setBeaconId(beaconId);
+                    existingReport = reportRepo.save(existingReport);
+                }
                 log.info("Duplicate report submission detected for clientReportId: {}. Returning existing record.", req.getClientReportId());
-                return existing.get();
+                return existingReport;
+            }
+        }
+
+        if (beaconId != null && !beaconId.isBlank()) {
+            java.util.Optional<CitizenReport> existingBeacon = reportRepo.findByBeaconId(beaconId);
+            if (existingBeacon.isPresent()) {
+                CitizenReport prev = existingBeacon.get();
+                if (prev.getStatus() != ReportStatus.RESOLVED && prev.getStatus() != ReportStatus.DISMISSED) {
+                    log.info("Active beacon record already exists for beaconId: {}. Returning canonical record.", beaconId);
+                    return prev;
+                }
             }
         }
 
@@ -53,6 +77,7 @@ public class ReportService {
                 .reporterId(reporterId)
                 .photoUrl(resolvedPhoto)
                 .clientReportId(req.getClientReportId())
+                .beaconId(beaconId)
                 .createdAt(OffsetDateTime.now())
                 .syncedAt(req.getClientReportId() != null ? OffsetDateTime.now() : null)
                 .build();
@@ -87,6 +112,10 @@ public class ReportService {
     
     public List<CitizenReport> getRecentReports() {
         return reportRepo.findTop20ByOrderByCreatedAtDesc();
+    }
+
+    public List<CitizenReport> getActiveBeacons() {
+        return reportRepo.findActiveBeacons();
     }
 
     @Transactional

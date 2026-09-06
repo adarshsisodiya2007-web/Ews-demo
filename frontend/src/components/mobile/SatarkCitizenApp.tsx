@@ -673,8 +673,9 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
   }, [showSosModal, sosActive, sosCountdown]);
 
   const executeSosBroadcast = async () => {
-    const bId = generateBeaconId();
-    const cId = generateClientReportId();
+    const existing = getEmergencyDistressState();
+    const bId = (existing && existing.active && existing.beaconId) ? existing.beaconId : generateBeaconId();
+    const cId = (existing && existing.active && existing.clientReportId) ? existing.clientReportId : generateClientReportId();
     const lat = userLocation?.lat ?? selectedZone.lat;
     const lng = userLocation?.lng ?? selectedZone.lon;
 
@@ -682,8 +683,8 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
       beaconId: bId,
       status: 'ACTIVE',
       active: true,
-      createdAt: Date.now(),
-      activatedAt: Date.now(),
+      createdAt: (existing && existing.active && existing.createdAt) ? existing.createdAt : Date.now(),
+      activatedAt: (existing && existing.active && existing.activatedAt) ? existing.activatedAt : Date.now(),
       lat,
       lng,
       medicalUrgent: true,
@@ -711,7 +712,12 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
 
     try {
       if (isOnline) {
-        await submitReport(payload);
+        const created = await submitReport(payload);
+        if (created?.beaconId && created.beaconId !== bId) {
+          distress.beaconId = created.beaconId;
+          setEmergencyDistressState(distress);
+          setSosBeaconId(created.beaconId);
+        }
       } else {
         await queueReport(payload);
       }

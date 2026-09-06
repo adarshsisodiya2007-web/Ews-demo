@@ -245,6 +245,27 @@ export const cleanupCitizenReports = async (options?: {
   return res.data;
 };
 
+export const fetchActiveBeacons = async (): Promise<CitizenReport[]> => {
+  try {
+    const res = await api.get<CitizenReport[]>('/api/reports/beacons/active');
+    if (res.data && Array.isArray(res.data)) {
+      return res.data;
+    }
+  } catch (err) {
+    console.warn('[API] fetchActiveBeacons failed, attempting fallback to recent reports', err);
+  }
+
+  try {
+    const reports = await fetchRecentReports();
+    return reports.filter(r =>
+      (r.beaconId || (r.description && r.description.toUpperCase().includes('DISTRESS'))) &&
+      r.status !== 'RESOLVED' && r.status !== 'DISMISSED'
+    );
+  } catch {
+    return [];
+  }
+};
+
 export const uploadPhoto = async (file: File | Blob, filename = 'hazard.jpg'): Promise<string> => {
   const formData = new FormData();
   formData.append('file', file, filename);

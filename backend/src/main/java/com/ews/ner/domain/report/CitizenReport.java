@@ -43,6 +43,9 @@ public class CitizenReport {
     @Column(name = "client_report_id")
     private String clientReportId;
 
+    @Column(name = "beacon_id")
+    private String beaconId;
+
     public enum ReporterType { CITIZEN, FIELD_OFFICER }
     public enum ReportCategory { CRACK, SLOPE_MOVEMENT, BLOCKED_ROAD, FLOODING, OTHER }
     public enum ReportStatus { PENDING, ACKNOWLEDGED, DISPATCHED, VERIFIED, RESOLVED, DISMISSED }
