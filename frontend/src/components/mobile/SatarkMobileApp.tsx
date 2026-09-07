@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { SatarkCitizenApp } from './SatarkCitizenApp';
 import { SatarkOfficerApp } from './SatarkOfficerApp';
+import { SatarkSplashScreen } from './SatarkSplashScreen';
 import { login } from '../../services/api';
 
 export const SatarkMobileApp: React.FC = () => {
+  const [showSplash, setShowSplash] = useState<boolean>(true);
   const [userRole, setUserRole] = useState<string>(() => {
     return localStorage.getItem('ews_role') || 'CITIZEN';
   });
@@ -70,6 +72,10 @@ export const SatarkMobileApp: React.FC = () => {
 
   return (
     <>
+      {showSplash && (
+        <SatarkSplashScreen onComplete={() => setShowSplash(false)} />
+      )}
+
       {activeMode === 'officer' ? (
         <SatarkOfficerApp
           onSwitchToCitizen={() => setActiveMode('citizen')}
