@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useGeolocation } from '../../hooks/useGeolocation';
 import { useAlertSound } from '../../hooks/useAlertSound';
 import { useOfflineSync } from '../../hooks/useOfflineSync';
+import { clearAuthSession } from '../../utils/authSession';
 import {
   fetchHeatmap,
   fetchRecentAlerts,
@@ -497,9 +498,7 @@ export const SatarkOfficerApp: React.FC<Props> = ({ onSwitchToCitizen }) => {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('ews_token');
-    localStorage.removeItem('ews_role');
-    localStorage.removeItem('ews_user');
+    clearAuthSession();
     window.location.reload();
   };
 

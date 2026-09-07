@@ -15,7 +15,6 @@ import { ProfilePage } from './pages/ProfilePage';
 import { PrivacyDataPage } from './pages/PrivacyDataPage';
 import { useCapacitorNative } from './hooks/useCapacitorNative';
 import { isCapacitorAndroid } from './utils/platform';
-import { SatarkSplashScreen } from './components/mobile/SatarkSplashScreen';
 import { SatarkMobileApp } from './components/mobile/SatarkMobileApp';
 import { ThemeProvider } from './context/ThemeContext';
 import { getValidSession, clearAuthSession } from './utils/authSession';
@@ -54,16 +53,21 @@ const RootRoute: React.FC = () => {
 
 function AppContent({ permsDone, onPermComplete }: { permsDone: boolean; onPermComplete: () => void }) {
   useCapacitorNative();
-  // 3-second SATARK splash screen on Android app launch/relaunch
-  const [showSplash, setShowSplash] = useState<boolean>(() => isCapacitorAndroid());
+  const isAndroidApp = isCapacitorAndroid();
+
+  // If running inside native Android Capacitor app, render the dedicated mobile-app UI
+  if (isAndroidApp) {
+    return (
+      <>
+        {!permsDone && <PermissionGate onComplete={onPermComplete} />}
+        <DemoBanner />
+        <SatarkMobileApp />
+      </>
+    );
+  }
 
   return (
     <>
-      {/* 3-second SATARK splash animation on Android startup */}
-      {showSplash && (
-        <SatarkSplashScreen onComplete={() => setShowSplash(false)} />
-      )}
-
       {/* Show permission gate on first visit */}
       {!permsDone && <PermissionGate onComplete={onPermComplete} />}
 

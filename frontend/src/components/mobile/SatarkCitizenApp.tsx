@@ -28,6 +28,7 @@ import {
   updateCitizenProfile,
   createCitizenProfile
 } from '../../services/citizenAuthService';
+import { getValidSession, clearAuthSession } from '../../utils/authSession';
 import {
   AlertItem,
   CreateReportPayload,
@@ -567,7 +568,9 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
 
   // Auth / OTP state
   const [isCitizenLoggedIn, setIsCitizenLoggedIn] = useState<boolean>(() => {
-    return !!localStorage.getItem('ews_token') && localStorage.getItem('ews_role') === 'CITIZEN';
+    const token = localStorage.getItem('ews_token');
+    const session = getValidSession(token);
+    return !!session && session.role === 'CITIZEN';
   });
   const [showSignInSheet, setShowSignInSheet] = useState<boolean>(false);
   const [phoneInput, setPhoneInput] = useState<string>('');
@@ -846,9 +849,7 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('ews_token');
-    localStorage.removeItem('ews_role');
-    localStorage.removeItem('ews_user');
+    clearAuthSession();
     setIsCitizenLoggedIn(false);
     setCitizenProfile(null);
   };
