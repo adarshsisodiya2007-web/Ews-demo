@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { SatarkCitizenApp } from './SatarkCitizenApp';
 import { SatarkOfficerApp } from './SatarkOfficerApp';
 import { SatarkSplashScreen } from './SatarkSplashScreen';
+import { SatarkAndroidLogin } from './SatarkAndroidLogin';
 import { login } from '../../services/api';
 import { sendOfficerOtp, verifyOfficerOtp } from '../../services/citizenAuthService';
 import { getValidSession, clearAuthSession } from '../../utils/authSession';
@@ -9,34 +10,35 @@ import { getValidSession, clearAuthSession } from '../../utils/authSession';
 export const SatarkMobileApp: React.FC = () => {
   const [showSplash, setShowSplash] = useState<boolean>(true);
 
-  const [userRole, setUserRole] = useState<string>(() => {
+  // Authentication gate state for Android
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
     const token = localStorage.getItem('ews_token');
     const session = getValidSession(token);
     if (!session) {
       if (token || localStorage.getItem('ews_role')) {
         clearAuthSession();
       }
-      return 'CITIZEN';
+      return false;
     }
-    return session.role || 'CITIZEN';
+    return true;
+  });
+
+  const [userRole, setUserRole] = useState<string>(() => {
+    const token = localStorage.getItem('ews_token');
+    const session = getValidSession(token);
+    return session?.role || 'CITIZEN';
   });
 
   const [activeMode, setActiveMode] = useState<'citizen' | 'officer'>(() => {
     const token = localStorage.getItem('ews_token');
     const session = getValidSession(token);
-    if (!session) {
-      if (token || localStorage.getItem('ews_role')) {
-        clearAuthSession();
-      }
-      return 'citizen';
-    }
-    if (['ADMIN', 'DISTRICT_OFFICIAL', 'FIELD_OFFICER'].includes(session.role || '')) {
+    if (session && ['ADMIN', 'DISTRICT_OFFICIAL', 'FIELD_OFFICER'].includes(session.role || '')) {
       return 'officer';
     }
     return 'citizen';
   });
 
-  // Modal for Officer Login
+  // Modal for Officer Login from within Citizen mode
   const [showOfficerLoginModal, setShowOfficerLoginModal] = useState<boolean>(false);
   const [officerAuthTab, setOfficerAuthTab] = useState<'otp' | 'password'>('otp');
 
@@ -52,7 +54,7 @@ export const SatarkMobileApp: React.FC = () => {
   const [officerOtpStep, setOfficerOtpStep] = useState<1 | 2>(1);
   const [demoNotice, setDemoNotice] = useState<string>('');
 
-  // Listen to auth events
+  // Listen to auth events (login, logout, session expiration)
   useEffect(() => {
     const handleAuthChange = () => {
       const token = localStorage.getItem('ews_token');
@@ -61,10 +63,12 @@ export const SatarkMobileApp: React.FC = () => {
         if (token || localStorage.getItem('ews_role')) {
           clearAuthSession();
         }
+        setIsAuthenticated(false);
         setUserRole('CITIZEN');
         setActiveMode('citizen');
         return;
       }
+      setIsAuthenticated(true);
       setUserRole(session.role || 'CITIZEN');
       if (['ADMIN', 'DISTRICT_OFFICIAL', 'FIELD_OFFICER'].includes(session.role || '')) {
         setActiveMode('officer');
@@ -92,6 +96,7 @@ export const SatarkMobileApp: React.FC = () => {
       localStorage.setItem('ews_role', data.role);
       localStorage.setItem('ews_user', data.username);
       localStorage.setItem('ews_lang', data.languagePref || 'en');
+      setIsAuthenticated(true);
       setUserRole(data.role);
       setActiveMode('officer');
       setShowOfficerLoginModal(false);
@@ -127,6 +132,7 @@ export const SatarkMobileApp: React.FC = () => {
     setLoginError('');
     try {
       const data = await verifyOfficerOtp(officerPhone, officerOtp);
+      setIsAuthenticated(true);
       setUserRole(data.role);
       setActiveMode('officer');
       setShowOfficerLoginModal(false);
@@ -149,15 +155,31 @@ export const SatarkMobileApp: React.FC = () => {
 
   return (
     <>
+      {/* 1. Dedicated 3-Second Opening SATARK Splash Screen */}
       {showSplash && (
         <SatarkSplashScreen onComplete={() => setShowSplash(false)} />
       )}
 
-      {activeMode === 'officer' ? (
+      {/* 2. Authentication Gate: If unauthenticated, show Android-specific Login */}
+      {!isAuthenticated ? (
+        <SatarkAndroidLogin
+          onLoginSuccess={(role: string) => {
+            setIsAuthenticated(true);
+            setUserRole(role);
+            if (['ADMIN', 'DISTRICT_OFFICIAL', 'FIELD_OFFICER'].includes(role)) {
+              setActiveMode('officer');
+            } else {
+              setActiveMode('citizen');
+            }
+          }}
+        />
+      ) : activeMode === 'officer' ? (
+        /* 3. Original Authenticated Officer Mobile UI */
         <SatarkOfficerApp
           onSwitchToCitizen={() => setActiveMode('citizen')}
         />
       ) : (
+        /* 4. Original Authenticated Citizen Mobile UI */
         <SatarkCitizenApp
           onSwitchToOfficer={() => {
             const token = localStorage.getItem('ews_token');
@@ -174,8 +196,8 @@ export const SatarkMobileApp: React.FC = () => {
         />
       )}
 
-      {/* Officer Login Modal for Citizen App */}
-      {showOfficerLoginModal && (
+      {/* Officer Switch Login Modal for Citizen Mode */}
+      {isAuthenticated && showOfficerLoginModal && (
         <div style={{
           position: 'fixed',
           inset: 0,
