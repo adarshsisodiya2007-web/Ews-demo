@@ -3,7 +3,8 @@ import {
   CitizenProfile,
   CitizenProfileInput,
   SendOtpResponse,
-  CitizenAuthResponse
+  CitizenAuthResponse,
+  LoginResponse
 } from '../types';
 
 const CITIZEN_PROFILE_CACHE_KEY = 'satark_citizen_profile';
@@ -29,19 +30,21 @@ export const normalizePhone = (rawPhone: string): string => {
 };
 
 /**
- * Detects whether an Axios failure is due to missing public backend, cloud sleep, network cutoff, or Vercel SPA rewrite.
+ * Detects whether an Axios failure is due to complete network failure or Vercel SPA rewrite.
+ * 404/400/403/429 with JSON body means the backend IS live and answered with a domain validation error!
  */
-const isBackendUnavailable = (err: any): boolean => {
+const isBackendNetworkDead = (err: any): boolean => {
   if (!err) return true;
   // Network connection failure or request timeout
   if (err.code === 'ECONNABORTED' || err.code === 'ERR_NETWORK' || !err.response) return true;
-  const status = err.response?.status;
-  // 404 (endpoint not found on server or wrong URL), 502/503/504 (gateway down / sleeping), 500 (internal failure)
-  if (status === 404 || status === 502 || status === 503 || status === 504 || status >= 500) return true;
   // If Vercel rewrote the request to index.html
   if (typeof err.response?.data === 'string' && (err.response.data.includes('<!DOCTYPE') || err.response.data.includes('<html'))) return true;
+  // 502/503/504 gateway down
+  if (err.response?.status === 502 || err.response?.status === 503 || err.response?.status === 504) return true;
   return false;
 };
+
+// ── CITIZEN REAL OTP FLOW ──────────────────────────────────────────────────
 
 export const sendCitizenOtp = async (phone: string): Promise<SendOtpResponse> => {
   const normalized = normalizePhone(phone);
@@ -49,8 +52,6 @@ export const sendCitizenOtp = async (phone: string): Promise<SendOtpResponse> =>
     throw new Error('Please enter a valid 10-digit mobile number.');
   }
 
-  // When no public backend is configured in production, immediately provide the SIH demo OTP
-  // with zero network delay or hanging timeout.
   if (!isBackendAvailableOrConfigured()) {
     return {
       success: true,
@@ -68,8 +69,15 @@ export const sendCitizenOtp = async (phone: string): Promise<SendOtpResponse> =>
     }
     throw new Error('Invalid server response');
   } catch (err: any) {
-    if (isBackendUnavailable(err)) {
-      console.warn('[SATARK] Live backend unavailable for OTP. Falling back to resilient SIH demo mode.');
+    if (err.response?.data?.message) {
+      // Return server-side domain error (e.g. Unregistered number: 404)
+      const error: any = new Error(err.response.data.message);
+      error.isUnregistered = err.response.status === 404;
+      error.status = err.response.status;
+      throw error;
+    }
+    if (isBackendNetworkDead(err)) {
+      console.warn('[SATARK] Live backend unreachable. Falling back to resilient SIH demo mode.');
       return {
         success: true,
         message: 'Demo OTP sent successfully (SIH 2026 Presentation Mode)',
@@ -78,7 +86,21 @@ export const sendCitizenOtp = async (phone: string): Promise<SendOtpResponse> =>
         cooldownSeconds: 60
       };
     }
-    throw new Error(err.response?.data?.message || err.message || 'Failed to send OTP. Please check your network.');
+    throw new Error(err.message || 'Failed to send OTP. Please check your network.');
+  }
+};
+
+export const registerCitizenPhone = async (phone: string): Promise<SendOtpResponse> => {
+  const normalized = normalizePhone(phone);
+  if (!normalized || normalized.length < 12) {
+    throw new Error('Please enter a valid 10-digit mobile number.');
+  }
+
+  try {
+    const res = await api.post<SendOtpResponse>('/api/auth/citizen/register', { phone: normalized });
+    return res.data;
+  } catch (err: any) {
+    throw new Error(err.response?.data?.message || err.message || 'Registration failed.');
   }
 };
 
@@ -86,7 +108,6 @@ export const verifyCitizenOtp = async (phone: string, otp: string): Promise<Citi
   const normalized = normalizePhone(phone);
   const cleanOtp = (otp || '').trim();
 
-  // If no backend is configured, immediately verify via SIH demo mode
   if (!isBackendAvailableOrConfigured()) {
     if (cleanOtp !== DEMO_OTP_CODE) {
       throw new Error(`Invalid OTP. For SIH demo mode, enter ${DEMO_OTP_CODE}.`);
@@ -139,8 +160,11 @@ export const verifyCitizenOtp = async (phone: string, otp: string): Promise<Citi
     }
     throw new Error('Invalid verification response');
   } catch (err: any) {
-    if (isBackendUnavailable(err)) {
-      console.warn('[SATARK] Live backend unavailable for verification. Validating via SIH demo mode.');
+    if (err.response?.data?.message) {
+      throw new Error(err.response.data.message);
+    }
+    if (isBackendNetworkDead(err)) {
+      console.warn('[SATARK] Live backend unreachable for verification. Validating via SIH demo mode.');
       if (cleanOtp !== DEMO_OTP_CODE) {
         throw new Error(`Invalid OTP. For SIH demo mode, enter ${DEMO_OTP_CODE}.`);
       }
@@ -172,182 +196,103 @@ export const verifyCitizenOtp = async (phone: string, otp: string): Promise<Citi
       window.dispatchEvent(new CustomEvent('satark-auth-changed', { detail: fallbackResponse }));
       return fallbackResponse;
     }
-
-    throw new Error(err.response?.data?.message || err.message || 'Invalid or expired OTP. Please try again.');
+    throw new Error(err.message || 'OTP verification failed.');
   }
 };
 
-export const getCitizenProfile = async (): Promise<CitizenProfile | null> => {
-  if (!isBackendAvailableOrConfigured()) {
-    return getCachedCitizenProfile();
+// ── OFFICER REAL OTP FLOW ──────────────────────────────────────────────────
+
+export const sendOfficerOtp = async (phone: string): Promise<SendOtpResponse> => {
+  const normalized = normalizePhone(phone);
+  if (!normalized || normalized.length < 12) {
+    throw new Error('Please enter a valid 10-digit mobile number.');
   }
+
   try {
-    const res = await api.get<CitizenProfile>('/api/citizen/profile');
-    if (res.data && typeof res.data === 'object' && res.data.fullName) {
-      setCachedCitizenProfile(res.data);
-      return res.data;
-    }
-    return getCachedCitizenProfile();
+    const res = await api.post<SendOtpResponse>('/api/auth/officer/send-otp', { phone: normalized });
+    return res.data;
   } catch (err: any) {
-    if (err.response?.status === 404) {
-      return null;
+    if (err.response?.data?.message) {
+      const error: any = new Error(err.response.data.message);
+      error.isUnauthorized = err.response.status === 404 || err.response.status === 403;
+      error.status = err.response.status;
+      throw error;
     }
-    return getCachedCitizenProfile();
-  }
-};
-
-export const createCitizenProfile = async (input: CitizenProfileInput): Promise<CitizenProfile> => {
-  if (!isBackendAvailableOrConfigured()) {
-    const phone = getStoredCitizenPhone() || '+919876543210';
-    const localProfile: CitizenProfile = {
-      id: `demo-prof-${Date.now()}`,
-      userId: `demo-usr-${Date.now()}`,
-      fullName: input.fullName.trim(),
-      phone,
-      gender: input.gender,
-      ageGroup: input.ageGroup,
-      preferredLanguage: input.preferredLanguage || 'en',
-      bloodGroup: input.bloodGroup,
-      emergencyContactName: input.emergencyContactName,
-      emergencyContactPhone: input.emergencyContactPhone,
-      accessibilityNeeds: input.accessibilityNeeds,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-    setCachedCitizenProfile(localProfile);
-    if (localProfile.preferredLanguage) {
-      localStorage.setItem('ews_lang', localProfile.preferredLanguage);
-    }
-    window.dispatchEvent(new CustomEvent('satark-profile-updated', { detail: localProfile }));
-    return localProfile;
-  }
-  try {
-    const res = await api.post<CitizenProfile>('/api/citizen/profile', input);
-    if (res.data && typeof res.data === 'object' && res.data.fullName) {
-      setCachedCitizenProfile(res.data);
-      if (res.data.preferredLanguage) {
-        localStorage.setItem('ews_lang', res.data.preferredLanguage);
+    if (isBackendNetworkDead(err)) {
+      // Demo officer phone numbers fallback
+      const DEMO_OFFICER_PHONES = ['+919876543210', '+919876543211', '+919876543212', '+919876543213'];
+      if (!DEMO_OFFICER_PHONES.includes(normalized)) {
+        const error: any = new Error("This mobile number is not registered as an authorized officer. Please check the number and try again.");
+        error.isUnauthorized = true;
+        error.status = 404;
+        throw error;
       }
-      window.dispatchEvent(new CustomEvent('satark-profile-updated', { detail: res.data }));
-      return res.data;
-    }
-    throw new Error('Invalid profile creation response');
-  } catch (err: any) {
-    if (isBackendUnavailable(err)) {
-      console.warn('[SATARK] Live backend unavailable for profile creation. Saving locally.');
-      const phone = getStoredCitizenPhone() || '+919876543210';
-      const localProfile: CitizenProfile = {
-        id: `demo-prof-${Date.now()}`,
-        userId: `demo-usr-${Date.now()}`,
-        fullName: input.fullName.trim(),
-        phone,
-        gender: input.gender,
-        ageGroup: input.ageGroup,
-        preferredLanguage: input.preferredLanguage || 'en',
-        bloodGroup: input.bloodGroup,
-        emergencyContactName: input.emergencyContactName,
-        emergencyContactPhone: input.emergencyContactPhone,
-        accessibilityNeeds: input.accessibilityNeeds,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+      return {
+        success: true,
+        message: 'Demo Officer OTP sent successfully (SIH 2026 Presentation Mode)',
+        demoMode: true,
+        demoOtp: DEMO_OTP_CODE,
+        cooldownSeconds: 60
       };
-      setCachedCitizenProfile(localProfile);
-      if (localProfile.preferredLanguage) {
-        localStorage.setItem('ews_lang', localProfile.preferredLanguage);
-      }
-      window.dispatchEvent(new CustomEvent('satark-profile-updated', { detail: localProfile }));
-      return localProfile;
     }
-    throw new Error(err.response?.data?.message || err.message || 'Failed to save profile');
+    throw new Error(err.message || 'Failed to send officer OTP.');
   }
 };
 
-export const updateCitizenProfile = async (input: CitizenProfileInput): Promise<CitizenProfile> => {
-  if (!isBackendAvailableOrConfigured()) {
-    const existing = getCachedCitizenProfile();
-    const updated: CitizenProfile = {
-      id: existing?.id || `demo-prof-${Date.now()}`,
-      userId: existing?.userId || `demo-usr-${Date.now()}`,
-      fullName: input.fullName.trim(),
-      phone: existing?.phone || getStoredCitizenPhone() || '+919876543210',
-      gender: input.gender ?? existing?.gender,
-      ageGroup: input.ageGroup ?? existing?.ageGroup,
-      preferredLanguage: input.preferredLanguage || existing?.preferredLanguage || 'en',
-      bloodGroup: input.bloodGroup ?? existing?.bloodGroup,
-      emergencyContactName: input.emergencyContactName ?? existing?.emergencyContactName,
-      emergencyContactPhone: input.emergencyContactPhone ?? existing?.emergencyContactPhone,
-      accessibilityNeeds: input.accessibilityNeeds ?? existing?.accessibilityNeeds,
-      createdAt: existing?.createdAt || new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-    setCachedCitizenProfile(updated);
-    if (updated.preferredLanguage) {
-      localStorage.setItem('ews_lang', updated.preferredLanguage);
-    }
-    window.dispatchEvent(new CustomEvent('satark-profile-updated', { detail: updated }));
-    return updated;
-  }
+export const verifyOfficerOtp = async (phone: string, otp: string): Promise<LoginResponse> => {
+  const normalized = normalizePhone(phone);
+  const cleanOtp = (otp || '').trim();
+
   try {
-    const res = await api.put<CitizenProfile>('/api/citizen/profile', input);
-    if (res.data && typeof res.data === 'object' && res.data.fullName) {
-      setCachedCitizenProfile(res.data);
-      if (res.data.preferredLanguage) {
-        localStorage.setItem('ews_lang', res.data.preferredLanguage);
-      }
-      window.dispatchEvent(new CustomEvent('satark-profile-updated', { detail: res.data }));
-      return res.data;
+    const res = await api.post<LoginResponse>('/api/auth/officer/verify-otp', { phone: normalized, otp: cleanOtp });
+    const data = res.data;
+    if (data && data.token) {
+      localStorage.setItem('ews_token', data.token);
+      localStorage.setItem('ews_role', data.role);
+      localStorage.setItem('ews_user', data.username);
+      if (data.languagePref) localStorage.setItem('ews_lang', data.languagePref);
+      window.dispatchEvent(new CustomEvent('satark-auth-changed', { detail: data }));
+      return data;
     }
-    throw new Error('Invalid profile update response');
+    throw new Error('Invalid verification response');
   } catch (err: any) {
-    if (isBackendUnavailable(err)) {
-      const existing = getCachedCitizenProfile();
-      const updated: CitizenProfile = {
-        id: existing?.id || `demo-prof-${Date.now()}`,
-        userId: existing?.userId || `demo-usr-${Date.now()}`,
-        fullName: input.fullName.trim(),
-        phone: existing?.phone || getStoredCitizenPhone() || '+919876543210',
-        gender: input.gender ?? existing?.gender,
-        ageGroup: input.ageGroup ?? existing?.ageGroup,
-        preferredLanguage: input.preferredLanguage || existing?.preferredLanguage || 'en',
-        bloodGroup: input.bloodGroup ?? existing?.bloodGroup,
-        emergencyContactName: input.emergencyContactName ?? existing?.emergencyContactName,
-        emergencyContactPhone: input.emergencyContactPhone ?? existing?.emergencyContactPhone,
-        accessibilityNeeds: input.accessibilityNeeds ?? existing?.accessibilityNeeds,
-        createdAt: existing?.createdAt || new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
-      setCachedCitizenProfile(updated);
-      if (updated.preferredLanguage) {
-        localStorage.setItem('ews_lang', updated.preferredLanguage);
-      }
-      window.dispatchEvent(new CustomEvent('satark-profile-updated', { detail: updated }));
-      return updated;
+    if (err.response?.data?.message) {
+      throw new Error(err.response.data.message);
     }
-    throw new Error(err.response?.data?.message || err.message || 'Failed to update profile');
+    if (isBackendNetworkDead(err)) {
+      if (cleanOtp !== DEMO_OTP_CODE) {
+        throw new Error(`Invalid OTP. For SIH demo mode, enter ${DEMO_OTP_CODE}.`);
+      }
+      let mappedRole: any = 'FIELD_OFFICER';
+      let mappedUser = 'aizawl_officer';
+      if (normalized === '+919876543210') {
+        mappedRole = 'ADMIN';
+        mappedUser = 'admin';
+      } else if (normalized === '+919876543211') {
+        mappedRole = 'DISTRICT_OFFICIAL';
+        mappedUser = 'kamrup_official';
+      }
+
+      const mockResponse: LoginResponse = {
+        token: `demo-officer-jwt-${Date.now()}`,
+        username: mappedUser,
+        role: mappedRole,
+        district: mappedUser === 'admin' ? null : 'Kamrup Metropolitan',
+        languagePref: 'en',
+        expiresAt: new Date(Date.now() + 36000000).toISOString()
+      };
+
+      localStorage.setItem('ews_token', mockResponse.token);
+      localStorage.setItem('ews_role', mockResponse.role);
+      localStorage.setItem('ews_user', mockResponse.username);
+      window.dispatchEvent(new CustomEvent('satark-auth-changed', { detail: mockResponse }));
+      return mockResponse;
+    }
+    throw new Error(err.message || 'OTP verification failed.');
   }
 };
 
-export const deleteCitizenProfile = async (): Promise<void> => {
-  try {
-    await api.delete('/api/citizen/profile').catch(() => {});
-  } finally {
-    localStorage.removeItem(CITIZEN_PROFILE_CACHE_KEY);
-    window.dispatchEvent(new CustomEvent('satark-profile-updated', { detail: null }));
-  }
-};
-
-export const logoutCitizen = async (): Promise<void> => {
-  try {
-    await api.post('/api/auth/logout').catch(() => {});
-  } finally {
-    localStorage.removeItem('ews_token');
-    localStorage.removeItem('ews_role');
-    localStorage.removeItem('ews_user');
-    localStorage.removeItem(CITIZEN_PHONE_KEY);
-    localStorage.removeItem(CITIZEN_PROFILE_CACHE_KEY);
-    window.dispatchEvent(new CustomEvent('satark-auth-changed', { detail: null }));
-  }
-};
+// ── PROFILE CACHE & UTILS ──────────────────────────────────────────────────
 
 export const getCachedCitizenProfile = (): CitizenProfile | null => {
   try {
@@ -358,18 +303,55 @@ export const getCachedCitizenProfile = (): CitizenProfile | null => {
   }
 };
 
-export const setCachedCitizenProfile = (profile: CitizenProfile | null): void => {
-  if (profile) {
+export const setCachedCitizenProfile = (profile: CitizenProfile): void => {
+  try {
     localStorage.setItem(CITIZEN_PROFILE_CACHE_KEY, JSON.stringify(profile));
-  } else {
-    localStorage.removeItem(CITIZEN_PROFILE_CACHE_KEY);
-  }
+    window.dispatchEvent(new CustomEvent('satark-profile-updated', { detail: profile }));
+  } catch {}
 };
 
 export const isCitizenAuthenticated = (): boolean => {
   return !!localStorage.getItem('ews_token');
 };
 
-export const getStoredCitizenPhone = (): string | null => {
-  return localStorage.getItem(CITIZEN_PHONE_KEY) || localStorage.getItem('ews_user');
+export const getCitizenPhone = (): string => {
+  return localStorage.getItem(CITIZEN_PHONE_KEY) || '';
+};
+
+export const getStoredCitizenPhone = getCitizenPhone;
+
+
+export const logoutCitizen = (): void => {
+  localStorage.removeItem('ews_token');
+  localStorage.removeItem('ews_role');
+  localStorage.removeItem('ews_user');
+  localStorage.removeItem(CITIZEN_PHONE_KEY);
+  localStorage.removeItem(CITIZEN_PROFILE_CACHE_KEY);
+  window.dispatchEvent(new CustomEvent('satark-auth-changed', { detail: null }));
+};
+
+export const getCitizenProfile = async (): Promise<CitizenProfile | null> => {
+  const cached = getCachedCitizenProfile();
+  try {
+    const res = await api.get<CitizenProfile>('/api/citizen/profile');
+    if (res.data) {
+      setCachedCitizenProfile(res.data);
+      return res.data;
+    }
+  } catch {
+    // Return cached profile if offline
+  }
+  return cached;
+};
+
+export const updateCitizenProfile = async (profile: CitizenProfileInput): Promise<CitizenProfile> => {
+  const res = await api.put<CitizenProfile>('/api/citizen/profile', profile);
+  setCachedCitizenProfile(res.data);
+  return res.data;
+};
+
+export const createCitizenProfile = async (profile: CitizenProfileInput): Promise<CitizenProfile> => {
+  const res = await api.post<CitizenProfile>('/api/citizen/profile', profile);
+  setCachedCitizenProfile(res.data);
+  return res.data;
 };

@@ -1,7 +1,8 @@
-package com.ews.ner.service;
+﻿package com.ews.ner.service;
 
 import com.ews.ner.domain.user.PhoneOtp;
 import com.ews.ner.domain.user.PhoneOtpRepository;
+import com.ews.ner.infra.sms.SmsGatewayService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -21,6 +22,7 @@ import java.util.regex.Pattern;
 public class OtpService {
     private final PhoneOtpRepository otpRepo;
     private final PasswordEncoder passwordEncoder;
+    private final SmsGatewayService smsGateway;
 
     @Value("${app.otp.demo-mode:true}")
     private boolean demoMode;
@@ -36,9 +38,6 @@ public class OtpService {
 
     @Value("${app.otp.max-attempts:5}")
     private int maxAttempts;
-
-    @Value("${app.alert.sms.enabled:false}")
-    private boolean smsEnabled;
 
     private static final Pattern PHONE_PATTERN = Pattern.compile("^\\+[1-9]\\d{9,14}$");
     private final SecureRandom random = new SecureRandom();
@@ -80,6 +79,11 @@ public class OtpService {
 
     @Transactional
     public void generateAndSendOtp(String phone) {
+        generateAndSendOtp(phone, "Your SATARK Disaster Early Warning verification code is: %s. Valid for 5 minutes.");
+    }
+
+    @Transactional
+    public void generateAndSendOtp(String phone, String messageTemplate) {
         String normalized = normalizePhone(phone);
         OffsetDateTime now = OffsetDateTime.now();
 
@@ -110,10 +114,9 @@ public class OtpService {
         otpRepo.save(record);
         log.info("OTP generated and registered for phone ending in {}", normalized.substring(Math.max(0, normalized.length() - 4)));
 
-        if (smsEnabled) {
-            // Real SMS dispatch can be wired here if Twilio credentials are live
-            log.info("Dispatching SMS OTP via configured SMS service to {}", normalized);
-        }
+        // Send via SMS Gateway
+        String smsBody = String.format(messageTemplate, rawOtp);
+        smsGateway.sendSms(normalized, smsBody);
     }
 
     @Transactional

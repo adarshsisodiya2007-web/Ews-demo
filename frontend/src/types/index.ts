@@ -246,3 +246,13 @@ export interface CitizenAuthResponse {
   profileExists: boolean;
   profile?: CitizenProfile | null;
 }
+
+export interface LoginResponse {
+  token: string;
+  role: string;
+  district: string | null;
+  languagePref: string;
+  username: string;
+  expiresAt?: string;
+}
+

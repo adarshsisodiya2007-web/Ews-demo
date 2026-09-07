@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ProtectedRoute } from './components/layout/ProtectedRoute';
 import { DemoBanner } from './components/layout/DemoBanner';
@@ -16,6 +16,7 @@ import { PrivacyDataPage } from './pages/PrivacyDataPage';
 import { useCapacitorNative } from './hooks/useCapacitorNative';
 import { isCapacitorAndroid } from './utils/platform';
 import { SatarkMobileApp } from './components/mobile/SatarkMobileApp';
+import { ThemeProvider } from './context/ThemeContext';
 
 function AppContent({ permsDone, onPermComplete }: { permsDone: boolean; onPermComplete: () => void }) {
   useCapacitorNative();
@@ -82,9 +83,11 @@ function App() {
   };
 
   return (
-    <BrowserRouter>
-      <AppContent permsDone={permsDone} onPermComplete={handlePermComplete} />
-    </BrowserRouter>
+    <ThemeProvider>
+      <BrowserRouter>
+        <AppContent permsDone={permsDone} onPermComplete={handlePermComplete} />
+      </BrowserRouter>
+    </ThemeProvider>
   );
 }
 
