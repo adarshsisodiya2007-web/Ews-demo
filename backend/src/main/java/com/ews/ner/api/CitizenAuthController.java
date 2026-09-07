@@ -1,4 +1,4 @@
-﻿package com.ews.ner.api;
+package com.ews.ner.api;
 
 import com.ews.ner.api.dto.*;
 import com.ews.ner.config.JwtUtil;

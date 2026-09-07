@@ -1,4 +1,4 @@
-﻿-- ─────────────────────────────────────────────────────────────────────────────
+-- ─────────────────────────────────────────────────────────────────────────────
 --  SIH 26001 — V11__seed_demo_officer_phones.sql
 --  Associate explicit demo phone numbers with demo accounts so SIH evaluators
 --  can test the Officer OTP flow and Citizen OTP flow without personal numbers.
