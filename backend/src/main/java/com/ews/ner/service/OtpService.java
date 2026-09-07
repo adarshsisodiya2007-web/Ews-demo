@@ -14,7 +14,7 @@ import java.security.SecureRandom;
 import java.time.OffsetDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Optional;
-import java.util.regex.Pattern;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -39,30 +39,39 @@ public class OtpService {
     @Value("${app.otp.max-attempts:5}")
     private int maxAttempts;
 
-    private static final Pattern PHONE_PATTERN = Pattern.compile("^\\+[1-9]\\d{9,14}$");
+    private static final Set<String> DEMO_PHONES = Set.of(
+            "+919876543210", // Admin
+            "+919876543211", // Kamrup Official
+            "+919876543212", // EKH Official
+            "+919876543213", // Aizawl Officer
+            "+919876543214"  // Citizen Demo
+    );
+
     private final SecureRandom random = new SecureRandom();
 
+    /**
+     * Normalizes Indian mobile number input safely to canonical +91XXXXXXXXXX.
+     * Accepts: 9876543210, +919876543210, 919876543210, 09876543210, or with spaces/hyphens.
+     */
     public String normalizePhone(String rawPhone) {
-        if (rawPhone == null) {
-            throw new IllegalArgumentException("Phone number cannot be empty");
+        if (rawPhone == null || rawPhone.trim().isEmpty()) {
+            throw new IllegalArgumentException("Please enter a valid 10-digit Indian mobile number.");
         }
-        String cleaned = rawPhone.replaceAll("[\\s\\-\\(\\)]", "");
-        if (cleaned.startsWith("0")) {
+        String cleaned = rawPhone.trim().replaceAll("[\\s\\-\\(\\)]", "");
+        if (cleaned.startsWith("+91")) {
+            cleaned = cleaned.substring(3);
+        } else if (cleaned.startsWith("91") && cleaned.length() == 12) {
+            cleaned = cleaned.substring(2);
+        } else if (cleaned.startsWith("0") && cleaned.length() == 11) {
+            cleaned = cleaned.substring(1);
+        } else if (cleaned.startsWith("+")) {
             cleaned = cleaned.substring(1);
         }
-        if (!cleaned.startsWith("+")) {
-            if (cleaned.startsWith("91") && cleaned.length() == 12) {
-                cleaned = "+" + cleaned;
-            } else if (cleaned.length() == 10) {
-                cleaned = "+91" + cleaned;
-            } else {
-                cleaned = "+" + cleaned;
-            }
+
+        if (!cleaned.matches("^[6-9]\\d{9}$")) {
+            throw new IllegalArgumentException("Please enter a valid 10-digit Indian mobile number.");
         }
-        if (!PHONE_PATTERN.matcher(cleaned).matches()) {
-            throw new IllegalArgumentException("Invalid phone number format. Please provide a valid 10-digit mobile number.");
-        }
-        return cleaned;
+        return "+91" + cleaned;
     }
 
     public boolean isDemoMode() {
@@ -75,6 +84,16 @@ public class OtpService {
 
     public int getCooldownSeconds() {
         return cooldownSeconds;
+    }
+
+    public boolean isDemoPhone(String phone) {
+        if (phone == null) return false;
+        try {
+            String norm = normalizePhone(phone);
+            return DEMO_PHONES.contains(norm);
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     @Transactional
@@ -98,6 +117,15 @@ public class OtpService {
             }
         }
 
+        boolean isDemo = demoMode && isDemoPhone(normalized);
+
+        // For real numbers: verify that SMS delivery is actually configured & available
+        if (!isDemo && !smsGateway.isLiveSmsAvailable()) {
+            log.warn("Real SMS dispatch requested for {} but live SMS is not configured or unavailable",
+                    maskPhone(normalized));
+            throw new IllegalStateException("SMS service is currently unavailable. Please try again later.");
+        }
+
         // Generate cryptographically random 6-digit OTP
         String rawOtp = String.format("%06d", random.nextInt(1_000_000));
         String hashedOtp = passwordEncoder.encode(rawOtp);
@@ -115,8 +143,18 @@ public class OtpService {
         log.info("OTP generated and registered for phone ending in {}", normalized.substring(Math.max(0, normalized.length() - 4)));
 
         // Send via SMS Gateway
-        String smsBody = String.format(messageTemplate, rawOtp);
-        smsGateway.sendSms(normalized, smsBody);
+        if (isDemo) {
+            String demoOtpToSend = demoCode != null ? demoCode : rawOtp;
+            smsGateway.sendSms(normalized, String.format(messageTemplate, demoOtpToSend));
+        } else {
+            try {
+                String smsBody = String.format(messageTemplate, rawOtp);
+                smsGateway.sendSms(normalized, smsBody);
+            } catch (Exception e) {
+                log.error("SMS dispatch failed for {}: {}", maskPhone(normalized), e.getMessage());
+                throw new IllegalStateException("Unable to send OTP right now. Please try again.");
+            }
+        }
     }
 
     @Transactional
@@ -125,14 +163,13 @@ public class OtpService {
         OffsetDateTime now = OffsetDateTime.now();
 
         if (inputOtp == null || inputOtp.trim().isEmpty()) {
-            throw new IllegalArgumentException("OTP code cannot be empty");
+            throw new IllegalArgumentException("Incorrect OTP. Please try again.");
         }
         String cleanOtp = inputOtp.trim();
 
-        // Check demo mode bypass first
-        if (demoMode && demoCode != null && demoCode.equals(cleanOtp)) {
-            log.info("Demo OTP verified successfully for phone ending in {}", normalized.substring(Math.max(0, normalized.length() - 4)));
-            // Mark any pending OTP for this phone as verified
+        // Allow demo code ONLY for designated SIH demo accounts in demo mode
+        if (demoMode && isDemoPhone(normalized) && demoCode != null && demoCode.equals(cleanOtp)) {
+            log.info("Demo OTP verified for SIH demo account {}", maskPhone(normalized));
             otpRepo.findTopByPhoneAndVerifiedFalseOrderByCreatedAtDesc(normalized).ifPresent(p -> {
                 p.setVerified(true);
                 otpRepo.save(p);
@@ -144,7 +181,7 @@ public class OtpService {
                 .orElseThrow(() -> new IllegalStateException("No active OTP request found for this phone number. Please request a code."));
 
         if (now.isAfter(record.getExpiresAt())) {
-            throw new IllegalStateException("OTP has expired. Please request a new code.");
+            throw new IllegalStateException("OTP expired. Please request a new OTP.");
         }
 
         if (record.getAttempts() >= maxAttempts) {
@@ -156,17 +193,17 @@ public class OtpService {
         boolean matches = passwordEncoder.matches(cleanOtp, record.getOtpHash());
         if (!matches) {
             otpRepo.save(record);
-            int remaining = maxAttempts - record.getAttempts();
-            if (remaining > 0) {
-                throw new IllegalArgumentException("Invalid OTP. You have " + remaining + " attempts remaining.");
-            } else {
-                throw new IllegalStateException("Maximum verification attempts exceeded. Please request a new OTP.");
-            }
+            throw new IllegalArgumentException("Incorrect OTP. Please try again.");
         }
 
         record.setVerified(true);
         otpRepo.save(record);
-        log.info("Phone OTP verified successfully for {}", normalized.substring(Math.max(0, normalized.length() - 4)));
+        log.info("Phone OTP verified successfully for {}", maskPhone(normalized));
         return true;
+    }
+
+    private String maskPhone(String phone) {
+        if (phone == null || phone.length() < 6) return "****";
+        return phone.substring(0, Math.min(phone.length(), 6)) + "XXXX";
     }
 }

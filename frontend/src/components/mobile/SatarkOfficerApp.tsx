@@ -146,8 +146,25 @@ export const SatarkOfficerApp: React.FC<Props> = ({ onSwitchToCitizen }) => {
 
   // Theme & Language
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
-    return (localStorage.getItem('satark_mobile_theme') as 'dark' | 'light') || 'dark';
+    return (localStorage.getItem('satark_mobile_theme') as 'dark' | 'light') || 
+           (localStorage.getItem('satark_theme') as 'dark' | 'light') || 'dark';
   });
+
+  useEffect(() => {
+    const onThemeChange = (e: any) => {
+      const next = e.detail || localStorage.getItem('satark_mobile_theme') || localStorage.getItem('satark_theme');
+      if (next === 'light' || next === 'dark') {
+        setTheme(next);
+      }
+    };
+    window.addEventListener('satark-theme-change', onThemeChange);
+    window.addEventListener('storage', onThemeChange);
+    return () => {
+      window.removeEventListener('satark-theme-change', onThemeChange);
+      window.removeEventListener('storage', onThemeChange);
+    };
+  }, []);
+
   const [lang, setLang] = useState<'en' | 'hi' | 'as'>(() => {
     return (localStorage.getItem('ews_lang') as 'en' | 'hi' | 'as') || 'en';
   });
@@ -157,6 +174,10 @@ export const SatarkOfficerApp: React.FC<Props> = ({ onSwitchToCitizen }) => {
     const next = theme === 'dark' ? 'light' : 'dark';
     setTheme(next);
     localStorage.setItem('satark_mobile_theme', next);
+    localStorage.setItem('satark_theme', next);
+    document.documentElement.setAttribute('data-theme', next);
+    document.body.setAttribute('data-theme', next);
+    window.dispatchEvent(new CustomEvent('satark-theme-change', { detail: next }));
   };
   const isLight = theme === 'light';
 

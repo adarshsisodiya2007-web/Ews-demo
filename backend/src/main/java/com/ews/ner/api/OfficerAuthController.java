@@ -32,17 +32,18 @@ public class OfficerAuthController {
         try {
             normalizedPhone = otpService.normalizePhone(req.getPhone());
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(Map.of("success", false, "message", e.getMessage()));
+            return ResponseEntity.badRequest().body(Map.of("success", false, "message", "Please enter a valid 10-digit Indian mobile number."));
         }
 
         // Validate that this phone number belongs to an authorized officer
         Optional<AppUser> officerOpt = userRepo.findByPhone(normalizedPhone);
         if (officerOpt.isEmpty() || officerOpt.get().getRole() == AppUser.UserRole.CITIZEN) {
-            log.warn("Officer send-otp rejected: Phone {} is not an authorized officer", normalizedPhone);
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
+            log.warn("Officer send-otp rejected: Phone ending in {} is not an authorized officer",
+                    normalizedPhone.substring(Math.max(0, normalizedPhone.length() - 4)));
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
                     "success", false,
                     "authorized", false,
-                    "message", "This mobile number is not registered as an authorized officer. Please check the number and try again."
+                    "message", "This number is not authorized for Officer access."
             ));
         }
 
@@ -57,14 +58,23 @@ public class OfficerAuthController {
         try {
             otpService.generateAndSendOtp(normalizedPhone, "Your SATARK Officer Verification OTP is: %s. Valid for 5 minutes.");
         } catch (IllegalStateException e) {
+            String msg = e.getMessage();
+            if (msg != null && msg.contains("SMS service is currently unavailable")) {
+                return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of("success", false, "message", "SMS service is currently unavailable. Please try again later."));
+            }
+            if (msg != null && msg.contains("Unable to send OTP right now")) {
+                return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(Map.of("success", false, "message", "Unable to send OTP right now. Please try again."));
+            }
             return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(Map.of("success", false, "message", e.getMessage()));
         }
 
+        boolean isDemo = otpService.isDemoMode() && otpService.isDemoPhone(normalizedPhone);
+
         return ResponseEntity.ok(SendOtpResponse.builder()
                 .success(true)
-                .message("Officer OTP sent successfully.")
-                .demoMode(otpService.isDemoMode())
-                .demoOtp(otpService.isDemoMode() ? otpService.getDemoCode() : null)
+                .message("OTP sent to your mobile number.")
+                .demoMode(isDemo)
+                .demoOtp(isDemo ? otpService.getDemoCode() : null)
                 .cooldownSeconds(otpService.getCooldownSeconds())
                 .build());
     }
@@ -75,13 +85,17 @@ public class OfficerAuthController {
         try {
             normalizedPhone = otpService.normalizePhone(req.getPhone());
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(Map.of("success", false, "message", e.getMessage()));
+            return ResponseEntity.badRequest().body(Map.of("success", false, "message", "Please enter a valid 10-digit Indian mobile number."));
         }
 
         try {
             otpService.verifyOtp(normalizedPhone, req.getOtp());
         } catch (IllegalArgumentException | IllegalStateException e) {
-            return ResponseEntity.badRequest().body(Map.of("success", false, "message", e.getMessage()));
+            String msg = e.getMessage();
+            if (msg != null && msg.contains("expired")) {
+                return ResponseEntity.badRequest().body(Map.of("success", false, "message", "OTP expired. Please request a new OTP."));
+            }
+            return ResponseEntity.badRequest().body(Map.of("success", false, "message", "Incorrect OTP. Please try again."));
         }
 
         AppUser officer = userRepo.findByPhone(normalizedPhone)
@@ -90,7 +104,7 @@ public class OfficerAuthController {
         if (officer.getRole() == AppUser.UserRole.CITIZEN) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
                     "success", false,
-                    "message", "Access denied. Mobile number is not mapped to an officer role."
+                    "message", "This number is not authorized for Officer access."
             ));
         }
 
