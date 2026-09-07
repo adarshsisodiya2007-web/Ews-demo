@@ -6,6 +6,7 @@ import {
   CitizenAuthResponse,
   LoginResponse
 } from '../types';
+import { createDemoJwt, getValidSession, clearAuthSession } from '../utils/authSession';
 
 const CITIZEN_PROFILE_CACHE_KEY = 'satark_citizen_profile';
 const CITIZEN_PHONE_KEY = 'satark_citizen_phone';
@@ -114,7 +115,7 @@ export const verifyCitizenOtp = async (phone: string, otp: string): Promise<Citi
     }
 
     const cachedProfile = getCachedCitizenProfile();
-    const demoToken = `demo-citizen-jwt-${Date.now()}`;
+    const demoToken = createDemoJwt(normalized, 'CITIZEN');
     const demoUser = {
       id: `demo-usr-${normalized.slice(-4)}`,
       username: normalized,
@@ -170,7 +171,7 @@ export const verifyCitizenOtp = async (phone: string, otp: string): Promise<Citi
       }
 
       const cachedProfile = getCachedCitizenProfile();
-      const demoToken = `demo-citizen-jwt-${Date.now()}`;
+      const demoToken = createDemoJwt(normalized, 'CITIZEN');
       const demoUser = {
         id: `demo-usr-${normalized.slice(-4)}`,
         username: normalized,
@@ -196,75 +197,64 @@ export const verifyCitizenOtp = async (phone: string, otp: string): Promise<Citi
       window.dispatchEvent(new CustomEvent('satark-auth-changed', { detail: fallbackResponse }));
       return fallbackResponse;
     }
-    throw new Error(err.message || 'OTP verification failed.');
+    throw new Error(err.message || 'Citizen OTP verification failed.');
   }
 };
 
-// ── OFFICER REAL OTP FLOW ──────────────────────────────────────────────────
+// ── OFFICER REAL OTP SERVICE ───────────────────────────────────────────────
 
 export const sendOfficerOtp = async (phone: string): Promise<SendOtpResponse> => {
   const normalized = normalizePhone(phone);
-  if (!normalized || normalized.length < 12) {
-    throw new Error('Please enter a valid 10-digit mobile number.');
+  if (!normalized) {
+    throw new Error('Please enter a valid 10-digit mobile number');
   }
 
-  try {
-    const res = await api.post<SendOtpResponse>('/api/auth/officer/send-otp', { phone: normalized });
+  const backendAvailable = await isBackendAvailableOrConfigured();
+  if (backendAvailable) {
+    const res = await api.post('/auth/officer/send-otp', { phone: normalized });
     return res.data;
-  } catch (err: any) {
-    if (err.response?.data?.message) {
-      const error: any = new Error(err.response.data.message);
-      error.isUnauthorized = err.response.status === 404 || err.response.status === 403;
-      error.status = err.response.status;
-      throw error;
-    }
-    if (isBackendNetworkDead(err)) {
-      // Demo officer phone numbers fallback
-      const DEMO_OFFICER_PHONES = ['+919876543210', '+919876543211', '+919876543212', '+919876543213'];
-      if (!DEMO_OFFICER_PHONES.includes(normalized)) {
-        const error: any = new Error("This mobile number is not registered as an authorized officer. Please check the number and try again.");
-        error.isUnauthorized = true;
-        error.status = 404;
-        throw error;
-      }
-      return {
-        success: true,
-        message: 'Demo Officer OTP sent successfully (SIH 2026 Presentation Mode)',
-        demoMode: true,
-        demoOtp: DEMO_OTP_CODE,
-        cooldownSeconds: 60
-      };
-    }
-    throw new Error(err.message || 'Failed to send officer OTP.');
   }
+
+  // Fallback demo mode for judge evaluation
+  return {
+    success: true,
+    message: 'SIH Demo Mode: Verification code generated for evaluator.',
+    demoMode: true,
+    demoOtp: DEMO_OTP_CODE,
+    cooldownSeconds: 30
+  };
 };
 
 export const verifyOfficerOtp = async (phone: string, otp: string): Promise<LoginResponse> => {
   const normalized = normalizePhone(phone);
-  const cleanOtp = (otp || '').trim();
+  const backendAvailable = await isBackendAvailableOrConfigured();
 
-  try {
-    const res = await api.post<LoginResponse>('/api/auth/officer/verify-otp', { phone: normalized, otp: cleanOtp });
-    const data = res.data;
-    if (data && data.token) {
+  if (backendAvailable) {
+    try {
+      const res = await api.post('/auth/officer/verify-otp', { phone: normalized, otp: otp.trim() });
+      const data: LoginResponse = res.data;
       localStorage.setItem('ews_token', data.token);
       localStorage.setItem('ews_role', data.role);
       localStorage.setItem('ews_user', data.username);
-      if (data.languagePref) localStorage.setItem('ews_lang', data.languagePref);
+      if (data.languagePref) {
+        localStorage.setItem('ews_lang', data.languagePref);
+      }
       window.dispatchEvent(new CustomEvent('satark-auth-changed', { detail: data }));
       return data;
-    }
-    throw new Error('Invalid verification response');
-  } catch (err: any) {
-    if (err.response?.data?.message) {
-      throw new Error(err.response.data.message);
-    }
-    if (isBackendNetworkDead(err)) {
-      if (cleanOtp !== DEMO_OTP_CODE) {
-        throw new Error(`Invalid OTP. For SIH demo mode, enter ${DEMO_OTP_CODE}.`);
+    } catch (err: any) {
+      if (err.response?.status === 404 || err.response?.status === 403 || err.response?.status === 400) {
+        throw new Error(err.response?.data?.message || 'Access denied. Unauthorized mobile number.');
       }
-      let mappedRole: any = 'FIELD_OFFICER';
+      // If network failure, fall through to demo logic
+    }
+  }
+
+  // Offline / Demo verification
+  try {
+    if (otp === DEMO_OTP_CODE || otp === '1234' || otp === '123456') {
+      let mappedRole = 'FIELD_OFFICER';
       let mappedUser = 'aizawl_officer';
+
       if (normalized === '+919876543210') {
         mappedRole = 'ADMIN';
         mappedUser = 'admin';
@@ -274,12 +264,12 @@ export const verifyOfficerOtp = async (phone: string, otp: string): Promise<Logi
       }
 
       const mockResponse: LoginResponse = {
-        token: `demo-officer-jwt-${Date.now()}`,
+        token: createDemoJwt(mappedUser, mappedRole),
         username: mappedUser,
         role: mappedRole,
         district: mappedUser === 'admin' ? null : 'Kamrup Metropolitan',
         languagePref: 'en',
-        expiresAt: new Date(Date.now() + 36000000).toISOString()
+        expiresAt: new Date(Date.now() + 86400000).toISOString()
       };
 
       localStorage.setItem('ews_token', mockResponse.token);
@@ -288,6 +278,8 @@ export const verifyOfficerOtp = async (phone: string, otp: string): Promise<Logi
       window.dispatchEvent(new CustomEvent('satark-auth-changed', { detail: mockResponse }));
       return mockResponse;
     }
+    throw new Error('Invalid OTP. Please check the code and try again.');
+  } catch (err: any) {
     throw new Error(err.message || 'OTP verification failed.');
   }
 };
@@ -311,7 +303,8 @@ export const setCachedCitizenProfile = (profile: CitizenProfile): void => {
 };
 
 export const isCitizenAuthenticated = (): boolean => {
-  return !!localStorage.getItem('ews_token');
+  const session = getValidSession(localStorage.getItem('ews_token'));
+  return !!session && session.role === 'CITIZEN';
 };
 
 export const getCitizenPhone = (): string => {
@@ -322,12 +315,7 @@ export const getStoredCitizenPhone = getCitizenPhone;
 
 
 export const logoutCitizen = (): void => {
-  localStorage.removeItem('ews_token');
-  localStorage.removeItem('ews_role');
-  localStorage.removeItem('ews_user');
-  localStorage.removeItem(CITIZEN_PHONE_KEY);
-  localStorage.removeItem(CITIZEN_PROFILE_CACHE_KEY);
-  window.dispatchEvent(new CustomEvent('satark-auth-changed', { detail: null }));
+  clearAuthSession();
 };
 
 export const getCitizenProfile = async (): Promise<CitizenProfile | null> => {

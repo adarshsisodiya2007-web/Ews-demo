@@ -18,27 +18,27 @@ import { isCapacitorAndroid } from './utils/platform';
 import { SatarkSplashScreen } from './components/mobile/SatarkSplashScreen';
 import { SatarkMobileApp } from './components/mobile/SatarkMobileApp';
 import { ThemeProvider } from './context/ThemeContext';
+import { getValidSession, clearAuthSession } from './utils/authSession';
 
 /**
  * Canonical Root Route:
- * - If user has a valid authentication token ('ews_token'), restores their role-based dashboard.
- * - If user has NO valid authentication token (or only a stale 'ews_role' in localStorage),
- *   clears any stale unauthenticated role and ALWAYS renders the new unified LoginPage.
+ * - Decodes and validates 'ews_token' (checking format and expiration timestamp 'exp').
+ * - If valid and unexpired: routes to the corresponding dashboard based on validated role.
+ * - If missing, expired, or invalid: clears any stale auth session and renders LoginPage.
  */
 const RootRoute: React.FC = () => {
   const token = localStorage.getItem('ews_token');
-  const role = localStorage.getItem('ews_role');
+  const session = getValidSession(token);
 
-  if (!token || !token.trim()) {
-    // Stale or missing token: purge any dangling unauthenticated role to prevent bypass
-    if (role) {
-      localStorage.removeItem('ews_role');
-      localStorage.removeItem('ews_user');
+  if (!session) {
+    if (token || localStorage.getItem('ews_role')) {
+      clearAuthSession();
     }
     return <LoginPage />;
   }
 
-  // Restore authenticated destination
+  const role = session.role;
+
   if (role === 'FIELD_OFFICER') {
     return <Navigate to="/responder" replace />;
   }

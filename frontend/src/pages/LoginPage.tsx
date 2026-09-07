@@ -10,6 +10,7 @@ import {
 } from '../services/citizenAuthService';
 import { CitizenProfileInput } from '../types';
 import { useTheme } from '../context/ThemeContext';
+import { createDemoJwt } from '../utils/authSession';
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
@@ -274,14 +275,16 @@ export const LoginPage: React.FC = () => {
   };
 
   const enterResponderDirectly = () => {
-    localStorage.setItem('ews_token', 'demo-responder-jwt-direct');
+    const demoToken = createDemoJwt('field_responder', 'FIELD_OFFICER');
+    localStorage.setItem('ews_token', demoToken);
     localStorage.setItem('ews_role', 'FIELD_OFFICER');
     localStorage.setItem('ews_user', 'field_responder');
     navigate('/responder');
   };
 
   const enterCitizenDemoDirectly = () => {
-    localStorage.setItem('ews_token', 'demo-citizen-jwt-direct');
+    const demoToken = createDemoJwt('+919876543214', 'CITIZEN');
+    localStorage.setItem('ews_token', demoToken);
     localStorage.setItem('ews_role', 'CITIZEN');
     localStorage.setItem('ews_user', '+919876543214');
     localStorage.setItem('satark_citizen_phone', '+919876543214');

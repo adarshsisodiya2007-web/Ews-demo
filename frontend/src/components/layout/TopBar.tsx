@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Severity } from '../../types';
+import { clearAuthSession } from '../../utils/authSession';
 
 interface Props {
   districts: string[];
@@ -28,9 +29,7 @@ export const TopBar: React.FC<Props> = ({
   }, []);
 
   const handleLogout = () => {
-    localStorage.removeItem('ews_token');
-    localStorage.removeItem('ews_role');
-    localStorage.removeItem('ews_user');
+    clearAuthSession();
     navigate('/login');
   };
 
