@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ProtectedRoute } from './components/layout/ProtectedRoute';
 import { DemoBanner } from './components/layout/DemoBanner';
@@ -15,26 +15,55 @@ import { ProfilePage } from './pages/ProfilePage';
 import { PrivacyDataPage } from './pages/PrivacyDataPage';
 import { useCapacitorNative } from './hooks/useCapacitorNative';
 import { isCapacitorAndroid } from './utils/platform';
+import { SatarkSplashScreen } from './components/mobile/SatarkSplashScreen';
 import { SatarkMobileApp } from './components/mobile/SatarkMobileApp';
 import { ThemeProvider } from './context/ThemeContext';
 
+/**
+ * Canonical Root Route:
+ * - If user has a valid authentication token ('ews_token'), restores their role-based dashboard.
+ * - If user has NO valid authentication token (or only a stale 'ews_role' in localStorage),
+ *   clears any stale unauthenticated role and ALWAYS renders the new unified LoginPage.
+ */
+const RootRoute: React.FC = () => {
+  const token = localStorage.getItem('ews_token');
+  const role = localStorage.getItem('ews_role');
+
+  if (!token || !token.trim()) {
+    // Stale or missing token: purge any dangling unauthenticated role to prevent bypass
+    if (role) {
+      localStorage.removeItem('ews_role');
+      localStorage.removeItem('ews_user');
+    }
+    return <LoginPage />;
+  }
+
+  // Restore authenticated destination
+  if (role === 'FIELD_OFFICER') {
+    return <Navigate to="/responder" replace />;
+  }
+  if (role === 'ADMIN' || role === 'DISTRICT_OFFICIAL') {
+    return <Navigate to="/dashboard" replace />;
+  }
+  if (role === 'CITIZEN') {
+    return <Navigate to="/citizen" replace />;
+  }
+
+  return <LoginPage />;
+};
+
 function AppContent({ permsDone, onPermComplete }: { permsDone: boolean; onPermComplete: () => void }) {
   useCapacitorNative();
-  const isAndroidApp = isCapacitorAndroid();
-
-  // If running inside native Android Capacitor app, render the dedicated mobile-app UI
-  if (isAndroidApp) {
-    return (
-      <>
-        {!permsDone && <PermissionGate onComplete={onPermComplete} />}
-        <DemoBanner />
-        <SatarkMobileApp />
-      </>
-    );
-  }
+  // 3-second SATARK splash screen on Android app launch/relaunch
+  const [showSplash, setShowSplash] = useState<boolean>(() => isCapacitorAndroid());
 
   return (
     <>
+      {/* 3-second SATARK splash animation on Android startup */}
+      {showSplash && (
+        <SatarkSplashScreen onComplete={() => setShowSplash(false)} />
+      )}
+
       {/* Show permission gate on first visit */}
       {!permsDone && <PermissionGate onComplete={onPermComplete} />}
 
@@ -42,7 +71,7 @@ function AppContent({ permsDone, onPermComplete }: { permsDone: boolean; onPermC
       <DemoBanner />
 
       <Routes>
-        <Route path="/"              element={<LoginPage />} />
+        <Route path="/"              element={<RootRoute />} />
         <Route path="/login"         element={<LoginPage />} />
         <Route path="/citizen"        element={<CitizenPortal />} />
         <Route path="/profile"        element={<ProfilePage />} />
@@ -65,8 +94,10 @@ function AppContent({ permsDone, onPermComplete }: { permsDone: boolean; onPermC
             </ProtectedRoute>
           }
         />
-        <Route path="/map"    element={<PublicRiskMap />} />
-        <Route path="/report" element={<ReportFormPage />} />
+        <Route path="/map"           element={<PublicRiskMap />} />
+        <Route path="/report"        element={<ReportFormPage />} />
+        <Route path="/mobile-shell"  element={<SatarkMobileApp />} />
+        <Route path="*"              element={<Navigate to="/" replace />} />
       </Routes>
     </>
   );
