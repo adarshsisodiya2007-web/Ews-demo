@@ -49,6 +49,7 @@ import {
 import { PhotoCapture } from '../report/PhotoCapture';
 import { OfflineRescueMode } from '../emergency/OfflineRescueMode';
 import { OfflineHowItWorksIllustration } from '../emergency/OfflineHowItWorksIllustration';
+import { FamilyChecklist } from './FamilyChecklist';
 import { t, SUPPORTED_LANGUAGES, getLanguageLabel } from '../../i18n';
 import { MapContainer, TileLayer, Circle, Marker, Popup, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -142,6 +143,9 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
 
   // Dedicated Offline Rescue View (Opens all 6 rescue tools)
   const [showOfflineRescueView, setShowOfflineRescueView] = useState<boolean>(false);
+
+  // Dedicated Family Checklist View (Landslide & Flood Checklists)
+  const [showFamilyChecklist, setShowFamilyChecklist] = useState<boolean>(false);
 
   // Theme & Language
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
@@ -657,6 +661,8 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
   // ── ANDROID HARDWARE BACK BUTTON INTERCEPTION ─────────────────────────────────
   useEffect(() => {
     const handleBack = (e: CustomEvent) => {
+      if (e.defaultPrevented) return;
+
       // 1. If any modal or sheet is open, close it!
       if (showSosModal) { setShowSosModal(false); e.preventDefault(); return; }
       if (showRouteModal) { setShowRouteModal(false); e.preventDefault(); return; }
@@ -666,7 +672,12 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
       if (showLangSheet) { setShowLangSheet(false); e.preventDefault(); return; }
       if (showSignInSheet) { setShowSignInSheet(false); e.preventDefault(); return; }
 
-      // 2. If inside Offline Rescue Mode, go back to Citizen Home!
+      // 2. If inside Full Views, go back to Citizen Home!
+      if (showFamilyChecklist) {
+        setShowFamilyChecklist(false);
+        e.preventDefault();
+        return;
+      }
       if (showOfflineRescueView) {
         setShowOfflineRescueView(false);
         e.preventDefault();
@@ -692,6 +703,7 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
     showLangSheet,
     showSignInSheet,
     showOfflineRescueView,
+    showFamilyChecklist,
     activeTab
   ]);
 
@@ -946,6 +958,17 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
           />
         </div>
       </div>
+    );
+  }
+
+  // ── IF FULL FAMILY CHECKLIST VIEW IS OPEN ──
+  if (showFamilyChecklist) {
+    return (
+      <FamilyChecklist
+        onClose={() => setShowFamilyChecklist(false)}
+        lang={lang}
+        theme={theme}
+      />
     );
   }
 
@@ -1487,6 +1510,61 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
                   {riskData?.weather?.soil_moisture ?? 0}%
                 </div>
               </div>
+            </div>
+          </div>
+
+          {/* ── FAMILY CHECKLIST CARD ── */}
+          <div style={{
+            background: bgCard,
+            border: `1px solid ${borderCol}`,
+            borderRadius: '14px',
+            padding: '14px',
+            boxShadow: isLight ? '0 2px 10px rgba(0,0,0,0.04)' : '0 4px 16px rgba(0,0,0,0.3)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ fontWeight: 800, fontSize: '0.92rem', color: textPrimary, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span>📋</span> {t('checklist.cardTitle', lang)}
+              </div>
+              <span style={{
+                background: isLight ? '#eff6ff' : 'rgba(2, 132, 199, 0.15)',
+                border: `1px solid ${isLight ? '#bfdbfe' : 'rgba(2, 132, 199, 0.35)'}`,
+                color: isLight ? '#0284c7' : '#38bdf8',
+                borderRadius: '10px',
+                padding: '2px 8px',
+                fontSize: '0.68rem',
+                fontWeight: 800
+              }}>
+                ⛰️ 🌊
+              </span>
+            </div>
+
+            <p style={{ fontSize: '0.76rem', color: textMuted, margin: 0, lineHeight: 1.4 }}>
+              {t('checklist.cardSubtitle', lang)}
+            </p>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '4px' }}>
+              <button
+                type="button"
+                onClick={() => setShowFamilyChecklist(true)}
+                style={{
+                  background: '#0284c7',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '8px',
+                  padding: '7px 14px',
+                  fontSize: '0.78rem',
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}
+              >
+                {t('checklist.openButton', lang)}
+              </button>
             </div>
           </div>
         </div>
