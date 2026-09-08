@@ -695,6 +695,7 @@ export function getSharedRiskForZone(zoneKey?: string | null): RiskAssessmentRes
   const isHigh = state.severity === 'HIGH';
 
   return {
+    id: `risk-${canonical.canonicalId}-${state.severity}-${state.score}`,
     location: {
       lat: canonical.lat,
       lon: canonical.lon,
@@ -718,6 +719,7 @@ export function getSharedRiskForZone(zoneKey?: string | null): RiskAssessmentRes
       resolutionMeters: 30
     },
     assessment: {
+      id: `assess-${canonical.canonicalId}-${state.severity}-${state.score}`,
       score: state.score,
       level: ((isCrit || isHigh) ? 'RED' : (state.severity === 'MODERATE' ? 'AMBER' : 'GREEN')) as 'RED' | 'AMBER' | 'GREEN',
       severity: state.severity,

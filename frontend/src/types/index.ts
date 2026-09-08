@@ -145,6 +145,7 @@ export interface LiveWeatherMetrics {
 }
 
 export interface LandslideAssessment {
+  id?: string;
   score: number;
   level: 'RED' | 'AMBER' | 'GREEN';
   severity?: Severity;
@@ -186,6 +187,7 @@ export interface EvacuationPlan {
 }
 
 export interface RiskAssessmentResponse {
+  id?: string;
   location: {
     lat: number;
     lon: number;
