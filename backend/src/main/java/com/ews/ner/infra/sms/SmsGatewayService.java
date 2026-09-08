@@ -130,33 +130,33 @@ public class SmsGatewayService {
     }
 
     public boolean sendSms(String toPhoneNumber, String messageBody) {
-        if (!isConfigured()) {
-            log.warn("sendSms called but SMS provider is not configured. Destination: {}", maskPhone(toPhoneNumber));
-            throw new IllegalStateException("SMS service is currently unavailable. Please try again later.");
-        }
-
-        try {
-            ensureTwilioInitialized();
-            String sender = getEffectiveFromNumber();
-            log.info("Dispatching live carrier SMS to {}...", maskPhone(toPhoneNumber));
-            
-            Message msg = Message.creator(
-                    new PhoneNumber(toPhoneNumber),
-                    new PhoneNumber(sender),
-                    messageBody
-            ).create();
-            
-            log.info("SMS dispatched successfully. Status: {}, SID: {}",
-                    msg.getStatus(),
-                    msg.getSid() != null ? msg.getSid().substring(0, Math.min(8, msg.getSid().length())) + "..." : "N/A");
-            return true;
-        } catch (com.twilio.exception.ApiException e) {
-            log.error("Twilio API error sending SMS to {}: Code={}, Status={}, Message={}",
-                    maskPhone(toPhoneNumber), e.getCode(), e.getStatusCode(), e.getMessage());
-            throw new IllegalStateException("Unable to send OTP right now. Please try again.");
-        } catch (Exception e) {
-            log.error("Failed to dispatch live SMS to {}: {}", maskPhone(toPhoneNumber), e.getMessage());
-            throw new IllegalStateException("Unable to send OTP right now. Please try again.");
+        if (isLiveSmsAvailable()) {
+            try {
+                ensureTwilioInitialized();
+                String sender = getEffectiveFromNumber();
+                log.info("Dispatching live carrier SMS to {}...", maskPhone(toPhoneNumber));
+                
+                Message msg = Message.creator(
+                        new PhoneNumber(toPhoneNumber),
+                        new PhoneNumber(sender),
+                        messageBody
+                ).create();
+                
+                log.info("SMS dispatched successfully. Status: {}, SID: {}",
+                        msg.getStatus(),
+                        msg.getSid() != null ? msg.getSid().substring(0, Math.min(8, msg.getSid().length())) + "..." : "N/A");
+                return true;
+            } catch (com.twilio.exception.ApiException e) {
+                log.error("Twilio API error sending SMS to {}: Code={}, Status={}, Message={}",
+                        maskPhone(toPhoneNumber), e.getCode(), e.getStatusCode(), e.getMessage());
+                throw new IllegalStateException("Unable to send OTP right now. Please try again.");
+            } catch (Exception e) {
+                log.error("Failed to dispatch live SMS to {}: {}", maskPhone(toPhoneNumber), e.getMessage());
+                throw new IllegalStateException("Unable to send OTP right now. Please try again.");
+            }
+        } else {
+            log.info("[SMS MOCK/DEMO DISPATCH] Destination: {}, Message length: {}", maskPhone(toPhoneNumber), messageBody.length());
+            return false;
         }
     }
 
