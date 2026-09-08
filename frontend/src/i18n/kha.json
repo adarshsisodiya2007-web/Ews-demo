@@ -15,20 +15,17 @@
   "road.OPEN": "BA LA PLIE",
   "road.BLOCKED": "BA LA KHANG",
   "road.AT_RISK": "HA KA JINGMA",
-
   "nav.home": "Ïing",
   "nav.alerts": "Ki Jingpynbna",
   "nav.map": "Ka Map",
   "nav.report": "Ka Jingpyntip",
   "nav.profile": "Ka Jingtip Shimet",
-
   "header.title": "SATARK",
   "header.subtitle": "SYSTEM JINGMAHABAN JINGTWA LUM NORTHEAST",
   "header.statusChecking": "Dang peit...",
   "header.statusSafe": "Ba Shngain",
   "header.liveGps": "Ba Im 🟢",
   "header.demoMode": "Demo",
-
   "home.statusTitle": "KA JINGLONG KA THAIN",
   "home.requiredAction": "Ka Kam ba Dei Ban Leh",
   "home.emergencySOS": "SOS BA KYRKIEH",
@@ -54,13 +51,11 @@
   "home.hideDetails": "Kynshew Bniah ▴",
   "home.criticalWarning": "KA JINGMA JINGTWA SHYIAP BA SHYRKHET",
   "home.muteHorn": "PYNSANGEH KA SIREN 🔇",
-
   "alerts.title": "Ki Jingpynbna Kyrkieh",
   "alerts.filterAll": "BAROH",
   "alerts.filterCritical": "BA SHYRKHET",
   "alerts.filterHigh": "BA JUR",
   "alerts.noAlerts": "Ym don jingpynbna ba jur mynta ka por.",
-
   "map.selectDistrict": "JIED DISTRICT",
   "map.liveGps": "NGA LIVE GPS",
   "map.areaMap": "KA MAP KA THAIN",
@@ -71,7 +66,6 @@
   "map.roadOpen": "BA LA PLIE",
   "map.roadBlocked": "BA LA KHANG",
   "map.roadAtRisk": "HA KA JINGMA",
-
   "report.title": "Pyntip Jingma Jingtwa",
   "report.subtitle": "Phah sha ki nongiada ha kine ki jaka. Trei kam offline ruh.",
   "report.gpsCoords": "Ki GPS Coordinates",
@@ -89,7 +83,6 @@
   "report.submitting": "Dang phah...",
   "report.queueOffline": "Kynshew ha offline",
   "report.offline": "Phi don offline — yn phah lada ïoh internet",
-
   "profile.title": "👤 Ka Jingtip Shimet & Jingpynbeit",
   "profile.subtitle": "Ki jingtip ban ïarap haba don jingjia kynsan.",
   "profile.languageLabel": "KA KTIEN (LANGUAGE)",
@@ -109,16 +102,13 @@
   "profile.signInTitle": "📱 Ring Phone ban rung",
   "profile.signInDesc": "Ban ïoh ki jingpynbna bad kynshew ki jingtip da ka OTP.",
   "profile.signInBtn": "Rung da ka OTP ›",
-
   "sos.title": "SOS BA KYRKIEH",
   "sos.broadcastingIn": "Dang phah ïa ka jaka ba phi don sha ki bor ba dei peit ha:",
   "sos.cancel": "PYNSANGEH",
   "sos.triggerNow": "PHAH MAR MAR",
   "sos.activeTitle": "KA DAK JINGMA BA LA PYNTREI",
   "sos.stop": "SANGEH",
-
   "lang.selectLanguage": "Jied Ktien",
-
   "helpline.title": "Ki Helpline Kyrkieh",
   "helpline.national": "Ka Helpline Jingma ka Ri",
   "helpline.nationalDesc": "Pulit, Ding, Jingma 24/7",
@@ -128,11 +118,9 @@
   "helpline.stateDesc": "State Disaster Control Room",
   "helpline.ambulance": "Ka Kali Pang & Jingïarap",
   "helpline.ambulanceDesc": "Ka jingkit kiba pang kyrkieh",
-
   "route.title": "Ka Lynti Ban Lait Im",
   "route.primaryCorridor": "Ka Lynti Kmie",
   "route.shelterTarget": "Ka Jaka Shong ba Shngain",
-
   "checklist.cardTitle": "KA CHECKLIST IING KA SEM",
   "checklist.cardSubtitle": "Pynkhreh ia ka iing ka sem na ka bynta ka jingkyhlyn khyndew bad shlei um.",
   "checklist.openButton": "Plie ia ka Checklist →",
@@ -153,7 +141,6 @@
   "checklist.safetyPopupTitle": "Shngain",
   "checklist.safetyPopupMessage": "Shngain. Bud ia ki jingbthah jong ki bor pyniaid shnong.",
   "checklist.safetyPopupConfirm": "Tooid",
-
   "checklist.ls.1": "Khnoh bad buh lypa ia ka pla emergency",
   "checklist.ls.2": "Buh umdih kaba biang",
   "checklist.ls.3": "Pynkhreh lypa ia ki dawai kiba donkam",
@@ -164,7 +151,6 @@
   "checklist.ls.8": "Peit bniah ia ki jingpait thymmai ha ka khyndew",
   "checklist.ls.9": "Sumar na ki maw bad khyndew kiba twa",
   "checklist.ls.10": "Mih noh na katei ka jaka lada don ka jingmaham ban phet",
-
   "checklist.fl.1": "Buh ka kit emergency kaba la pynkhreh",
   "checklist.fl.2": "Buh ka umdih kaba khuid",
   "checklist.fl.3": "Buh ki jingbam kiba tyrkhong",
@@ -174,5 +160,12 @@
   "checklist.fl.7": "Buh ka bitor bad ki battery kiba biang",
   "checklist.fl.8": "Kynriah ia ki tiar kordor sha ki jaka kiba jrong",
   "checklist.fl.9": "Tip ia ka jaka rieh kaba shngain",
-  "checklist.fl.10": "Wat ju leit ne niah kali lyngba ka umsaw"
+  "checklist.fl.10": "Wat ju leit ne niah kali lyngba ka umsaw",
+  "onboarding.selectCityTitle": "Jied ia ka Sor / Shnong jong phi",
+  "onboarding.selectCitySubtitle": "Jied ia ka jaka ba phi don mynta ban ioh jingtip shngain ba kyrpang.",
+  "onboarding.continueToSatark": "Iaibteng sha SATARK",
+  "onboarding.otherCity": "Kawei pat",
+  "profile.cityArea": "Sor / Shnong",
+  "profile.changeCity": "Pynkylla ia ka Sor / Shnong",
+  "common.demoData": "DEMO DATA"
 }

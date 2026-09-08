@@ -15,20 +15,17 @@
   "road.OPEN": "হাংবা",
   "road.BLOCKED": "থিংবা",
   "road.AT_RISK": "খুদোংথীবা লৈবা",
-
   "nav.home": "য়ুম",
   "nav.alerts": "চেৎনরবা",
   "nav.map": "মানচিত্র",
   "nav.report": "রিপোর্ত",
   "nav.profile": "প্রোফাইল",
-
   "header.title": "SATARK",
   "header.subtitle": "নোংপোক লমদম লৈবাক মুৎপা হান্ননা খঙহনবা সিস্তেম",
   "header.statusChecking": "চেক তৌরি...",
   "header.statusSafe": "কান্নবা",
   "header.liveGps": "লাইভ 🟢",
   "header.demoMode": "দেমো",
-
   "home.statusTitle": "হৌজিক্কী লমদমগী ফীভম",
   "home.requiredAction": "তৌগদবা থবক",
   "home.emergencySOS": "ইমার্জেন্সী SOS",
@@ -54,13 +51,11 @@
   "home.hideDetails": "অকুপ্পা লোতসিিল্লু ▴",
   "home.criticalWarning": "অকনবা লৈবাক মুৎপা চেৎনরবা",
   "home.muteHorn": "সাইরেন লেপউ 🔇",
-
   "alerts.title": "ইমার্জেন্সী চেৎনরবা",
   "alerts.filterAll": "পুম্নমক",
   "alerts.filterCritical": "অকনবা",
   "alerts.filterHigh": "ৱাংবা",
   "alerts.noAlerts": "হৌজিক্কী ওইনা অকনবা চেৎনরবা লৈত্ৰি।",
-
   "map.selectDistrict": "দিস্ত্রিক্ত খনবিউ",
   "map.liveGps": "ঐগী লাইভ GPS",
   "map.areaMap": "লমদমগী মেপ",
@@ -71,7 +66,6 @@
   "map.roadOpen": "হাংবা",
   "map.roadBlocked": "থিংবা",
   "map.roadAtRisk": "খুদোংথীবা",
-
   "report.title": "লৈবাক মুৎপা / খুদোংথীবা রিপোর্ত তৌউ",
   "report.subtitle": "দিস্ত্রিক্ত রেস্পোন্দরশিংদা মফম অমসুং পাউ পীরি। ওফলাইনসু থবক তৌই।",
   "report.gpsCoords": "GPS কোওর্দিনেত",
@@ -89,7 +83,6 @@
   "report.submitting": "থারি...",
   "report.queueOffline": "অফলাইনদা থমউ",
   "report.offline": "অদোম অফলাইন ওইরি — কনেকশন ফংলবা মতমদা থাগনি",
-
   "profile.title": "👤 প্রজা প্রোফাইল অমসুং সেত্তিংস",
   "profile.subtitle": "অৱাবা মতমদা মতেং পাংনবগীদমক দরকার ওইবা পাউ।",
   "profile.languageLabel": "লোন (LANGUAGE)",
@@ -109,16 +102,13 @@
   "profile.signInTitle": "📱 মোবাইল নম্বরগা লোয়ননা চংবিউ",
   "profile.signInDesc": "অকনবা পাউ ফংনবা অমসুং প্রোফাইল য়েংশিন্নবা OTP শীজিন্নৌ।",
   "profile.signInBtn": "OTP দা চংবিউ ›",
-
   "sos.title": "ইমার্জেন্সী SOS",
   "sos.broadcastingIn": "দিস্ত্রিক্ত কমান্তা অদোমগী GPS অমসুং সঙ্কেত থাগদবা মতম:",
   "sos.cancel": "তোকউ",
   "sos.triggerNow": "হৌজিক থাউ",
   "sos.activeTitle": "বিপদ সঙ্কেত চত্থরি",
   "sos.stop": "লেপউ",
-
   "lang.selectLanguage": "লোন খনবিউ",
-
   "helpline.title": "ইমার্জেন্সী হেল্পলাইন",
   "helpline.national": "নেস্নেল ইমার্জেন্সী হেল্পলাইন",
   "helpline.nationalDesc": "পুলিস, ফায়ার, দিজাস্তর ২৪/৭",
@@ -128,11 +118,9 @@
   "helpline.stateDesc": "স্তেত ইমার্জেন্সী ওপরেসন সেন্তর",
   "helpline.ambulance": "এম্বুলেন্স অমসুং লায়েং",
   "helpline.ambulanceDesc": "য়াংনা লায়েংবগীদমক মতেং",
-
   "route.title": "কান্নবা নান্থোকনবা লম্বী",
   "route.primaryCorridor": "মরুওইবা লম্বী",
   "route.shelterTarget": "শেঞ্জা য়ুম",
-
   "checklist.cardTitle": "ইমুংগী অখন্ন চেকলিষ্ট",
   "checklist.cardSubtitle": "অকুপ্পা ফিভমগীদমক নহাক্কী ইমুং শেম-শাদুনা থম্মু।",
   "checklist.openButton": "ইমুংগী চেকলিষ্ট হাংদোকউ →",
@@ -153,7 +141,6 @@
   "checklist.safetyPopupTitle": "ঙাকশেন্না লৈয়ু",
   "checklist.safetyPopupMessage": "ঙাকশেন্না লৈয়ু। মফম অদুগী ওথোরিতিগী য়াথং ইল্লু।",
   "checklist.safetyPopupConfirm": "য়ারেনি",
-
   "checklist.ls.1": "ইমর্জেন্সী বেগ অমা শেম-শাদুনা থম্মু",
   "checklist.ls.2": "থাংনবা মতিক চারবা ইশিং থম্মু",
   "checklist.ls.3": "মরুওইবা হিদাক-লাংথক শেম-শাদুনা থম্মু",
@@ -164,7 +151,6 @@
   "checklist.ls.8": "লৈবাক কাইরকপদা য়েংশিন্নু",
   "checklist.ls.9": "নুংশিৎ অমসুং নুং তাথরকপদা চেকশিন্না লৈয়ু",
   "checklist.ls.10": "মফম অদুদগী থোক্নবা পাও ফংবগা চৎখ্রু",
-
   "checklist.fl.1": "ইমর্জেন্সী কিট অমা শাদুনা থম্মু",
   "checklist.fl.2": "শেংলবা থক্নবা ঈশিং থম্মু",
   "checklist.fl.3": "অকাংবা চীঞ্জাক শেম-শাদুনা থম্মু",
@@ -174,5 +160,12 @@
   "checklist.fl.7": "টর্চ লাইট অমসুং অতোপ্পা ব্যাটারী থম্মু",
   "checklist.fl.8": "মরুওইবা পোৎলমশিং ৱাংবা মফমদা থম্মু",
   "checklist.fl.9": "নক্নবা শেল্টারগী মফম খঙদোকউ",
-  "checklist.fl.10": "ঈশিং ইচাউ মনুংদা কদাচিলসু চঙগনু"
+  "checklist.fl.10": "ঈশিং ইচাউ মনুংদা কদাচিলসু চঙগনু",
+  "onboarding.selectCityTitle": "নহাক্কী সহর / মফম খনবীয়ু",
+  "onboarding.selectCitySubtitle": "মফমগা মরি লৈনবা অশোয়-অঙাম থোক্তনবা ঈপাউ ফংনবগীদমক নহাক্কী হৌজিক্কী মফম খনবীয়ু।",
+  "onboarding.continueToSatark": "সতর্কতা চৎখিগদবনি",
+  "onboarding.otherCity": "অতোপ্পা (অনৌবা মফম)",
+  "profile.cityArea": "সহর / মফম",
+  "profile.changeCity": "সহর / মফম হোংদোকউ",
+  "common.demoData": "ডেমো ডেটা"
 }

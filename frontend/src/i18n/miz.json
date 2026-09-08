@@ -15,20 +15,17 @@
   "road.OPEN": "TLUANG",
   "road.BLOCKED": "PING",
   "road.AT_RISK": "HLAUHAWM",
-
   "nav.home": "In",
   "nav.alerts": "Alert",
   "nav.map": "Hmun",
   "nav.report": "Report",
   "nav.profile": "Profile",
-
   "header.title": "SATARK",
   "header.subtitle": "HMARCHHAK LEIMIN HLAUHAWM HRIATTIRNA",
   "header.statusChecking": "Enchhin mek...",
   "header.statusSafe": "Hlauhawm loh",
   "header.liveGps": "Live 🟢",
   "header.demoMode": "Demo",
-
   "home.statusTitle": "TUN HNAIVAI DINHMUN",
   "home.requiredAction": "Hmalakna ngai",
   "home.emergencySOS": "CHHIATRUP SOS",
@@ -54,13 +51,11 @@
   "home.hideDetails": "Thup Rawh ▴",
   "home.criticalWarning": "LANDSLIDE HLAUHAWM EM EM",
   "home.muteHorn": "HORN TIHTAWP 🔇",
-
   "alerts.title": "Chhiatrup Hriattirna",
   "alerts.filterAll": "ZAWNG ZAWNG",
   "alerts.filterCritical": "HLAUHAWM",
   "alerts.filterHigh": "SANG",
   "alerts.noAlerts": "Tun dinhmunah hriattirna hlauhawm a awm lo.",
-
   "map.selectDistrict": "DISTRICT THLANG RAWH",
   "map.liveGps": "KA GPS HMUN",
   "map.areaMap": "HMUNPUI MAP",
@@ -71,7 +66,6 @@
   "map.roadOpen": "TLUANG",
   "map.roadBlocked": "PING",
   "map.roadAtRisk": "HLAUHAWM",
-
   "report.title": "Chhiatrup Hriattirna Thawn Rawh",
   "report.subtitle": "Rescue team-te hnenah thawn rawh. Offline pawhin a theih.",
   "report.gpsCoords": "GPS Coordinates",
@@ -89,7 +83,6 @@
   "report.submitting": "Thawn mek...",
   "report.queueOffline": "Offline-ah dah rih rawh",
   "report.offline": "Internet a awm lo — a awm veleh a in-sync ang",
-
   "profile.title": "👤 Mipui Profile & Settings",
   "profile.subtitle": "Chhiatrup thlen laia chhanhimtute tana biakpawhna.",
   "profile.languageLabel": "ṬAWNG (LANGUAGE)",
@@ -109,16 +102,13 @@
   "profile.signInTitle": "📱 Phone Number hmanga luhna",
   "profile.signInDesc": "Hriattirna leh damdawi lam thil vawn thap nan OTP hmang rawh.",
   "profile.signInBtn": "OTP hmangin Lut Rawh ›",
-
   "sos.title": "CHHIATRUP SOS",
   "sos.broadcastingIn": "District command hnena i awmna GPS thawn nan:",
   "sos.cancel": "THULH RAWH",
   "sos.triggerNow": "THAWN NGHAL RAWH",
   "sos.activeTitle": "BEACON TIHNUN A NI",
   "sos.stop": "TIHTAWP",
-
   "lang.selectLanguage": "Ṭawng Thlang Rawh",
-
   "helpline.title": "Chhiatrup Tanpuina",
   "helpline.national": "National Emergency Helpline",
   "helpline.nationalDesc": "Police, Meithat, Chhiatrup 24/7",
@@ -128,11 +118,9 @@
   "helpline.stateDesc": "State chhiatrup enkawlna hmunpui",
   "helpline.ambulance": "Damdawi In & Ambulance",
   "helpline.ambulanceDesc": "Hliam zual enkawlna hmanhmawh",
-
   "route.title": "Tlanhimna Kawng Him",
   "route.primaryCorridor": "Kawngpui Ber",
   "route.shelterTarget": "Hahdamna Hmun",
-
   "checklist.cardTitle": "CHHUNGKAW CHECKLIST",
   "checklist.cardSubtitle": "Kham chhe leh tui lian laka chhungkua inbuatsaihna.",
   "checklist.openButton": "Chhungkaw Checklist Hawng Rawh →",
@@ -153,7 +141,6 @@
   "checklist.safetyPopupTitle": "Him takin awm rawh",
   "checklist.safetyPopupMessage": "Him takin awm rawh. Thuneitute thurawn leh kaihhruaina zawm rawh.",
   "checklist.safetyPopupConfirm": "A ṭha e",
-
   "checklist.ls.1": "Emergency bag peihsa in dah rawh",
   "checklist.ls.2": "In tur tui tawk dah khawl rawh",
   "checklist.ls.3": "Damdawi pawimawh peihsa in dah rawh",
@@ -164,7 +151,6 @@
   "checklist.ls.8": "Leilung khi thar a awm em ngaihven rawh",
   "checklist.ls.9": "Lung leh leivung tla lakah fimkhur rawh",
   "checklist.ls.10": "In sawn tura hriattirna a chhuah chuan rang takin chhuak rawh",
-
   "checklist.fl.1": "Emergency kit peihsa in nei rawh",
   "checklist.fl.2": "In tur tui thianghlim dah khawl rawh",
   "checklist.fl.3": "Chaw ro leh chhang dah khawl rawh",
@@ -174,5 +160,12 @@
   "checklist.fl.7": "Torchlight leh battery dah tel rawh",
   "checklist.fl.8": "Thil hlute hmun sangah sawn chho rawh",
   "checklist.fl.9": "Hmun him hnaivai ber hria rawh",
-  "checklist.fl.10": "Tui lian tlan tlang tum ngai suh"
+  "checklist.fl.10": "Tui lian tlan tlang tum ngai suh",
+  "onboarding.selectCityTitle": "I khawpui / hmun thlang rawh",
+  "onboarding.selectCitySubtitle": "Hmun bik himna thu hriatna dawng turin i awmna hmun thlang rawh.",
+  "onboarding.continueToSatark": "SATARK-ah kal chhunzawm rawh",
+  "onboarding.otherCity": "Danglam (Mahni hmun)",
+  "profile.cityArea": "Khawpui / Hmun",
+  "profile.changeCity": "Khawpui / Hmun thlak rawh",
+  "common.demoData": "DEMO DATA"
 }

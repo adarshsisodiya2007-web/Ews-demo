@@ -15,20 +15,17 @@
   "road.OPEN": "OGA",
   "road.BLOCKED": "CHIPGIPA",
   "road.AT_RISK": "A·SEL GNIGIPA",
-
   "nav.home": "A·song",
   "nav.alerts": "Mikrakani",
   "nav.map": "Map",
   "nav.report": "Kobor",
   "nav.profile": "Profile",
-
   "header.title": "SATARK",
   "header.subtitle": "SALGRO-SALARAM A·A BE·ANI SKANG MIKRAKANI",
   "header.statusChecking": "Nibaenga...",
   "header.statusSafe": "Naljoka",
   "header.liveGps": "Tang·gitok 🟢",
   "header.demoMode": "Demo",
-
   "home.statusTitle": "DA·ORORO A·SONGNI OBOSTA",
   "home.requiredAction": "Dakna Nangani",
   "home.emergencySOS": "A·SAKANG SOS",
@@ -54,13 +51,11 @@
   "home.hideDetails": "Donnuibo ▴",
   "home.criticalWarning": "CHIKBEGIPA A·A BE·ANI MIKRAKANI",
   "home.muteHorn": "SIREN CHIPBO 🔇",
-
   "alerts.title": "A·sakang Mikrakani",
   "alerts.filterAll": "GIMIK",
   "alerts.filterCritical": "CHIKBEGIPA",
   "alerts.filterHigh": "CHUBEGIPA",
   "alerts.noAlerts": "Da·ororo mikrakani dongja.",
-
   "map.selectDistrict": "DISTRICT-KO SEBO",
   "map.liveGps": "AN·GNI LIVE GPS",
   "map.areaMap": "A·SONGNI MAP",
@@ -71,7 +66,6 @@
   "map.roadOpen": "OGA",
   "map.roadBlocked": "CHIPGIPA",
   "map.roadAtRisk": "A·SEL GNIGIPA",
-
   "report.title": "A·a Be·ani Kobor On·bo",
   "report.subtitle": "Rescuerangona GPS aro kobor watbo. Offline-oba kam ka·a.",
   "report.gpsCoords": "GPS Coordinates",
@@ -89,7 +83,6 @@
   "report.submitting": "Watmenga...",
   "report.queueOffline": "Offline-o donbo",
   "report.offline": "Internet dongja — net man·on watanggen",
-
   "profile.title": "👤 Manderangni Profile & Setting",
   "profile.subtitle": "Rescuerangni jakkalgipa contact kobor.",
   "profile.languageLabel": "KU·SIK (LANGUAGE)",
@@ -109,16 +102,13 @@
   "profile.signInTitle": "📱 Mobile Number gita Login Ka·bo",
   "profile.signInDesc": "Emergency mikrakani aro profile man·na OTP jakkalbo.",
   "profile.signInBtn": "OTP gita Login Ka·bo ›",
-
   "sos.title": "SOS NANGCHAKANI",
   "sos.broadcastingIn": "District command-ona na·simangni GPS aro signal watani:",
   "sos.cancel": "WAT GALANG",
   "sos.triggerNow": "BAKAN WATBO",
   "sos.activeTitle": "SIGNAL ACTIVE ONG·E DONGA",
   "sos.stop": "DINGBO",
-
   "lang.selectLanguage": "Ku·sik Sebo",
-
   "helpline.title": "Emergency Dakchakani",
   "helpline.national": "National Emergency Helpline",
   "helpline.nationalDesc": "Police, Wa·al, A·sel 24/7",
@@ -128,11 +118,9 @@
   "helpline.stateDesc": "State Emergency Operations Center",
   "helpline.ambulance": "Ambulance & Sam On·ani",
   "helpline.ambulanceDesc": "Bakan hospitalona rani",
-
   "route.title": "Naljokani Rama",
   "route.primaryCorridor": "Mongsonggipa Rama",
   "route.shelterTarget": "Naljokani Biap",
-
   "checklist.cardTitle": "NOK DANGNI CHECKLIST",
   "checklist.cardSubtitle": "A·a be·ani aro chi banani a·selo nokdangko tarie rakkibo.",
   "checklist.openButton": "Nokdangni Checklist-ko O·bo →",
@@ -153,7 +141,6 @@
   "checklist.safetyPopupTitle": "Jokrikbo",
   "checklist.safetyPopupMessage": "Jokrikbo. Sorkarini aro songjinmani ge·etanirangko ja·rikbo.",
   "checklist.safetyPopupConfirm": "Namgimin",
-
   "checklist.ls.1": "Emergency bag-ko tarie rakkibo",
   "checklist.ls.2": "Ringna chu·onga gita chirangko donbo",
   "checklist.ls.3": "Nangchongmotgipa samrangko tarie donbo",
@@ -164,7 +151,6 @@
   "checklist.ls.8": "A·ao gital bretrangko nirokbo",
   "checklist.ls.9": "A·a aro ro·ong ga·akgniko simsakbo",
   "checklist.ls.10": "Katna ge·etaniko man·on bakbak a·damko watbo",
-
   "checklist.fl.1": "Emergency kit-ko tarie rakkibo",
   "checklist.fl.2": "Rongtalgipa ringani chiko donbo",
   "checklist.fl.3": "Ran·gipa cha·anirangko chimongbo",
@@ -174,5 +160,12 @@
   "checklist.fl.7": "Torchlight aro battery rangko rakkibo",
   "checklist.fl.8": "Gamchatgipa bosturangko gadang chu·ao donbo",
   "checklist.fl.9": "Sepanggipa shelter-ko ma·sie rakkibo",
-  "checklist.fl.10": "Chi banao mamungoba gari salnabe aro rebabe"
+  "checklist.fl.10": "Chi banao mamungoba gari salnabe aro rebabe",
+  "onboarding.selectCityTitle": "Songjinma / Biapko Seokbo",
+  "onboarding.selectCitySubtitle": "Biapni gimin chelchakani kattarangko man'na gita da'o donggipa biapko seokbo.",
+  "onboarding.continueToSatark": "SATARK-ona re'angrikbo",
+  "onboarding.otherCity": "Gipin Biap",
+  "profile.cityArea": "Songjinma / Biap",
+  "profile.changeCity": "Songjinma / Biapko Dingtangatbo",
+  "common.demoData": "DEMO DATA"
 }

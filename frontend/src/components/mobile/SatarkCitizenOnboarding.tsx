@@ -5,8 +5,11 @@ import {
   createCitizenProfile
 } from '../../services/citizenAuthService';
 import { CitizenProfileInput } from '../../types';
+import { CITY_AREA_OPTIONS, getCitizenLocation, getCitizenCustomLocation, setCitizenLocation, CityAreaConfig } from '../../services/citizenLocationService';
+import { t } from '../../i18n';
 
 interface SatarkCitizenOnboardingProps {
+  initialStep?: 1 | 2 | 3;
   onComplete: () => void;
   onBackToLogin: () => void;
 }
@@ -33,10 +36,19 @@ export const NORTHEAST_LANGUAGES: NortheastLanguageOption[] = [
 const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
 export const SatarkCitizenOnboarding: React.FC<SatarkCitizenOnboardingProps> = ({
+  initialStep = 1,
   onComplete,
   onBackToLogin
 }) => {
-  const [step, setStep] = useState<1 | 2>(1);
+  const [step, setStep] = useState<1 | 2 | 3>(initialStep);
+
+  // Step 3: City / Area Selection State
+  const [selectedCityId, setSelectedCityId] = useState<string>(() => {
+    return getCitizenLocation() || 'guwahati';
+  });
+  const [customCityName, setCustomCityName] = useState<string>(() => {
+    return getCitizenCustomLocation() || '';
+  });
 
   // Theme support
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
@@ -183,7 +195,10 @@ export const SatarkCitizenOnboarding: React.FC<SatarkCitizenOnboardingProps> = (
       // 1. Persist chosen language
       localStorage.setItem('ews_lang', selectedLang);
 
-      // 2. Mark onboarding completed
+      // 2. Persist chosen City / Area
+      setCitizenLocation(selectedCityId, customCityName);
+
+      // 3. Mark onboarding completed
       const currentUser = localStorage.getItem('ews_user') || localStorage.getItem('satark_citizen_phone') || 'citizen';
       localStorage.setItem('citizenOnboardingCompleted', 'true');
       localStorage.setItem(`citizenOnboardingCompleted_${currentUser}`, 'true');
@@ -261,7 +276,9 @@ export const SatarkCitizenOnboarding: React.FC<SatarkCitizenOnboardingProps> = (
         <button
           type="button"
           onClick={() => {
-            if (step === 2) {
+            if (step === 3) {
+              setStep(2);
+            } else if (step === 2) {
               setStep(1);
             } else {
               onBackToLogin();
@@ -281,7 +298,7 @@ export const SatarkCitizenOnboarding: React.FC<SatarkCitizenOnboardingProps> = (
             gap: '6px'
           }}
         >
-          ← {step === 2 ? 'Basic Details' : 'Back to Login'}
+          ← {step === 3 ? 'Language' : step === 2 ? 'Basic Details' : 'Back to Login'}
         </button>
 
         {/* Global Light / Dark Theme Switch */}
@@ -353,7 +370,7 @@ export const SatarkCitizenOnboarding: React.FC<SatarkCitizenOnboardingProps> = (
               marginBottom: '8px'
             }}
           >
-            STEP {step} OF 2 • {step === 1 ? 'BASIC DETAILS' : 'LANGUAGE SELECTION'}
+            STEP {step} OF 3 • {step === 1 ? 'BASIC DETAILS' : step === 2 ? 'LANGUAGE SELECTION' : 'CITY / AREA'}
           </div>
 
           <h1
@@ -365,7 +382,7 @@ export const SatarkCitizenOnboarding: React.FC<SatarkCitizenOnboardingProps> = (
               letterSpacing: '-0.02em'
             }}
           >
-            {step === 1 ? 'Complete Your Basic Details' : 'Choose Your Language'}
+            {step === 1 ? 'Complete Your Basic Details' : step === 2 ? 'Choose Your Language' : (t('onboarding.selectCityTitle', selectedLang) || 'Select Your City / Area')}
           </h1>
 
           <p
@@ -378,7 +395,9 @@ export const SatarkCitizenOnboarding: React.FC<SatarkCitizenOnboardingProps> = (
           >
             {step === 1
               ? 'Add a few details to help SATARK provide a better emergency response experience.'
-              : 'Select your preferred language for the SATARK experience.'}
+              : step === 2
+              ? 'Select your preferred language for the SATARK experience.'
+              : (t('onboarding.selectCitySubtitle', selectedLang) || 'Choose your current area to get location-specific safety information.')}
           </p>
         </div>
 
@@ -621,6 +640,196 @@ export const SatarkCitizenOnboarding: React.FC<SatarkCitizenOnboardingProps> = (
           </form>
         )}
 
+
+        {/* ── STEP 3: CITY / AREA SELECTION ─────────────────────────────────── */}
+        {step === 3 && (
+          <div>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr',
+                gap: '10px',
+                marginBottom: '16px',
+                maxHeight: '380px',
+                overflowY: 'auto',
+                paddingRight: '4px'
+              }}
+            >
+              {CITY_AREA_OPTIONS.map((city) => {
+                const isSelected = selectedCityId === city.id;
+                const isCrit = city.demoRisk.severity === 'CRITICAL';
+                const isHigh = city.demoRisk.severity === 'HIGH';
+                const isMod = city.demoRisk.severity === 'MODERATE';
+                const badgeBg = isCrit ? '#ef4444' : isHigh ? '#f97316' : isMod ? '#f59e0b' : '#22c55e';
+
+                return (
+                  <div
+                    key={city.id}
+                    onClick={() => setSelectedCityId(city.id)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '12px 14px',
+                      borderRadius: '12px',
+                      border: isSelected
+                        ? '2px solid #0284c7'
+                        : `1px solid ${colors.borderInput}`,
+                      background: isSelected
+                        ? colors.activeCardBg
+                        : isLight ? '#f8fafc' : '#070c17',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '1.1rem' }}>📍</span>
+                        <span
+                          style={{
+                            fontSize: '0.95rem',
+                            fontWeight: 800,
+                            color: isSelected ? (isLight ? '#0284c7' : '#38bdf8') : colors.textPrimary
+                          }}
+                        >
+                          {city.id === 'other' ? (t('onboarding.otherCity', selectedLang) || city.name) : city.name}
+                        </span>
+                        <span
+                          style={{
+                            fontSize: '0.75rem',
+                            fontWeight: 600,
+                            color: colors.textSecondary
+                          }}
+                        >
+                          ({city.state})
+                        </span>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: '26px' }}>
+                        <span
+                          style={{
+                            fontSize: '0.66rem',
+                            color: '#ffffff',
+                            background: badgeBg,
+                            padding: '1px 6px',
+                            borderRadius: '4px',
+                            fontWeight: 800
+                          }}
+                        >
+                          {city.demoRisk.severity}
+                        </span>
+                        <span style={{ fontSize: '0.7rem', color: colors.textMuted }}>
+                          {city.demoWeather.condition} · Rain {city.demoWeather.rain_24h_mm}mm
+                        </span>
+                      </div>
+                    </div>
+
+                    <div>
+                      {isSelected ? (
+                        <div
+                          style={{
+                            background: '#0284c7',
+                            color: '#ffffff',
+                            borderRadius: '20px',
+                            padding: '4px 10px',
+                            fontSize: '0.74rem',
+                            fontWeight: 900,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px'
+                          }}
+                        >
+                          ✓ Selected
+                        </div>
+                      ) : (
+                        <div
+                          style={{
+                            width: '20px',
+                            height: '20px',
+                            borderRadius: '50%',
+                            border: `2px solid ${colors.borderInput}`
+                          }}
+                        />
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* If Other is selected, show optional custom area input */}
+            {selectedCityId === 'other' && (
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ fontSize: '0.74rem', fontWeight: 700, color: colors.textSecondary, display: 'block', marginBottom: '4px' }}>
+                  Custom Area / Town Name
+                </label>
+                <input
+                  type="text"
+                  value={customCityName}
+                  onChange={(e) => setCustomCityName(e.target.value)}
+                  placeholder="e.g. Silchar, Kohima, Gangtok, Dimapur..."
+                  style={{
+                    width: '100%',
+                    background: colors.bgInput,
+                    color: colors.textInput,
+                    border: `1px solid ${colors.borderInput}`,
+                    borderRadius: '8px',
+                    padding: '10px 12px',
+                    fontSize: '0.84rem',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+            )}
+
+            {/* Action Button: Continue to SATARK */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <button
+                type="button"
+                onClick={handleFinalizeOnboarding}
+                disabled={saving}
+                style={{
+                  width: '100%',
+                  background: 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '12px',
+                  padding: '14px',
+                  fontSize: '0.95rem',
+                  fontWeight: 900,
+                  cursor: saving ? 'not-allowed' : 'pointer',
+                  boxShadow: '0 4px 14px rgba(22, 163, 74, 0.4)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px'
+                }}
+              >
+                {saving ? 'Entering SATARK...' : (t('onboarding.continueToSatark', selectedLang) || 'Continue to SATARK →')}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setStep(2)}
+                disabled={saving}
+                style={{
+                  width: '100%',
+                  background: 'transparent',
+                  color: colors.textSecondary,
+                  border: 'none',
+                  padding: '8px',
+                  fontSize: '0.82rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  textAlign: 'center'
+                }}
+              >
+                ← Back to Language Selection
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* ── STEP 2: NORTHEAST INDIA LANGUAGE SELECTION ────────────────────────── */}
         {step === 2 && (
           <div>
@@ -729,26 +938,29 @@ export const SatarkCitizenOnboarding: React.FC<SatarkCitizenOnboardingProps> = (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               <button
                 type="button"
-                onClick={handleFinalizeOnboarding}
-                disabled={saving}
+                onClick={() => {
+                  localStorage.setItem('ews_lang', selectedLang);
+                  window.dispatchEvent(new CustomEvent('satark-language-change', { detail: selectedLang }));
+                  setStep(3);
+                }}
                 style={{
                   width: '100%',
-                  background: 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)',
+                  background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
                   color: '#ffffff',
                   border: 'none',
                   borderRadius: '12px',
                   padding: '14px',
                   fontSize: '0.95rem',
                   fontWeight: 900,
-                  cursor: saving ? 'not-allowed' : 'pointer',
-                  boxShadow: '0 4px 14px rgba(22, 163, 74, 0.4)',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 14px rgba(2, 132, 199, 0.4)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '8px'
                 }}
               >
-                {saving ? 'Entering SATARK...' : 'Continue to SATARK →'}
+                Next: Select City / Area →
               </button>
 
               <button

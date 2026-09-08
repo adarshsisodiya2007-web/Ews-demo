@@ -4,6 +4,7 @@ import { SatarkOfficerApp } from './SatarkOfficerApp';
 import { SatarkSplashScreen } from './SatarkSplashScreen';
 import { SatarkAndroidLogin } from './SatarkAndroidLogin';
 import { SatarkCitizenOnboarding } from './SatarkCitizenOnboarding';
+import { hasCitizenCompletedLocation } from '../../services/citizenLocationService';
 import { login } from '../../services/api';
 import { sendOfficerOtp, verifyOfficerOtp } from '../../services/citizenAuthService';
 import { getValidSession, clearAuthSession } from '../../utils/authSession';
@@ -39,13 +40,29 @@ export const SatarkMobileApp: React.FC = () => {
     return 'citizen';
   });
 
-  const checkUserOnboarded = () => {
+  const hasCompletedBasicOnboarding = () => {
     const user = localStorage.getItem('ews_user') || '';
     const phone = localStorage.getItem('satark_citizen_phone') || '';
     if (!user && !phone) return false;
     if (user && localStorage.getItem(`citizenOnboardingCompleted_${user}`) === 'true') return true;
     if (phone && localStorage.getItem(`citizenOnboardingCompleted_${phone}`) === 'true') return true;
     return false;
+  };
+
+  const checkUserOnboarded = () => {
+    const basicDone = hasCompletedBasicOnboarding();
+    const locationDone = hasCitizenCompletedLocation();
+    return basicDone && locationDone;
+  };
+
+  const getInitialOnboardingStep = (): 1 | 2 | 3 => {
+    const basicDone = hasCompletedBasicOnboarding();
+    const locationDone = hasCitizenCompletedLocation();
+    // If existing citizen finished basic details + language, but has not selected city yet:
+    if (basicDone && !locationDone) {
+      return 3;
+    }
+    return 1;
   };
 
   const [citizenOnboarded, setCitizenOnboarded] = useState<boolean>(checkUserOnboarded);
@@ -194,8 +211,9 @@ export const SatarkMobileApp: React.FC = () => {
           onSwitchToCitizen={() => setActiveMode('citizen')}
         />
       ) : !citizenOnboarded ? (
-        /* 4. Citizen Post-Login Onboarding (Basic Details -> Northeast Language Selection) */
+        /* 4. Citizen Post-Login Onboarding (Basic Details -> Language Selection -> City/Area Selection) */
         <SatarkCitizenOnboarding
+          initialStep={getInitialOnboardingStep()}
           onComplete={() => setCitizenOnboarded(true)}
           onBackToLogin={() => {
             clearAuthSession();

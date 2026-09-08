@@ -15,20 +15,17 @@
   "road.OPEN": "OPEN",
   "road.BLOCKED": "BLOCKED",
   "road.AT_RISK": "AT RISK",
-
   "nav.home": "Home",
   "nav.alerts": "Alerts",
   "nav.map": "Map",
   "nav.report": "Report",
   "nav.profile": "Profile",
-
   "header.title": "SATARK",
   "header.subtitle": "NORTHEAST LANDSLIDE WARNING SYSTEM",
   "header.statusChecking": "CHECKING...",
   "header.statusSafe": "SAFE",
   "header.liveGps": "LIVE 🟢",
   "header.demoMode": "DEMO",
-
   "home.statusTitle": "CURRENT REGIONAL STATUS",
   "home.requiredAction": "Required Action",
   "home.emergencySOS": "EMERGENCY SOS",
@@ -54,13 +51,11 @@
   "home.hideDetails": "Hide Details ▴",
   "home.criticalWarning": "CRITICAL LANDSLIDE WARNING",
   "home.muteHorn": "MUTE HORN 🔇",
-
   "alerts.title": "Emergency Alerts",
   "alerts.filterAll": "ALL",
   "alerts.filterCritical": "CRITICAL",
   "alerts.filterHigh": "HIGH",
   "alerts.noAlerts": "No active emergency alerts at this time.",
-
   "map.selectDistrict": "SELECT REGIONAL DISTRICT",
   "map.liveGps": "MY LIVE GPS",
   "map.areaMap": "AREA MAP",
@@ -71,7 +66,6 @@
   "map.roadOpen": "OPEN",
   "map.roadBlocked": "BLOCKED",
   "map.roadAtRisk": "AT RISK",
-
   "report.title": "Report Landslide / Hazard",
   "report.subtitle": "Transmits coordinates and incident details to district responders. Works offline.",
   "report.gpsCoords": "GPS Coordinates",
@@ -89,7 +83,6 @@
   "report.submitting": "Transmitting Securely...",
   "report.queueOffline": "Queue for Sync",
   "report.offline": "You're offline — report will sync when connected",
-
   "profile.title": "👤 Citizen Profile & Settings",
   "profile.subtitle": "Emergency contact details used by disaster responders during extraction.",
   "profile.languageLabel": "LANGUAGE",
@@ -109,16 +102,13 @@
   "profile.signInTitle": "📱 Sign In with Mobile Number",
   "profile.signInDesc": "Log in via OTP to sync emergency alerts and persist medical profile.",
   "profile.signInBtn": "Sign In via OTP ›",
-
   "sos.title": "EMERGENCY SOS",
   "sos.broadcastingIn": "Broadcasting your exact GPS coordinates and distress beacon to district command in:",
   "sos.cancel": "CANCEL",
   "sos.triggerNow": "SEND IMMEDIATELY",
   "sos.activeTitle": "DISTRESS BEACON ACTIVE",
   "sos.stop": "STOP",
-
   "lang.selectLanguage": "Select Language",
-
   "helpline.title": "Emergency Helplines",
   "helpline.national": "National Emergency Helpline",
   "helpline.nationalDesc": "Police, Fire, Disaster 24/7",
@@ -128,11 +118,9 @@
   "helpline.stateDesc": "State Emergency Operations Center",
   "helpline.ambulance": "Ambulance & Medical Trauma",
   "helpline.ambulanceDesc": "Urgent medical evacuation",
-
   "route.title": "Safe Evacuation Corridor",
   "route.primaryCorridor": "Primary Corridor",
   "route.shelterTarget": "Designated Safe Relief Center",
-
   "checklist.cardTitle": "FAMILY CHECKLIST",
   "checklist.cardSubtitle": "Prepare your family for emergencies.",
   "checklist.openButton": "Open Family Checklist →",
@@ -153,7 +141,6 @@
   "checklist.safetyPopupTitle": "Stay Safe",
   "checklist.safetyPopupMessage": "Stay Safe. Follow local authority guidelines.",
   "checklist.safetyPopupConfirm": "OK",
-
   "checklist.ls.1": "Keep an emergency bag packed",
   "checklist.ls.2": "Store enough drinking water",
   "checklist.ls.3": "Keep essential medicines ready",
@@ -164,7 +151,6 @@
   "checklist.ls.8": "Watch for new ground cracks",
   "checklist.ls.9": "Stay alert for falling rocks or debris",
   "checklist.ls.10": "Leave the area if an evacuation alert is issued",
-
   "checklist.fl.1": "Keep an emergency bag ready",
   "checklist.fl.2": "Store clean drinking water",
   "checklist.fl.3": "Keep dry food and snacks",
@@ -174,5 +160,12 @@
   "checklist.fl.7": "Keep a torch and extra batteries",
   "checklist.fl.8": "Move valuables to higher places",
   "checklist.fl.9": "Know the nearest safe shelter",
-  "checklist.fl.10": "Never enter or drive through floodwater"
+  "checklist.fl.10": "Never enter or drive through floodwater",
+  "onboarding.selectCityTitle": "Select Your City / Area",
+  "onboarding.selectCitySubtitle": "Choose your current area to get location-specific safety information.",
+  "onboarding.continueToSatark": "Continue to SATARK",
+  "onboarding.otherCity": "Other (Custom Area)",
+  "profile.cityArea": "City / Area",
+  "profile.changeCity": "Change City / Area",
+  "common.demoData": "DEMO DATA"
 }

@@ -15,20 +15,17 @@
   "road.OPEN": "খোলা",
   "road.BLOCKED": "বন্ধ",
   "road.AT_RISK": "ঝুঁকিপূর্ণ",
-
   "nav.home": "বাড়ি",
   "nav.alerts": "সতর্কতা",
   "nav.map": "মানচিত্র",
   "nav.report": "রিপোর্ট",
   "nav.profile": "প্রোফাইল",
-
   "header.title": "SATARK",
   "header.subtitle": "উত্তর-পূর্বাঞ্চল ভূমিধস পূর্ব সতর্কতা ব্যবস্থা",
   "header.statusChecking": "যাচাই করা হচ্ছে...",
   "header.statusSafe": "নিরাপদ",
   "header.liveGps": "লাইভ 🟢",
   "header.demoMode": "ডেমো",
-
   "home.statusTitle": "বর্তমান আঞ্চলিক অবস্থা",
   "home.requiredAction": "প্রয়োজনীয় পদক্ষেপ",
   "home.emergencySOS": "জরুরি এসওএস",
@@ -54,13 +51,11 @@
   "home.hideDetails": "বিস্তারিত লুকান ▴",
   "home.criticalWarning": "মারাত্মক ভূমিধস সতর্কতা",
   "home.muteHorn": "সাইরেন বন্ধ 🔇",
-
   "alerts.title": "জরুরি সতর্কতা",
   "alerts.filterAll": "সব",
   "alerts.filterCritical": "মারাত্মক",
   "alerts.filterHigh": "উচ্চ",
   "alerts.noAlerts": "এই মুহূর্তে কোনো সক্রিয় জরুরি সতর্কতা নেই।",
-
   "map.selectDistrict": "আঞ্চলিক জেলা নির্বাচন করুন",
   "map.liveGps": "আমার লাইভ জিপিএস",
   "map.areaMap": "এলাকার মানচিত্র",
@@ -71,7 +66,6 @@
   "map.roadOpen": "খোলা",
   "map.roadBlocked": "বন্ধ",
   "map.roadAtRisk": "ঝুঁকিপূর্ণ",
-
   "report.title": "ভূমিধস বা বিপদের রিপোর্ট করুন",
   "report.subtitle": "উদ্ধারকারী দলের কাছে সঠিক অবস্থান ও তথ্য পাঠায়। অফলাইনেও কাজ করে।",
   "report.gpsCoords": "জিপিএস স্থানাঙ্ক",
@@ -89,7 +83,6 @@
   "report.submitting": "নিরাপদে পাঠানো হচ্ছে...",
   "report.queueOffline": "অফলাইনে জমা রাখুন",
   "report.offline": "আপনি অফলাইন — সংযোগ এলে রিপোর্ট স্বয়ংক্রিয়ভাবে পাঠানো হবে",
-
   "profile.title": "👤 নাগরিক প্রোফাইল ও সেটিংস",
   "profile.subtitle": "দুর্যোগের সময় উদ্ধারকারীদের ব্যবহারের জন্য জরুরি যোগাযোগের তথ্য।",
   "profile.languageLabel": "ভাষা (LANGUAGE)",
@@ -109,16 +102,13 @@
   "profile.signInTitle": "📱 মোবাইল নম্বর দিয়ে সাইন ইন",
   "profile.signInDesc": "জরুরি সতর্কতা সিঙ্ক করতে ও তথ্য সংরক্ষণে ওটিপি দিয়ে লগইন করুন।",
   "profile.signInBtn": "ওটিপি দিয়ে সাইন ইন ›",
-
   "sos.title": "জরুরি এসওএস",
   "sos.broadcastingIn": "জেলা কমান্ডে আপনার অবস্থান ও জরুরি সংকেত পাঠানো হচ্ছে:",
   "sos.cancel": "বাতিল",
   "sos.triggerNow": "এখনই পাঠান",
   "sos.activeTitle": "বিপদ সংকেত সক্রিয়",
   "sos.stop": "থামুন",
-
   "lang.selectLanguage": "ভাষা নির্বাচন করুন",
-
   "helpline.title": "জরুরি হেল্পলাইন",
   "helpline.national": "জাতীয় জরুরি হেল্পলাইন",
   "helpline.nationalDesc": "পুলিশ, ফায়ার সার্ভিস, দুর্যোগ ২৪/৭",
@@ -128,11 +118,9 @@
   "helpline.stateDesc": "রাজ্য জরুরি পরিচালনা কেন্দ্র",
   "helpline.ambulance": "অ্যাম্বুলেন্স ও জরুরি চিকিৎসা",
   "helpline.ambulanceDesc": "জরুরি চিকিৎসা স্থানান্তর",
-
   "route.title": "নিরাপদ উদ্ধার করিডোর",
   "route.primaryCorridor": "প্রধান রুট",
   "route.shelterTarget": "নির্ধারিত নিরাপদ আশ্রয় কেন্দ্র",
-
   "checklist.cardTitle": "পারিবারিক জরুরি চেকলিস্ট",
   "checklist.cardSubtitle": "জরুরি পরিস্থিতির জন্য আপনার পরিবারকে প্রস্তুত রাখুন।",
   "checklist.openButton": "পারিবারিক চেকলিস্ট খুলুন →",
@@ -153,7 +141,6 @@
   "checklist.safetyPopupTitle": "নিরাপদ থাকুন",
   "checklist.safetyPopupMessage": "নিরাপদ থাকুন। স্থানীয় প্রশাসনের নির্দেশাবলী মেনে চলুন।",
   "checklist.safetyPopupConfirm": "ঠিক আছে",
-
   "checklist.ls.1": "একটি জরুরি ব্যাগ গুছিয়ে রাখুন",
   "checklist.ls.2": "পর্যাপ্ত পানীয় জল মজুত রাখুন",
   "checklist.ls.3": "প্রয়োজনীয় ওষুধ তৈরি রাখুন",
@@ -164,7 +151,6 @@
   "checklist.ls.8": "মাটিতে নতুন ফাটল দেখা দিলে খেয়াল রাখুন",
   "checklist.ls.9": "পাথর বা ধ্বংসাবশেষ পড়ার ব্যাপারে সতর্ক থাকুন",
   "checklist.ls.10": "উদ্ধার বার্তা জারি হলে অবিলম্বে এলাকা ত্যাগ করুন",
-
   "checklist.fl.1": "জরুরি ব্যাগ প্রস্তুত রাখুন",
   "checklist.fl.2": "বিশুদ্ধ পানীয় জল মজুত রাখুন",
   "checklist.fl.3": "শুকনো খাবার সংগ্রহ করে রাখুন",
@@ -174,5 +160,12 @@
   "checklist.fl.7": "টর্চলাইট এবং অতিরিক্ত ব্যাটারি রাখুন",
   "checklist.fl.8": "দামি জিনিসপত্র উঁচু স্থানে তুলে রাখুন",
   "checklist.fl.9": "নিকটস্থ আশ্রয়স্থলের সন্ধান রাখুন",
-  "checklist.fl.10": "বন্যার জলের মধ্যে কখনো যাবেন না বা গাড়ি চালাবেন না"
+  "checklist.fl.10": "বন্যার জলের মধ্যে কখনো যাবেন না বা গাড়ি চালাবেন না",
+  "onboarding.selectCityTitle": "আপনার শহর / এলাকা নির্বাচন করুন",
+  "onboarding.selectCitySubtitle": "স্থান-নির্দিষ্ট সুরক্ষা তথ্য পেতে আপনার বর্তমান এলাকা নির্বাচন করুন।",
+  "onboarding.continueToSatark": "সতর্কে এগিয়ে যান",
+  "onboarding.otherCity": "অন্যান্য (নিজস্ব এলাকা)",
+  "profile.cityArea": "শহর / এলাকা",
+  "profile.changeCity": "শহর / এলাকা পরিবর্তন করুন",
+  "common.demoData": "ডেমো ডেটা"
 }

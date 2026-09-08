@@ -15,20 +15,17 @@
   "road.OPEN": "खुला है",
   "road.BLOCKED": "बंद है",
   "road.AT_RISK": "जोखिम में",
-
   "nav.home": "होम",
   "nav.alerts": "अलर्ट",
   "nav.map": "नक्शा",
   "nav.report": "रिपोर्ट",
   "nav.profile": "प्रोफ़ाइल",
-
   "header.title": "SATARK",
   "header.subtitle": "पूर्वोत्तर भूस्खलन पूर्व चेतावनी प्रणाली",
   "header.statusChecking": "जाँच हो रही है...",
   "header.statusSafe": "सुरक्षित",
   "header.liveGps": "लाइव 🟢",
   "header.demoMode": "डेमो",
-
   "home.statusTitle": "वर्तमान क्षेत्रीय स्थिति",
   "home.requiredAction": "आवश्यक कार्रवाई",
   "home.emergencySOS": "आपातकालीन SOS",
@@ -54,13 +51,11 @@
   "home.hideDetails": "विवरण छुपाएं ▴",
   "home.criticalWarning": "गंभीर भूस्खलन चेतावनी",
   "home.muteHorn": "सायरन बंद 🔇",
-
   "alerts.title": "आपातकालीन अलर्ट",
   "alerts.filterAll": "सभी",
   "alerts.filterCritical": "गंभीर",
   "alerts.filterHigh": "उच्च",
   "alerts.noAlerts": "वर्तमान में कोई आपातकालीन अलर्ट सक्रिय नहीं है।",
-
   "map.selectDistrict": "क्षेत्रीय ज़िला चुनें",
   "map.liveGps": "मेरा लाइव GPS",
   "map.areaMap": "क्षेत्रीय नक्शा",
@@ -71,7 +66,6 @@
   "map.roadOpen": "चालू",
   "map.roadBlocked": "अवरुद्ध",
   "map.roadAtRisk": "जोखिम में",
-
   "report.title": "भूस्खलन / ख़तरे की रिपोर्ट करें",
   "report.subtitle": "स्थान और घटना का विवरण सीधे बचाव दल को भेजता है। ऑफ़लाइन भी काम करता है।",
   "report.gpsCoords": "जीपीएस निर्देशांक",
@@ -89,7 +83,6 @@
   "report.submitting": "सुरक्षित रूप से भेजा जा रहा है...",
   "report.queueOffline": "ऑफ़लाइन कतार में जोड़ें",
   "report.offline": "आप ऑफ़लाइन हैं — नेटवर्क मिलने पर रिपोर्ट स्वतः भेज दी जाएगी",
-
   "profile.title": "👤 नागरिक प्रोफ़ाइल और सेटिंग्स",
   "profile.subtitle": "आपदा के समय बचाव दल द्वारा उपयोग की जाने वाली आपातकालीन संपर्क जानकारी।",
   "profile.languageLabel": "भाषा (LANGUAGE)",
@@ -109,16 +102,13 @@
   "profile.signInTitle": "📱 मोबाइल नंबर से साइन इन करें",
   "profile.signInDesc": "आपातकालीन अलर्ट सिंक करने और प्रोफ़ाइल सुरक्षित रखने के लिए ओटीपी से लॉग इन करें।",
   "profile.signInBtn": "ओटीपी से साइन इन करें ›",
-
   "sos.title": "आपातकालीन SOS",
   "sos.broadcastingIn": "आपकी सटीक जीपीएस लोकेशन और संकट संदेश कमांड सेंटर को भेजा जा रहा है:",
   "sos.cancel": "रद्द करें",
   "sos.triggerNow": "तुरंत भेजें",
   "sos.activeTitle": "संकट बीकन सक्रिय",
   "sos.stop": "रोकें",
-
   "lang.selectLanguage": "भाषा चुनें",
-
   "helpline.title": "आपातकालीन हेल्पलाइन",
   "helpline.national": "राष्ट्रीय आपातकालीन हेल्पलाइन",
   "helpline.nationalDesc": "पुलिस, अग्निशमन, आपदा 24/7",
@@ -128,11 +118,9 @@
   "helpline.stateDesc": "राज्य आपातकालीन संचालन केंद्र",
   "helpline.ambulance": "एम्बुलेंस और आपातकालीन चिकित्सा",
   "helpline.ambulanceDesc": "तत्काल चिकित्सा निकासी",
-
   "route.title": "सुरक्षित निकासी गलियारा",
   "route.primaryCorridor": "प्राथमिक गलियारा",
   "route.shelterTarget": "निर्धारित सुरक्षित राहत केंद्र",
-
   "checklist.cardTitle": "फैमिली चेकलिस्ट",
   "checklist.cardSubtitle": "आपातकाल के लिए अपने परिवार को तैयार रखें।",
   "checklist.openButton": "फैमिली चेकलिस्ट खोलें →",
@@ -153,7 +141,6 @@
   "checklist.safetyPopupTitle": "सुरक्षित रहें",
   "checklist.safetyPopupMessage": "सुरक्षित रहें। स्थानीय प्रशासन के दिशा-निर्देशों का पालन करें।",
   "checklist.safetyPopupConfirm": "ठीक है",
-
   "checklist.ls.1": "एक आपातकालीन बैग तैयार रखें",
   "checklist.ls.2": "पर्याप्त पीने का पानी एकत्र कर रखें",
   "checklist.ls.3": "ज़रूरी दवाइयाँ तैयार रखें",
@@ -164,7 +151,6 @@
   "checklist.ls.8": "ज़मीन में नई दरारों पर नज़र रखें",
   "checklist.ls.9": "गिरते पत्थरों और मलबे से सतर्क रहें",
   "checklist.ls.10": "निकासी की चेतावनी मिलते ही इलाका छोड़ दें",
-
   "checklist.fl.1": "एक आपातकालीन किट तैयार रखें",
   "checklist.fl.2": "साफ़ पीने का पानी सुरक्षित रखें",
   "checklist.fl.3": "सूखा भोजन और नाश्ता तैयार रखें",
@@ -174,5 +160,12 @@
   "checklist.fl.7": "टॉर्च और अतिरिक्त बैटरियाँ रखें",
   "checklist.fl.8": "कीमती सामान को ऊँचे स्थानों पर रखें",
   "checklist.fl.9": "निकटतम सुरक्षित आश्रय स्थल की जानकारी रखें",
-  "checklist.fl.10": "बाढ़ के पानी में कभी न चलें या गाड़ी न चलाएँ"
+  "checklist.fl.10": "बाढ़ के पानी में कभी न चलें या गाड़ी न चलाएँ",
+  "onboarding.selectCityTitle": "अपना शहर / क्षेत्र चुनें",
+  "onboarding.selectCitySubtitle": "स्थान-विशिष्ट सुरक्षा जानकारी प्राप्त करने के लिए अपना वर्तमान क्षेत्र चुनें।",
+  "onboarding.continueToSatark": "सतर्क में आगे बढ़ें",
+  "onboarding.otherCity": "अन्य (कस्टम क्षेत्र)",
+  "profile.cityArea": "शहर / क्षेत्र",
+  "profile.changeCity": "शहर / क्षेत्र बदलें",
+  "common.demoData": "डेमो डेटा"
 }

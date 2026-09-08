@@ -15,20 +15,17 @@
   "road.OPEN": "মুকলি",
   "road.BLOCKED": "বন্ধ",
   "road.AT_RISK": "বিপদত",
-
   "nav.home": "ঘৰ",
   "nav.alerts": "সতৰ্কবাৰ্তা",
   "nav.map": "মেপ",
   "nav.report": "প্ৰতিবেদন",
   "nav.profile": "প্ৰফাইল",
-
   "header.title": "SATARK",
   "header.subtitle": "উত্তৰ-পূব ভূস্খলন পূৰ্ব সতৰ্কীকৰণ ব্যৱস্থা",
   "header.statusChecking": "নিৰীক্ষণ চলি আছে...",
   "header.statusSafe": "নিৰাপদ",
   "header.liveGps": "লাইভ 🟢",
   "header.demoMode": "ডেমো",
-
   "home.statusTitle": "বৰ্তমান আঞ্চলিক স্থিতি",
   "home.requiredAction": "প্ৰয়োজনীয় পদক্ষেপ",
   "home.emergencySOS": "জৰুৰীকালীন SOS",
@@ -54,13 +51,11 @@
   "home.hideDetails": "সবিশেষ লুকুৱাওক ▴",
   "home.criticalWarning": "গুৰুতৰ ভূস্খলন সতৰ্কবাৰ্তা",
   "home.muteHorn": "চাইৰেন বন্ধ কৰক 🔇",
-
   "alerts.title": "জৰুৰীকালীন সতৰ্কবাৰ্তা",
   "alerts.filterAll": "সকলো",
   "alerts.filterCritical": "গুৰুতৰ",
   "alerts.filterHigh": "উচ্চ",
   "alerts.noAlerts": "এই মুহূৰ্তত কোনো সক্ৰিয় জৰুৰী সতৰ্কবাৰ্তা নাই।",
-
   "map.selectDistrict": "জিলা নিৰ্বাচন কৰক",
   "map.liveGps": "মোৰ লাইভ জিপিএছ",
   "map.areaMap": "আঞ্চলিক মেপ",
@@ -71,7 +66,6 @@
   "map.roadOpen": "মুকলি",
   "map.roadBlocked": "বন্ধ",
   "map.roadAtRisk": "বিপদাপন্ন",
-
   "report.title": "ভূস্খলন বা বিপদৰ প্ৰতিবেদন দিয়ক",
   "report.subtitle": "জিলা উদ্ধাৰকাৰীলৈ সঠিক স্থান আৰু ঘটনাৰ বিৱৰণ প্ৰেৰণ কৰে। অফলাইনতো কাম কৰে।",
   "report.gpsCoords": "জিপিএছ স্থানাংক",
@@ -89,7 +83,6 @@
   "report.submitting": "সুৰক্ষিতভাৱে প্ৰেৰণ হৈ আছে...",
   "report.queueOffline": "অফলাইনত সংৰক্ষণ কৰক",
   "report.offline": "আপুনি অফলাইন — সংযোগ হ'লে স্বয়ংক্ৰিয়ভাৱে প্ৰেৰণ হ'ব",
-
   "profile.title": "👤 নাগৰিক প্ৰফাইল আৰু ছেটিংছ",
   "profile.subtitle": "জৰুৰীকালীন উদ্ধাৰৰ সময়ত উদ্ধাৰকাৰীয়ে ব্যৱহাৰ কৰিব পৰা তথ্য।",
   "profile.languageLabel": "ভাষা (LANGUAGE)",
@@ -109,16 +102,13 @@
   "profile.signInTitle": "📱 ম'বাইল নম্বৰেৰে ছাইন ইন কৰক",
   "profile.signInDesc": "জৰুৰী সতৰ্কবাৰ্তা আৰু চিকিৎসা তথ্য সুৰক্ষিত ৰাখিবলৈ অ'টিপিৰে লগ ইন কৰক।",
   "profile.signInBtn": "অ'টিপিৰে ছাইন ইন কৰক ›",
-
   "sos.title": "জৰুৰীকালীন SOS",
   "sos.broadcastingIn": "জিলা কমাণ্ডলৈ আপোনাৰ সঠিক স্থানাংক আৰু জৰুৰী সংকেত প্ৰেৰণ হ'ব:",
   "sos.cancel": "বাতিল কৰক",
   "sos.triggerNow": "এতিয়াই পঠাওক",
   "sos.activeTitle": "বিপদ সংকেত সক্ৰিয়",
   "sos.stop": "বন্ধ কৰক",
-
   "lang.selectLanguage": "ভাষা নিৰ্বাচন কৰক",
-
   "helpline.title": "জৰুৰীকালীন হেল্পলাইন",
   "helpline.national": "ৰাষ্ট্ৰীয় জৰুৰীকালীন হেল্পলাইন",
   "helpline.nationalDesc": "আৰক্ষী, অগ্নিনিৰ্বাপক, দুৰ্যোগ ২৪/৭",
@@ -128,11 +118,9 @@
   "helpline.stateDesc": "ৰাজ্যিক জৰুৰীকালীন অভিযান কেন্দ্ৰ",
   "helpline.ambulance": "এম্বুলেন্স আৰু জৰুৰী চিকিৎসা",
   "helpline.ambulanceDesc": "জৰুৰী চিকিৎসা উদ্ধাৰ",
-
   "route.title": "সুৰক্ষিত উদ্ধাৰ পথ",
   "route.primaryCorridor": "প্ৰাথমিক পথ",
   "route.shelterTarget": "নিৰ্ধাৰিত সুৰক্ষিত আশ্ৰয় শিবিৰ",
-
   "checklist.cardTitle": "পৰিয়ালৰ জৰুৰীকালীন চেকপঞ্জী",
   "checklist.cardSubtitle": "জৰুৰীকালীন পৰিস্থিতিৰ বাবে আপোনাৰ পৰিয়ালক সাজু কৰক।",
   "checklist.openButton": "পৰিয়ালৰ চেকপঞ্জী খোলক →",
@@ -153,7 +141,6 @@
   "checklist.safetyPopupTitle": "সুৰক্ষিত থাকক",
   "checklist.safetyPopupMessage": "সুৰক্ষিত থাকক। স্থানীয় প্ৰশাসনৰ নিৰ্দেশনা মানি চলক।",
   "checklist.safetyPopupConfirm": "ঠিক আছে",
-
   "checklist.ls.1": "এটা জৰুৰীকালীন বেগ সাজু কৰি ৰাখক",
   "checklist.ls.2": "পৰ্যাপ্ত খোৱাপানী সংগ্ৰহ কৰি ৰাখক",
   "checklist.ls.3": "প্ৰয়োজনীয় ঔষধ মজুত ৰাখক",
@@ -164,7 +151,6 @@
   "checklist.ls.8": "মাটিত নতুন ফাট মেলিলে লক্ষ্য ৰাখক",
   "checklist.ls.9": "শিল বা মাটি খহি পৰাৰ প্ৰতি সতৰ্ক থাকক",
   "checklist.ls.10": "প্ৰশাসনে স্থান ত্যাগৰ নিৰ্দেশ দিলে তৎকালীনভাৱে ঠাই এৰক",
-
   "checklist.fl.1": "জৰুৰীকালীন বেগ প্ৰস্তুত ৰাখক",
   "checklist.fl.2": "বিশুদ্ধ খোৱাপানী মজুত ৰাখক",
   "checklist.fl.3": "শুকান খাদ্য আৰু জলপান মজুত ৰাখক",
@@ -174,5 +160,12 @@
   "checklist.fl.7": "টৰ্ছ লাইট আৰু অতিৰিক্ত বেটাৰী ৰাখক",
   "checklist.fl.8": "মূল্যৱান সামগ্ৰী ওখ স্থানত ৰাখক",
   "checklist.fl.9": "নিকটৱৰ্তী সুৰক্ষিত আশ্ৰয় শিবিৰৰ সন্ধান ৰাখক",
-  "checklist.fl.10": "বানপানীত কেতিয়াও খোজ কাঢ়িব বা বাহন চলাব নালাগে"
+  "checklist.fl.10": "বানপানীত কেতিয়াও খোজ কাঢ়িব বা বাহন চলাব নালাগে",
+  "onboarding.selectCityTitle": "আপোনাৰ চহৰ / অঞ্চল বাছক",
+  "onboarding.selectCitySubtitle": "স্থান-নিৰ্দিষ্ট সুৰক্ষা তথ্য পাবলৈ আপোনাৰ বৰ্তমানৰ অঞ্চল বাছক।",
+  "onboarding.continueToSatark": "সতৰ্কলৈ আগবাঢ়ক",
+  "onboarding.otherCity": "অন্যান্য (স্বনিৰ্বাচিত অঞ্চল)",
+  "profile.cityArea": "চহৰ / অঞ্চল",
+  "profile.changeCity": "চহৰ / অঞ্চল সলনি কৰক",
+  "common.demoData": "ডেমো তথ্য"
 }

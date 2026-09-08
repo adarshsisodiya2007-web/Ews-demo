@@ -50,6 +50,14 @@ import { PhotoCapture } from '../report/PhotoCapture';
 import { OfflineRescueMode } from '../emergency/OfflineRescueMode';
 import { OfflineHowItWorksIllustration } from '../emergency/OfflineHowItWorksIllustration';
 import { FamilyChecklist } from './FamilyChecklist';
+import {
+  getCityConfig,
+  getCitizenLocation,
+  getCitizenCustomLocation,
+  setCitizenLocation,
+  CITY_AREA_OPTIONS,
+  CityAreaConfig
+} from '../../services/citizenLocationService';
 import { t, SUPPORTED_LANGUAGES, getLanguageLabel } from '../../i18n';
 import { MapContainer, TileLayer, Circle, Marker, Popup, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -137,6 +145,44 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
   const { coords: userLocation } = useGeolocation();
   const { isPlaying: isSirenPlaying, playCriticalSiren, stopSiren } = useAlertSound();
   const toggleSiren = () => { if (isSirenPlaying) stopSiren(); else playCriticalSiren(); };
+
+  // Selected City / Area state (Driven by Citizen Onboarding / Profile)
+  const [citizenCityId, setCitizenCityId] = useState<string>(() => getCitizenLocation() || 'guwahati');
+  const [citizenCustomLocation, setCitizenCustomLocation] = useState<string | null>(() => getCitizenCustomLocation());
+  const [showCitySheet, setShowCitySheet] = useState<boolean>(false);
+  const [customCityInput, setCustomCityInput] = useState<string>(() => getCitizenCustomLocation() || '');
+
+  const activeCityConfig = getCityConfig(citizenCityId);
+  const activeCityDisplayName = citizenCityId === 'other' && citizenCustomLocation ? citizenCustomLocation : activeCityConfig.displayName;
+  const activeCityShortName = citizenCityId === 'other' && citizenCustomLocation ? citizenCustomLocation : activeCityConfig.name;
+
+  useEffect(() => {
+    const onLocationChange = (e: any) => {
+      const nextCityId = e.detail?.cityId || getCitizenLocation() || 'guwahati';
+      const nextCustom = e.detail?.customName || getCitizenCustomLocation();
+      setCitizenCityId(nextCityId);
+      setCitizenCustomLocation(nextCustom);
+      if (nextCustom) setCustomCityInput(nextCustom);
+    };
+    window.addEventListener('satark-location-change', onLocationChange);
+    window.addEventListener('storage', onLocationChange);
+    return () => {
+      window.removeEventListener('satark-location-change', onLocationChange);
+      window.removeEventListener('storage', onLocationChange);
+    };
+  }, []);
+
+  const handleSelectCity = (cityId: string, customName?: string) => {
+    setCitizenCityId(cityId);
+    if (cityId === 'other') {
+      const custom = (customName !== undefined ? customName : customCityInput || 'Other Area').trim();
+      setCitizenCustomLocation(custom);
+      setCitizenLocation('other', custom);
+    } else {
+      setCitizenLocation(cityId);
+    }
+    setShowCitySheet(false);
+  };
 
   // Active Bottom Tab
   const [activeTab, setActiveTab] = useState<'home' | 'alerts' | 'map' | 'report' | 'profile'>('home');
@@ -290,8 +336,48 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
     let isMounted = true;
     const loadAlerts = () => {
       fetchRecentAlerts()
-        .then(res => { if (isMounted) setAlerts(res); })
-        .catch(() => {});
+        .then(res => {
+          if (isMounted) {
+            const config = getCityConfig(citizenCityId);
+            const demoAlerts: AlertItem[] = config.demoAlerts.map(a => ({
+              id: a.id,
+              regionName: citizenCityId === 'other' && citizenCustomLocation ? citizenCustomLocation : config.displayName,
+              regionId: config.id,
+              severity: a.severity,
+              messageEn: a.messageEn,
+              messageAs: a.messageEn,
+              contributingSummary: a.summary,
+              status: 'ACTIVE',
+              createdAt: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
+              active: true,
+              broadcastLevel: a.severity === 'CRITICAL' ? 'ALL_CHANNELS' : 'SMS_APP',
+              targetAudience: 'CITIZEN'
+            }));
+            const existingIds = new Set(demoAlerts.map(d => d.id));
+            const filteredBackend = (res || []).filter(r => !existingIds.has(r.id));
+            setAlerts([...demoAlerts, ...filteredBackend]);
+          }
+        })
+        .catch(() => {
+          if (isMounted) {
+            const config = getCityConfig(citizenCityId);
+            const demoAlerts: AlertItem[] = config.demoAlerts.map(a => ({
+              id: a.id,
+              regionName: citizenCityId === 'other' && citizenCustomLocation ? citizenCustomLocation : config.displayName,
+              regionId: config.id,
+              severity: a.severity,
+              messageEn: a.messageEn,
+              messageAs: a.messageEn,
+              contributingSummary: a.summary,
+              status: 'ACTIVE',
+              createdAt: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
+              active: true,
+              broadcastLevel: a.severity === 'CRITICAL' ? 'ALL_CHANNELS' : 'SMS_APP',
+              targetAudience: 'CITIZEN'
+            }));
+            setAlerts(demoAlerts);
+          }
+        });
     };
 
     loadAlerts();
@@ -305,7 +391,84 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
       clearInterval(interval);
       unsub();
     };
-  }, []);
+  }, [citizenCityId, citizenCustomLocation]);
+
+  // Sync selected city/area to dashboard state & load location-specific DEMO DATA
+  useEffect(() => {
+    const config = getCityConfig(citizenCityId);
+    const displayName = citizenCityId === 'other' && citizenCustomLocation ? citizenCustomLocation : config.displayName;
+
+    setSelectedZone({
+      name: displayName,
+      district: config.district,
+      lat: config.lat,
+      lon: config.lon,
+      slope: config.slope,
+      state: config.state,
+      elev: config.elev
+    });
+
+    setMapCenter([config.lat, config.lon]);
+    setMapZoom(11);
+    setInvalidateKey(prev => prev + 1);
+
+    // Provide location-specific DEMO DATA for citizen dashboard
+    const demoPayload: RiskAssessmentResponse = {
+      id: `demo-${config.id}`,
+      location: {
+        lat: config.lat,
+        lon: config.lon,
+        slope_deg: config.slope,
+        region_name: displayName
+      },
+      weather: {
+        rain_24h_mm: config.demoWeather.rain_24h_mm,
+        rain_72h_mm: config.demoWeather.rain_72h_mm,
+        soil_moisture: config.demoWeather.soil_moisture,
+        critical_rain_trigger: config.demoWeather.critical_rain_trigger,
+        source: 'DEMO DATA (SATARK Citizen Location)'
+      },
+      assessment: {
+        id: `assessment-demo-${config.id}`,
+        score: config.demoRisk.score,
+        level: config.demoRisk.level,
+        action_protocol: config.demoRisk.action_protocol,
+        feature_breakdown: {
+          norm_slope: config.slope / 45,
+          norm_r24: config.demoWeather.rain_24h_mm / 350,
+          norm_r72: config.demoWeather.rain_72h_mm / 600,
+          norm_moisture: config.demoWeather.soil_moisture / 100
+        }
+      },
+      evacuation_plan: {
+        region: displayName,
+        risk_score: config.demoRisk.score,
+        status: config.evacuationRoute.status === 'BLOCKED' ? 'REROUTED' : 'CLEAR',
+        primary_corridor: config.evacuationRoute.corridor,
+        safe_evacuation_route: config.evacuationRoute.safeRoute,
+        action: config.demoRisk.action_protocol,
+        rerouted: config.evacuationRoute.status === 'BLOCKED',
+        blocked_segments: [],
+        safe_route_geometry: [[config.lat, config.lon]],
+        estimated_evacuation_time_min: config.evacuationRoute.estTimeMin
+      }
+    };
+    setRiskData(demoPayload);
+    setLoadingRisk(false);
+
+    // Populate shelters for this city
+    if (config.nearestShelters && config.nearestShelters.length > 0) {
+      setShelters(config.nearestShelters.map((s, idx) => ({
+        id: `shelter-${config.id}-${idx}`,
+        name: s.name,
+        totalBeds: s.capacity,
+        occupiedBeds: Math.round(s.capacity * 0.42),
+        lat: config.lat + (idx === 0 ? 0.012 : -0.015),
+        lng: config.lon + (idx === 0 ? 0.014 : -0.012),
+        medicalTeam: s.contact
+      })));
+    }
+  }, [citizenCityId, citizenCustomLocation]);
 
   // Nearest zone auto-detect
   useEffect(() => {
@@ -710,6 +873,7 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
       if (showRouteModal) { setShowRouteModal(false); e.preventDefault(); return; }
       if (showContactsSheet) { setShowContactsSheet(false); e.preventDefault(); return; }
       if (showHowItWorksSheet) { setShowHowItWorksSheet(false); e.preventDefault(); return; }
+      if (showCitySheet) { setShowCitySheet(false); e.preventDefault(); return; }
       if (showZoneSheet) { setShowZoneSheet(false); e.preventDefault(); return; }
       if (showLangSheet) { setShowLangSheet(false); e.preventDefault(); return; }
       if (showSignInSheet) { setShowSignInSheet(false); e.preventDefault(); return; }
@@ -741,6 +905,7 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
     showRouteModal,
     showContactsSheet,
     showHowItWorksSheet,
+    showCitySheet,
     showZoneSheet,
     showLangSheet,
     showSignInSheet,
@@ -1052,9 +1217,9 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
           </span>
         </div>
 
-        {/* Center: GPS Zone Pill */}
+        {/* Center: City / Area Pill with DEMO Badge */}
         <button
-          onClick={() => setShowZoneSheet(true)}
+          onClick={() => setShowCitySheet(true)}
           style={{
             background: isLight ? '#f1f5f9' : 'rgba(30, 41, 59, 0.8)',
             border: `1px solid ${borderCol}`,
@@ -1066,15 +1231,26 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
             display: 'flex',
             alignItems: 'center',
             gap: '4px',
-            maxWidth: '140px',
+            maxWidth: '160px',
             whiteSpace: 'nowrap',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             cursor: 'pointer'
           }}
+          title={t('profile.changeCity', lang)}
         >
           <span>📍</span>
-          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{selectedZone.district}</span>
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{activeCityShortName}</span>
+          <span style={{
+            fontSize: '0.58rem',
+            background: '#3b82f6',
+            color: '#ffffff',
+            padding: '1px 4px',
+            borderRadius: '4px',
+            fontWeight: 800,
+            marginLeft: '2px',
+            flexShrink: 0
+          }}>DEMO</span>
           <span>▾</span>
         </button>
 
@@ -1275,9 +1451,23 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
             boxShadow: isLight ? '0 2px 10px rgba(0,0,0,0.04)' : '0 4px 20px rgba(0,0,0,0.4)'
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', color: textMuted }}>
-                {t('home.statusTitle', lang)}
-              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', color: textMuted }}>
+                  {t('home.statusTitle', lang)}
+                </span>
+                <span style={{
+                  fontSize: '0.62rem',
+                  background: isLight ? '#e0f2fe' : 'rgba(56, 189, 248, 0.15)',
+                  color: isLight ? '#0284c7' : '#38bdf8',
+                  border: `1px solid ${isLight ? '#bae6fd' : 'rgba(56, 189, 248, 0.3)'}`,
+                  padding: '1px 5px',
+                  borderRadius: '4px',
+                  fontWeight: 800,
+                  letterSpacing: '0.04em'
+                }}>
+                  {t('common.demoData', lang) || 'DEMO DATA'}
+                </span>
+              </div>
               <span style={{
                 background: riskData?.assessment?.level === 'RED' ? '#ef4444' : riskData?.assessment?.level === 'AMBER' ? '#f59e0b' : '#22c55e',
                 color: '#ffffff',
@@ -1291,7 +1481,7 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
             </div>
 
             <div style={{ fontWeight: 900, fontSize: '1.05rem', color: textPrimary, marginTop: '4px' }}>
-              {selectedZone.name}
+              {activeCityDisplayName}
             </div>
 
             <div style={{ fontSize: '0.78rem', color: textMuted, marginTop: '2px' }}>
@@ -1521,9 +1711,14 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
             padding: '14px'
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-              <span style={{ fontSize: '0.84rem', fontWeight: 800, color: textPrimary }}>
-                🌧️ {t('home.liveTelemetry', lang)}
-              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ fontSize: '0.84rem', fontWeight: 800, color: textPrimary }}>
+                  🌧️ {t('home.liveTelemetry', lang)}
+                </span>
+                <span style={{ fontSize: '0.68rem', color: isLight ? '#0369a1' : '#38bdf8', fontWeight: 700 }}>
+                  ({activeCityConfig.demoWeather.condition} · {activeCityConfig.demoWeather.temp_c}°C)
+                </span>
+              </div>
               <button
                 onClick={() => setActiveTab('map')}
                 style={{
@@ -1554,6 +1749,43 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
               </div>
             </div>
           </div>
+
+          {/* Local Incidents / Reports Card */}
+          {activeCityConfig.demoIncidents && activeCityConfig.demoIncidents.length > 0 && (
+            <div style={{
+              background: bgCard,
+              border: `1px solid ${borderCol}`,
+              borderRadius: '14px',
+              padding: '14px',
+              boxShadow: isLight ? '0 2px 10px rgba(0,0,0,0.04)' : '0 4px 16px rgba(0,0,0,0.3)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '8px'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ fontWeight: 800, fontSize: '0.88rem', color: textPrimary, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span>📋</span>
+                  <span>Local Area Reports ({activeCityConfig.demoIncidents.length})</span>
+                </div>
+                <span style={{ fontSize: '0.62rem', background: '#3b82f6', color: '#fff', padding: '1px 5px', borderRadius: '4px', fontWeight: 800 }}>DEMO DATA</span>
+              </div>
+              {activeCityConfig.demoIncidents.map(inc => (
+                <div key={inc.id} style={{
+                  background: isLight ? '#f8fafc' : '#0b1329',
+                  border: `1px solid ${borderCol}`,
+                  borderRadius: '10px',
+                  padding: '9px 11px',
+                  fontSize: '0.76rem'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px' }}>
+                    <span style={{ fontWeight: 800, color: '#f59e0b' }}>{inc.category.replace('_', ' ')}</span>
+                    <span style={{ fontSize: '0.68rem', color: textMuted }}>{inc.timeAgo} · {inc.status}</span>
+                  </div>
+                  <div style={{ color: textPrimary }}>{inc.description}</div>
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* ── FAMILY CHECKLIST CARD ── */}
           <div style={{
@@ -2506,6 +2738,48 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
                 }}
               >
                 {t('profile.changeLanguage', lang)} ›
+              </button>
+            </div>
+
+            {/* City / Area Selection Card */}
+            <div style={{
+              background: isLight ? '#f8fafc' : '#0b1329',
+              border: `1px solid ${borderCol}`,
+              borderRadius: '12px',
+              padding: '12px 14px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <div>
+                <div style={{ fontSize: '0.72rem', fontWeight: 800, color: textMuted, letterSpacing: '0.05em' }}>
+                  {t('profile.cityArea', lang)}
+                </div>
+                <div style={{ fontSize: '0.88rem', fontWeight: 800, color: textPrimary, marginTop: '2px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span>📍</span>
+                  <span>{activeCityDisplayName}</span>
+                  <span style={{ fontSize: '0.62rem', background: '#3b82f6', color: '#ffffff', padding: '1px 5px', borderRadius: '4px', fontWeight: 800 }}>DEMO</span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowCitySheet(true)}
+                style={{
+                  background: isLight ? '#eff6ff' : '#1e293b',
+                  border: `1px solid ${isLight ? '#bfdbfe' : '#334155'}`,
+                  color: '#2563eb',
+                  borderRadius: '8px',
+                  padding: '7px 12px',
+                  fontSize: '0.78rem',
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                {t('profile.changeCity', lang)} ›
               </button>
             </div>
 
