@@ -24,6 +24,7 @@ import {
   CanonicalArea
 } from '../services/sharedRiskState';
 import { RiskAssessmentResponse } from '../types';
+import { SatarkChatbot } from '../components/chatbot/SatarkChatbot';
 
 export const CitizenPortal: React.FC = () => {
   const navigate = useNavigate();
@@ -35,7 +36,7 @@ export const CitizenPortal: React.FC = () => {
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [loading, setLoading] = useState<boolean>(true);
   const [data, setData] = useState<RiskAssessmentResponse | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | '3d_terrain' | 'shelters' | 'offline_sos'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'ai_assistant' | '3d_terrain' | 'shelters' | 'offline_sos'>('overview');
 
   const [profileMenuOpen, setProfileMenuOpen] = useState<boolean>(false);
   const [citizenProfile, setCitizenProfile] = useState(() => getCachedCitizenProfile());
@@ -635,6 +636,7 @@ export const CitizenPortal: React.FC = () => {
         <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', borderBottom: `1px solid ${brd}`, overflowX: 'auto', paddingBottom: '2px' }}>
           {[
             { id: 'overview', label: t.tabOverview },
+            { id: 'ai_assistant', label: '🛰️ SATARK AI Assistant' },
             { id: '3d_terrain', label: t.tab3d },
             { id: 'shelters', label: t.tabShelters },
             { id: 'offline_sos', label: t.tabSos }
@@ -835,6 +837,13 @@ export const CitizenPortal: React.FC = () => {
               </ul>
             </div>
           </>
+        )}
+
+        {/* Tab 1.5: SATARK AI Safety Assistant */}
+        {activeTab === 'ai_assistant' && (
+          <div style={{ marginBottom: '20px' }}>
+            <SatarkChatbot mode="embedded" roleContext="citizen" />
+          </div>
         )}
 
         {/* Tab 2: 3D Mountain & Runoff Simulator */}

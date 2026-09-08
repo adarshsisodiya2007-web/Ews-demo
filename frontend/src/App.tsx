@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ProtectedRoute } from './components/layout/ProtectedRoute';
 import { DemoBanner } from './components/layout/DemoBanner';
@@ -18,6 +18,7 @@ import { isCapacitorAndroid } from './utils/platform';
 import { SatarkMobileApp } from './components/mobile/SatarkMobileApp';
 import { ThemeProvider } from './context/ThemeContext';
 import { getValidSession, clearAuthSession } from './utils/authSession';
+import { SatarkChatbot } from './components/chatbot/SatarkChatbot';
 
 /**
  * Canonical Root Route:
@@ -61,6 +62,9 @@ function AppContent({ permsDone, onPermComplete }: { permsDone: boolean; onPermC
       <>
         {!permsDone && <PermissionGate onComplete={onPermComplete} />}
         <DemoBanner />
+
+      {/* SATARK AI Chatbot — floats on all pages */}
+      <SatarkChatbot />
         <SatarkMobileApp />
       </>
     );
@@ -71,8 +75,11 @@ function AppContent({ permsDone, onPermComplete }: { permsDone: boolean; onPermC
       {/* Show permission gate on first visit */}
       {!permsDone && <PermissionGate onComplete={onPermComplete} />}
 
-      {/* Global demo mode banner — shows on any page when backend is offline */}
+      {/* Global demo mode banner â€” shows on any page when backend is offline */}
       <DemoBanner />
+
+      {/* SATARK AI Chatbot — floats on all pages */}
+      <SatarkChatbot />
 
       <Routes>
         <Route path="/"              element={<RootRoute />} />
@@ -127,3 +134,5 @@ function App() {
 }
 
 export default App;
+
+

@@ -24,6 +24,7 @@ import {
 } from '../services/offlineStore';
 import { BleRescueScanner } from '../components/responder/BleRescueScanner';
 import { AIPriorityPanel } from '../components/AIPriorityPanel';
+import { SatarkChatbot } from '../components/chatbot/SatarkChatbot';
 
 export const ResponderPortal: React.FC = () => {
   const navigate = useNavigate();
@@ -32,7 +33,7 @@ export const ResponderPortal: React.FC = () => {
 
   const [officerRole, setOfficerRole] = useState<string>('FIELD_OFFICER');
   const [officerUser, setOfficerUser] = useState<string>('field_officer');
-  const [activeTab, setActiveTab] = useState<'ai_priority' | 'ble_scanner' | 'roads' | 'field_report' | 'incidents' | 'sync_queue'>('ai_priority');
+  const [activeTab, setActiveTab] = useState<'ai_priority' | 'tactical_ai' | 'ble_scanner' | 'roads' | 'field_report' | 'incidents' | 'sync_queue'>('ai_priority');
 
   const [regions, setRegions] = useState<RegionRisk[]>([]);
   const [reports, setReports] = useState<CitizenReport[]>([]);
@@ -329,6 +330,7 @@ export const ResponderPortal: React.FC = () => {
         <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', borderBottom: '1px solid #1e293b', overflowX: 'auto', paddingBottom: '4px' }}>
           {[
             { id: 'ai_priority', label: '🤖 AI Response Priority' },
+            { id: 'tactical_ai', label: '🎖️ Tactical AI Assistant' },
             { id: 'ble_scanner', label: '🚑 BLE Rescue Scanner & Detections' },
             { id: 'roads', label: '🛣️ Road Corridor Status' },
             { id: 'field_report', label: '📸 Quick Field Incident Report' },
@@ -368,6 +370,13 @@ export const ResponderPortal: React.FC = () => {
             }}
             onUpdateRoadStatus={(regId, status) => handleUpdateRoadStatus(status, regId)}
           />
+        )}
+
+        {/* TAB 0.5: TACTICAL COMMANDER AI */}
+        {activeTab === 'tactical_ai' && (
+          <div style={{ marginBottom: '20px' }}>
+            <SatarkChatbot mode="embedded" roleContext="responder" />
+          </div>
         )}
 
         {/* TAB 1: BLE RESCUE SCANNER & DETECTIONS */}
