@@ -3,6 +3,7 @@ import { SatarkCitizenApp } from './SatarkCitizenApp';
 import { SatarkOfficerApp } from './SatarkOfficerApp';
 import { SatarkSplashScreen } from './SatarkSplashScreen';
 import { SatarkAndroidLogin } from './SatarkAndroidLogin';
+import { SatarkCitizenOnboarding } from './SatarkCitizenOnboarding';
 import { login } from '../../services/api';
 import { sendOfficerOtp, verifyOfficerOtp } from '../../services/citizenAuthService';
 import { getValidSession, clearAuthSession } from '../../utils/authSession';
@@ -38,6 +39,15 @@ export const SatarkMobileApp: React.FC = () => {
     return 'citizen';
   });
 
+  const checkUserOnboarded = () => {
+    const user = localStorage.getItem('ews_user') || '';
+    if (!user) return false;
+    return localStorage.getItem(`citizenOnboardingCompleted_${user}`) === 'true' ||
+           localStorage.getItem('citizenOnboardingCompleted') === 'true';
+  };
+
+  const [citizenOnboarded, setCitizenOnboarded] = useState<boolean>(checkUserOnboarded);
+
   // Modal for Officer Login from within Citizen mode
   const [showOfficerLoginModal, setShowOfficerLoginModal] = useState<boolean>(false);
   const [officerAuthTab, setOfficerAuthTab] = useState<'otp' | 'password'>('otp');
@@ -66,6 +76,7 @@ export const SatarkMobileApp: React.FC = () => {
         setIsAuthenticated(false);
         setUserRole('CITIZEN');
         setActiveMode('citizen');
+        setCitizenOnboarded(false);
         return;
       }
       setIsAuthenticated(true);
@@ -74,6 +85,7 @@ export const SatarkMobileApp: React.FC = () => {
         setActiveMode('officer');
       } else {
         setActiveMode('citizen');
+        setCitizenOnboarded(checkUserOnboarded());
       }
     };
 
@@ -170,6 +182,7 @@ export const SatarkMobileApp: React.FC = () => {
               setActiveMode('officer');
             } else {
               setActiveMode('citizen');
+              setCitizenOnboarded(checkUserOnboarded());
             }
           }}
         />
@@ -178,8 +191,18 @@ export const SatarkMobileApp: React.FC = () => {
         <SatarkOfficerApp
           onSwitchToCitizen={() => setActiveMode('citizen')}
         />
+      ) : !citizenOnboarded ? (
+        /* 4. Citizen Post-Login Onboarding (Basic Details -> Northeast Language Selection) */
+        <SatarkCitizenOnboarding
+          onComplete={() => setCitizenOnboarded(true)}
+          onBackToLogin={() => {
+            clearAuthSession();
+            setIsAuthenticated(false);
+            setCitizenOnboarded(false);
+          }}
+        />
       ) : (
-        /* 4. Original Authenticated Citizen Mobile UI */
+        /* 5. Original Authenticated Citizen Mobile UI */
         <SatarkCitizenApp
           onSwitchToOfficer={() => {
             const token = localStorage.getItem('ews_token');

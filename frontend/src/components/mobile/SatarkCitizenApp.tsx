@@ -163,8 +163,8 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
     };
   }, []);
 
-  const [lang, setLang] = useState<'en' | 'hi' | 'as'>(() => {
-    return (localStorage.getItem('ews_lang') as 'en' | 'hi' | 'as') || 'en';
+  const [lang, setLang] = useState<string>(() => {
+    return localStorage.getItem('ews_lang') || 'en';
   });
   const { speakAlert, isSpeaking: isVoiceSpeaking, stopSpeaking: stopVoiceSpeaking } = useVoiceAssistant(lang);
   const [showLangSheet, setShowLangSheet] = useState<boolean>(false);
@@ -2944,17 +2944,23 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
               </button>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '360px', overflowY: 'auto', paddingRight: '4px' }}>
               {[
-                { code: 'en' as const, label: 'English (Default)' },
-                { code: 'hi' as const, label: 'हिंदी (Hindi)' },
-                { code: 'as' as const, label: 'অসমীয়া (Assamese)' }
+                { code: 'en', label: 'English (Default)' },
+                { code: 'hi', label: 'हिंदी (Hindi)' },
+                { code: 'as', label: 'অসমীয়া (Assamese - Assam)' },
+                { code: 'bn', label: 'বাংলা (Bengali - Tripura / Assam)' },
+                { code: 'mni', label: 'মৈতৈলোন্ (Meitei - Manipur)' },
+                { code: 'miz', label: 'Mizo ṭawng (Mizo - Mizoram)' },
+                { code: 'kha', label: 'Ka Ktien Khasi (Khasi - Meghalaya)' },
+                { code: 'gar', label: 'A·chik (Garo - Meghalaya)' }
               ].map(item => (
                 <button
                   key={item.code}
                   onClick={() => {
                     setLang(item.code);
                     localStorage.setItem('ews_lang', item.code);
+                    window.dispatchEvent(new CustomEvent('satark-language-change', { detail: item.code }));
                     setShowLangSheet(false);
                   }}
                   style={{
@@ -2966,10 +2972,14 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
                     fontSize: '0.88rem',
                     fontWeight: 700,
                     cursor: 'pointer',
-                    textAlign: 'left'
+                    textAlign: 'left',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
                   }}
                 >
-                  {item.label}
+                  <span>{item.label}</span>
+                  {lang === item.code && <span style={{ fontSize: '0.76rem', background: '#1d4ed8', padding: '2px 8px', borderRadius: '10px' }}>✓</span>}
                 </button>
               ))}
             </div>

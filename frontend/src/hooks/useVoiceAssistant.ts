@@ -6,7 +6,7 @@
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
 
-export const useVoiceAssistant = (lang: 'en' | 'hi' | 'as' = 'en') => {
+export const useVoiceAssistant = (lang: string = 'en') => {
   const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
   const [isListening, setIsListening] = useState<boolean>(false);
   const [transcript, setTranscript] = useState<string>('');
