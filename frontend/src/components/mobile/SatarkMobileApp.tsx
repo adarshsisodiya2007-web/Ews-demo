@@ -41,9 +41,11 @@ export const SatarkMobileApp: React.FC = () => {
 
   const checkUserOnboarded = () => {
     const user = localStorage.getItem('ews_user') || '';
-    if (!user) return false;
-    return localStorage.getItem(`citizenOnboardingCompleted_${user}`) === 'true' ||
-           localStorage.getItem('citizenOnboardingCompleted') === 'true';
+    const phone = localStorage.getItem('satark_citizen_phone') || '';
+    if (!user && !phone) return false;
+    if (user && localStorage.getItem(`citizenOnboardingCompleted_${user}`) === 'true') return true;
+    if (phone && localStorage.getItem(`citizenOnboardingCompleted_${phone}`) === 'true') return true;
+    return false;
   };
 
   const [citizenOnboarded, setCitizenOnboarded] = useState<boolean>(checkUserOnboarded);

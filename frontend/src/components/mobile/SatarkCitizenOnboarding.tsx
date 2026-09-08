@@ -184,9 +184,13 @@ export const SatarkCitizenOnboarding: React.FC<SatarkCitizenOnboardingProps> = (
       localStorage.setItem('ews_lang', selectedLang);
 
       // 2. Mark onboarding completed
-      const currentUser = localStorage.getItem('ews_user') || 'citizen';
+      const currentUser = localStorage.getItem('ews_user') || localStorage.getItem('satark_citizen_phone') || 'citizen';
       localStorage.setItem('citizenOnboardingCompleted', 'true');
       localStorage.setItem(`citizenOnboardingCompleted_${currentUser}`, 'true');
+      const citizenPhone = localStorage.getItem('satark_citizen_phone');
+      if (citizenPhone && citizenPhone !== currentUser) {
+        localStorage.setItem(`citizenOnboardingCompleted_${citizenPhone}`, 'true');
+      }
 
       // 3. Sync language to backend profile if possible
       try {

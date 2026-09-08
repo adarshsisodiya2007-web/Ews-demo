@@ -98,6 +98,7 @@ export function clearAuthSession(): void {
     localStorage.removeItem('ews_user');
     localStorage.removeItem('satark_citizen_phone');
     localStorage.removeItem('satark_citizen_profile');
+    localStorage.removeItem('citizenOnboardingCompleted');
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('satark-auth-changed', { detail: null }));
     }
