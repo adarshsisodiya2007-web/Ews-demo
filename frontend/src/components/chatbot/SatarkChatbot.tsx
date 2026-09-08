@@ -1,14 +1,11 @@
 /**
- * SATARK AI Chatbot — Powered by Groq (groq/compound-mini)
+ * SATARK AI Chatbot — Server-proxied Groq AI Assistant
  * Text + Speech In/Out | Disaster EWS Assistant | SIH 2026
  * Supports: Floating widget & Embedded in-page modes for Citizen & Responder
  */
 import React, { useState, useEffect, useRef, useCallback } from "react";
-
-const envKey = ((import.meta as any).env?.VITE_GROQ_API_KEY || (import.meta as any).env?.VITE_GROQ_KEY) as string | undefined;
-const FALLBACK_KEY = atob("Z3NrX05MdWhZNms5Zko0b2Z0b202OFFXR2R5YnJGWTBnNXJSZWJhc1d6NkU5VFNFR0huWmpJVQ==");
-const GROQ_API_KEY = envKey || FALLBACK_KEY;
-const GROQ_MODEL = "groq/compound-mini";
+import { isCapacitorAndroid } from "../../utils/platform";
+import { resolveApiBaseUrl } from "../../services/api";
 
 const CITIZEN_SYSTEM_PROMPT = `You are SATARK Citizen AI Assistant — the life-safety companion for India's AI-Driven Landslide Early Warning System (EWS) for SIH 2026.
 Your focus:
@@ -199,14 +196,15 @@ export const SatarkChatbot: React.FC<SatarkChatbotProps> = ({
           content: m.content,
         }));
 
-        const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        const apiBase = resolveApiBaseUrl();
+        const endpoint = `${apiBase}/api/v1/chatbot/chat`;
+
+        const res = await fetch(endpoint, {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${GROQ_API_KEY}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            model: GROQ_MODEL,
             messages: [
               { role: "system", content: currentSystemPrompt },
               ...history,
@@ -217,10 +215,24 @@ export const SatarkChatbot: React.FC<SatarkChatbotProps> = ({
           }),
         });
 
+        if (!res.ok) {
+          const errData = await res.json().catch(() => null);
+          const errMsg =
+            errData?.error ||
+            errData?.message ||
+            `AI server error (HTTP ${res.status})`;
+          throw new Error(errMsg);
+        }
+
         const data = await res.json();
         const reply =
           data?.choices?.[0]?.message?.content ||
-          "Maafi chahta hoon, abhi jawab dene me dikkat aa rahi hai. Kripya dobara koshish karein.";
+          data?.reply ||
+          data?.content;
+
+        if (!reply) {
+          throw new Error("No response choices returned by Groq AI.");
+        }
 
         const aiMsg: ChatMessage = {
           id: (Date.now() + 1).toString(),
@@ -231,14 +243,17 @@ export const SatarkChatbot: React.FC<SatarkChatbotProps> = ({
         setMsgs((p) => [...p, aiMsg]);
         if (ttsOn) speak(reply);
         if (!open && !isEmbedded) setUnread((p) => p + 1);
-      } catch {
+      } catch (err: any) {
+        const displayErr =
+          err?.message ||
+          "Network issue detect hua hai. Agar aap emergency mein hain toh Citizen Portal se SOS Beacon trigger karein ya National Helpline 1070 / 112 par call karein.";
+
         setMsgs((p) => [
           ...p,
           {
             id: (Date.now() + 1).toString(),
             role: "assistant",
-            content:
-              "⚠️ Network issue detect hua hai. Agar aap emergency mein hain toh Citizen Portal se SOS Beacon trigger karein ya National Helpline 1070 / 112 par call karein.",
+            content: `⚠️ ${displayErr}`,
             time: new Date(),
           },
         ]);
@@ -312,7 +327,7 @@ export const SatarkChatbot: React.FC<SatarkChatbotProps> = ({
           className={className}
           style={{
             position: "fixed",
-            bottom: 24,
+            bottom: isCapacitorAndroid() ? "calc(76px + env(safe-area-inset-bottom, 0px))" : 24,
             right: 24,
             zIndex: 9999,
           }}

@@ -141,6 +141,12 @@ app:
       api-key: ${OPEN_TOPOGRAPHY_API_KEY:${OPENTOPOGRAPHY_API_KEY:619ea4b33002a569b3ac0b851e8b51d2}}
       base-url: https://portal.opentopography.org/API/v1/elevation
 
+  # Groq AI Disaster Chatbot Assistant
+  groq:
+    api-key: ${GROQ_API_KEY:}
+    model: ${GROQ_MODEL:llama-3.3-70b-versatile}
+    endpoint: ${GROQ_ENDPOINT:https://api.groq.com/openai/v1/chat/completions}
+
   # CORS — allow frontend dev and Vercel production
   cors:
     allowed-origins:
