@@ -3,6 +3,7 @@ package com.ews.ner.api;
 import com.ews.ner.api.dto.*;
 import com.ews.ner.config.JwtUtil;
 import com.ews.ner.domain.user.*;
+import com.ews.ner.infra.sms.SmsGatewayService;
 import com.ews.ner.service.OtpService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -21,9 +22,15 @@ import java.util.Optional;
 @Slf4j
 public class CitizenAuthController {
     private final OtpService otpService;
+    private final SmsGatewayService smsGateway;
     private final AppUserRepository userRepo;
     private final CitizenProfileRepository profileRepo;
     private final JwtUtil jwtUtil;
+
+    @GetMapping({"/sms-status", "/citizen/sms-status"})
+    public ResponseEntity<?> getSmsStatus() {
+        return ResponseEntity.ok(smsGateway.getSafeStatus());
+    }
 
     @PostMapping("/citizen/send-otp")
     public ResponseEntity<?> sendOtp(@Valid @RequestBody SendOtpRequest req) {
