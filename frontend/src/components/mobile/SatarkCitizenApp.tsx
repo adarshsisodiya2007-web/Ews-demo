@@ -49,6 +49,7 @@ import {
 import { PhotoCapture } from '../report/PhotoCapture';
 import { OfflineRescueMode } from '../emergency/OfflineRescueMode';
 import { OfflineHowItWorksIllustration } from '../emergency/OfflineHowItWorksIllustration';
+import { t, SUPPORTED_LANGUAGES, getLanguageLabel } from '../../i18n';
 import { MapContainer, TileLayer, Circle, Marker, Popup, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -166,6 +167,20 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
   const [lang, setLang] = useState<string>(() => {
     return localStorage.getItem('ews_lang') || 'en';
   });
+
+  useEffect(() => {
+    const onLangChange = (e: any) => {
+      const next = e.detail || localStorage.getItem('ews_lang') || 'en';
+      setLang(next);
+    };
+    window.addEventListener('satark-language-change', onLangChange);
+    window.addEventListener('storage', onLangChange);
+    return () => {
+      window.removeEventListener('satark-language-change', onLangChange);
+      window.removeEventListener('storage', onLangChange);
+    };
+  }, []);
+
   const { speakAlert, isSpeaking: isVoiceSpeaking, stopSpeaking: stopVoiceSpeaking } = useVoiceAssistant(lang);
   const [showLangSheet, setShowLangSheet] = useState<boolean>(false);
 
@@ -1029,23 +1044,6 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
             {isDemoMode ? `DEMO ${demoScenarioIdx + 1}/3 ↻` : 'LIVE 🟢'}
           </button>
 
-          {/* Language selector */}
-          <button
-            onClick={() => setShowLangSheet(true)}
-            style={{
-              background: isLight ? '#f1f5f9' : '#1e293b',
-              border: `1px solid ${borderCol}`,
-              borderRadius: '6px',
-              padding: '4px 8px',
-              fontSize: '0.72rem',
-              fontWeight: 800,
-              color: textPrimary,
-              cursor: 'pointer'
-            }}
-          >
-            {lang.toUpperCase()} ▾
-          </button>
-
           {/* Siren */}
           <button
             onClick={toggleSiren}
@@ -1173,7 +1171,7 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
                 <span style={{ fontSize: '1.4rem', lineHeight: 1 }}>⚠️</span>
                 <div>
                   <div style={{ fontWeight: 800, fontSize: '0.86rem', color: isLight ? '#991b1b' : '#fca5a5' }}>
-                    CRITICAL LANDSLIDE WARNING · {selectedZone.name}
+                    {t('home.criticalWarning', lang)} · {selectedZone.name}
                   </div>
                   <div style={{ fontSize: '0.75rem', color: isLight ? '#7f1d1d' : '#fecaca', marginTop: '2px' }}>
                     {riskData.assessment.action_protocol}
@@ -1197,7 +1195,7 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
                     whiteSpace: 'nowrap'
                   }}
                 >
-                  MUTE HORN 🔇
+                  {t('home.muteHorn', lang)}
                 </button>
               )}
             </div>
@@ -1213,7 +1211,7 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', color: textMuted }}>
-                CURRENT REGIONAL STATUS
+                {t('home.statusTitle', lang)}
               </span>
               <span style={{
                 background: riskData?.assessment?.level === 'RED' ? '#ef4444' : riskData?.assessment?.level === 'AMBER' ? '#f59e0b' : '#22c55e',
@@ -1223,7 +1221,7 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
                 fontSize: '0.7rem',
                 fontWeight: 900
               }}>
-                {loadingRisk ? 'CHECKING...' : riskData?.assessment?.level || 'MONITORED'}
+                {loadingRisk ? t('header.statusChecking', lang) : riskData?.assessment?.level || t('header.statusSafe', lang)}
               </span>
             </div>
 
@@ -1232,7 +1230,7 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
             </div>
 
             <div style={{ fontSize: '0.78rem', color: textMuted, marginTop: '2px' }}>
-              Required Action: <strong style={{ color: textPrimary }}>{riskData?.assessment?.action_protocol || 'Maintain standard vigilance.'}</strong>
+              {t('home.requiredAction', lang)}: <strong style={{ color: textPrimary }}>{riskData?.assessment?.action_protocol || 'Maintain standard vigilance.'}</strong>
             </div>
 
             {/* Expandable Details */}
@@ -1284,7 +1282,7 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
                 }}
               >
                 <span>{isVoiceSpeaking ? '⏹️' : '🗣️'}</span>
-                <span>{isVoiceSpeaking ? 'Stop Spoken Advisory' : 'Listen Spoken Advisory'}</span>
+                <span>{isVoiceSpeaking ? t('home.stopAudio', lang) : t('home.listenAudio', lang)}</span>
               </button>
 
               <button
@@ -1300,7 +1298,7 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
                   padding: 0
                 }}
               >
-                {expandedDetails ? 'Hide Details ▴' : 'Telemetry Details ›'}
+                {expandedDetails ? t('home.hideDetails', lang) : t('home.telemetryDetails', lang)}
               </button>
             </div>
           </div>
@@ -1322,8 +1320,8 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
               }}
             >
               <div style={{ fontSize: '1.6rem' }}>🚨</div>
-              <div style={{ fontWeight: 900, fontSize: '0.95rem', marginTop: '4px' }}>EMERGENCY SOS</div>
-              <div style={{ fontSize: '0.68rem', opacity: 0.9 }}>One-tap distress beacon &amp; GPS</div>
+              <div style={{ fontWeight: 900, fontSize: '0.95rem', marginTop: '4px' }}>{t('home.emergencySOS', lang)}</div>
+              <div style={{ fontSize: '0.68rem', opacity: 0.9 }}>{t('home.sosSubtitle', lang)}</div>
             </button>
 
             {/* 2. Report Issue */}
@@ -1340,8 +1338,8 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
               }}
             >
               <div style={{ fontSize: '1.6rem' }}>📸</div>
-              <div style={{ fontWeight: 800, fontSize: '0.95rem', marginTop: '4px' }}>Report Hazard</div>
-              <div style={{ fontSize: '0.68rem', color: textMuted }}>Camera &amp; offline queue</div>
+              <div style={{ fontWeight: 800, fontSize: '0.95rem', marginTop: '4px' }}>{t('home.reportHazard', lang)}</div>
+              <div style={{ fontSize: '0.68rem', color: textMuted }}>{t('home.reportSubtitle', lang)}</div>
             </button>
 
             {/* 3. Safe Route */}
@@ -1358,8 +1356,8 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
               }}
             >
               <div style={{ fontSize: '1.6rem' }}>🗺️</div>
-              <div style={{ fontWeight: 800, fontSize: '0.95rem', marginTop: '4px' }}>Safe Route</div>
-              <div style={{ fontSize: '0.68rem', color: textMuted }}>Evacuation bypass corridor</div>
+              <div style={{ fontWeight: 800, fontSize: '0.95rem', marginTop: '4px' }}>{t('home.safeRoute', lang)}</div>
+              <div style={{ fontSize: '0.68rem', color: textMuted }}>{t('home.routeSubtitle', lang)}</div>
             </button>
 
             {/* 4. Emergency Contacts */}
@@ -1376,8 +1374,8 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
               }}
             >
               <div style={{ fontSize: '1.6rem' }}>📞</div>
-              <div style={{ fontWeight: 800, fontSize: '0.95rem', marginTop: '4px' }}>Helplines (112)</div>
-              <div style={{ fontSize: '0.68rem', color: textMuted }}>Direct call responders</div>
+              <div style={{ fontWeight: 800, fontSize: '0.95rem', marginTop: '4px' }}>{t('home.helplines', lang)}</div>
+              <div style={{ fontSize: '0.68rem', color: textMuted }}>{t('home.helplinesSubtitle', lang)}</div>
             </button>
           </div>
 
@@ -1393,7 +1391,7 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ fontWeight: 800, fontSize: '0.92rem', color: isLight ? '#166534' : '#4ade80', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span>📴</span> Offline Rescue Mode
+                <span>📴</span> {t('home.offlineRescue', lang)}
               </div>
               <span style={{
                 background: isOnline ? (isLight ? '#dcfce7' : 'rgba(34,197,94,0.2)') : (isLight ? '#fef3c7' : 'rgba(245,158,11,0.2)'),
@@ -1409,7 +1407,7 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
             </div>
 
             <p style={{ fontSize: '0.75rem', color: textMuted, margin: 0, lineHeight: 1.4 }}>
-              Zero-internet emergency guidance, injury first aid, trapped protocols, distress beacons, and cached offline maps.
+              {t('home.offlineSubtitle', lang)}
             </p>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
@@ -1425,7 +1423,7 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
                   padding: 0
                 }}
               >
-                How it Works ›
+                {t('home.howItWorks', lang)}
               </button>
 
               {/* CRITICAL: RESTORES ALL 6 RESCUE TOOLS */}
@@ -1445,7 +1443,7 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
                   gap: '4px'
                 }}
               >
-                Open Rescue Tools (6) ›
+                {t('home.openRescueTools', lang)}
               </button>
             </div>
           </div>
@@ -1459,7 +1457,7 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
               <span style={{ fontSize: '0.84rem', fontWeight: 800, color: textPrimary }}>
-                🌧️ Live Telemetry &amp; Terrain
+                🌧️ {t('home.liveTelemetry', lang)}
               </span>
               <button
                 onClick={() => setActiveTab('map')}
@@ -1472,19 +1470,19 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
                   cursor: 'pointer'
                 }}
               >
-                View Map ›
+                {t('home.viewMap', lang)}
               </button>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
               <div style={{ background: isLight ? '#f1f5f9' : '#1e293b', padding: '10px', borderRadius: '8px' }}>
-                <div style={{ fontSize: '0.68rem', color: textMuted }}>24h Rain Accumulation</div>
+                <div style={{ fontSize: '0.68rem', color: textMuted }}>{t('home.rainAccumulation', lang)}</div>
                 <div style={{ fontSize: '1.05rem', fontWeight: 900, color: textPrimary }}>
                   {riskData?.weather?.rain_24h_mm ?? 0} mm
                 </div>
               </div>
               <div style={{ background: isLight ? '#f1f5f9' : '#1e293b', padding: '10px', borderRadius: '8px' }}>
-                <div style={{ fontSize: '0.68rem', color: textMuted }}>Soil Moisture Saturation</div>
+                <div style={{ fontSize: '0.68rem', color: textMuted }}>{t('home.soilSaturation', lang)}</div>
                 <div style={{ fontSize: '1.05rem', fontWeight: 900, color: textPrimary }}>
                   {riskData?.weather?.soil_moisture ?? 0}%
                 </div>
@@ -1499,7 +1497,7 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
         <div style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 900, color: textPrimary }}>
-              🚨 Emergency Alerts ({alerts.length})
+              🚨 {t('alerts.title', lang)} ({alerts.length})
             </h3>
             {/* Filter Pills */}
             <div style={{ display: 'flex', gap: '4px' }}>
@@ -1518,11 +1516,25 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
                     cursor: 'pointer'
                   }}
                 >
-                  {sev}
+                  {sev === 'ALL' ? t('alerts.filterAll', lang) : sev === 'CRITICAL' ? t('alerts.filterCritical', lang) : t('alerts.filterHigh', lang)}
                 </button>
               ))}
             </div>
           </div>
+
+          {alerts.filter(a => alertFilter === 'ALL' || a.severity === alertFilter).length === 0 && (
+            <div style={{
+              background: bgCard,
+              border: `1px solid ${borderCol}`,
+              borderRadius: '12px',
+              padding: '24px',
+              textAlign: 'center',
+              color: textMuted,
+              fontSize: '0.84rem'
+            }}>
+              {t('alerts.noAlerts', lang)}
+            </div>
+          )}
 
           {alerts
             .filter(a => alertFilter === 'ALL' || a.severity === alertFilter)
@@ -1581,7 +1593,7 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
               <div style={{ flex: 1 }}>
                 <label style={{ fontSize: '0.66rem', fontWeight: 800, color: textMuted, textTransform: 'uppercase', display: 'block', marginBottom: '3px' }}>
-                  SELECT REGIONAL DISTRICT ({availableDistricts.length})
+                  {t('map.selectDistrict', lang)} ({availableDistricts.length})
                 </label>
                 <select
                   value={selectedDistrict}
@@ -1628,7 +1640,7 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
                   }}
                 >
                   <span>📍</span>
-                  <span>MY LIVE GPS</span>
+                  <span>{t('map.liveGps', lang)}</span>
                 </button>
 
                 <button
@@ -1650,7 +1662,7 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
                   }}
                 >
                   <span>🗺️</span>
-                  <span>AREA MAP</span>
+                  <span>{t('map.areaMap', lang)}</span>
                 </button>
               </div>
             </div>
@@ -1866,7 +1878,7 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
               <>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontSize: '0.68rem', fontWeight: 900, color: textMuted, textTransform: 'uppercase' }}>
-                    📍 MY GPS LOCATION
+                    📍 {t('map.liveGps', lang)}
                   </span>
                   <span style={{
                     background: gpsStatus === 'LIVE' ? 'rgba(34, 197, 94, 0.2)' : 'rgba(245, 158, 11, 0.2)',
@@ -1890,7 +1902,7 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
               <>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontSize: '0.68rem', fontWeight: 900, color: textMuted, textTransform: 'uppercase' }}>
-                    🗺️ MONITORED AREA
+                    🗺️ {t('map.monitoredArea', lang)}
                   </span>
                   <span style={{
                     background: isLight ? '#f1f5f9' : '#1e293b',
@@ -1939,7 +1951,7 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px', fontSize: '0.74rem' }}>
                 <div>Severity: <strong style={{ color: selectedRegion.severity === 'CRITICAL' ? '#ef4444' : '#22c55e' }}>{selectedRegion.severity}</strong></div>
                 <div>Score: <strong>{(selectedRegion.computedScore * 100).toFixed(1)}%</strong></div>
-                <div>Road: <strong>{selectedRegion.roadStatus || 'OPEN'}</strong></div>
+                <div>{t('map.roadStatus', lang)}: <strong>{selectedRegion.roadStatus === 'OPEN' ? t('map.roadOpen', lang) : selectedRegion.roadStatus === 'BLOCKED' ? t('map.roadBlocked', lang) : t('map.roadAtRisk', lang)}</strong></div>
               </div>
               <div style={{ fontSize: '0.7rem', color: textMuted }}>
                 Rainfall Factor: {Math.round(selectedRegion.contributingFactors.rainfall.score * 100)}% | Soil Moisture Factor: {Math.round(selectedRegion.contributingFactors.soilMoisture.score * 100)}%
@@ -1954,10 +1966,10 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
         <div style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
           <div>
             <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 900, color: textPrimary }}>
-              📸 Report Landslide / Hazard
+              📸 {t('report.title', lang)}
             </h3>
             <p style={{ margin: '2px 0 0 0', fontSize: '0.75rem', color: textMuted }}>
-              Transmits coordinates and incident details to district responders. Works offline.
+              {t('report.subtitle', lang)}
             </p>
           </div>
 
@@ -1987,7 +1999,7 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
               justifyContent: 'space-between',
               alignItems: 'center'
             }}>
-              <span>📍 GPS Coordinates:</span>
+              <span>📍 {t('report.gpsCoords', lang)}:</span>
               <strong style={{ color: '#38bdf8' }}>
                 {userLocation ? `${userLocation.lat.toFixed(5)}, ${userLocation.lng.toFixed(5)}` : `${selectedZone.lat.toFixed(5)}, ${selectedZone.lon.toFixed(5)} (Estimated)`}
               </strong>
@@ -1996,16 +2008,16 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
             {/* Category Selector */}
             <div>
               <label style={{ fontSize: '0.76rem', fontWeight: 700, color: textMuted, display: 'block', marginBottom: '6px' }}>
-                HAZARD CATEGORY
+                {t('report.hazardCategory', lang)}
               </label>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
                 {[
-                  { id: 'SLOPE_MOVEMENT' as ReportCategory, label: '🏔️ Slope Movement' },
-                  { id: 'BLOCKED_ROAD' as ReportCategory, label: '🚧 Blocked Road' },
-                  { id: 'CRACK' as ReportCategory, label: '⚡ Ground Crack' },
-                  { id: 'FLOODING' as ReportCategory, label: '🌊 Flash Flood' },
-                  { id: 'TRAPPED_CITIZENS' as ReportCategory, label: '🧍 Citizen Trapped' },
-                  { id: 'INJURED_PEOPLE' as ReportCategory, label: '🩹 Injury Emergency' }
+                  { id: 'SLOPE_MOVEMENT' as ReportCategory, label: t('report.catSlope', lang) },
+                  { id: 'BLOCKED_ROAD' as ReportCategory, label: t('report.catBlockedRoad', lang) },
+                  { id: 'CRACK' as ReportCategory, label: t('report.catCrack', lang) },
+                  { id: 'FLOODING' as ReportCategory, label: t('report.catFlooding', lang) },
+                  { id: 'TRAPPED_CITIZENS' as ReportCategory, label: t('report.catTrapped', lang) },
+                  { id: 'INJURED_PEOPLE' as ReportCategory, label: t('report.catInjured', lang) }
                 ].map(cat => (
                   <button
                     key={cat.id}
@@ -2032,7 +2044,7 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
             {/* Photo Capture */}
             <div>
               <label style={{ fontSize: '0.76rem', fontWeight: 700, color: textMuted, display: 'block', marginBottom: '6px' }}>
-                EVIDENCE PHOTO (OPTIONAL)
+                {t('report.evidencePhoto', lang)}
               </label>
               <PhotoCapture
                 onPhotoSelected={handlePhotoSelected}
@@ -2147,12 +2159,12 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
             {/* Description */}
             <div>
               <label style={{ fontSize: '0.76rem', fontWeight: 700, color: textMuted, display: 'block', marginBottom: '6px' }}>
-                INCIDENT DESCRIPTION
+                {t('report.description', lang)}
               </label>
               <textarea
                 value={reportDesc}
                 onChange={e => setReportDesc(e.target.value)}
-                placeholder="Describe road blockage, visible mudflow, injured persons, or nearby landmarks..."
+                placeholder={t('report.descPlaceholder', lang)}
                 rows={3}
                 style={{
                   width: '100%',
@@ -2183,7 +2195,7 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
                 marginTop: '4px'
               }}
             >
-              {submittingReport ? 'Submitting...' : isOnline ? 'Submit Hazard Report' : 'Save to Offline Queue'}
+              {submittingReport ? t('report.submitting', lang) : isOnline ? t('report.submitBtn', lang) : t('report.queueOffline', lang)}
             </button>
           </form>
         </div>
@@ -2194,10 +2206,10 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
         <div style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
           <div>
             <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 900, color: textPrimary }}>
-              👤 Citizen Profile &amp; Settings
+              {t('profile.title', lang)}
             </h3>
             <p style={{ margin: '2px 0 0 0', fontSize: '0.75rem', color: textMuted }}>
-              Emergency contact details used by disaster responders during extraction.
+              {t('profile.subtitle', lang)}
             </p>
           </div>
 
@@ -2227,10 +2239,10 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
               gap: '8px'
             }}>
               <div style={{ fontWeight: 800, fontSize: '0.88rem', color: textPrimary }}>
-                📱 Sign In with Mobile Number
+                {t('profile.signInTitle', lang)}
               </div>
               <p style={{ fontSize: '0.74rem', color: textMuted, margin: 0 }}>
-                Log in via OTP to sync emergency alerts and persist medical profile.
+                {t('profile.signInDesc', lang)}
               </p>
               <button
                 onClick={() => setShowSignInSheet(true)}
@@ -2247,7 +2259,7 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
                   marginTop: '4px'
                 }}
               >
-                Sign In via OTP ›
+                {t('profile.signInBtn', lang)}
               </button>
             </div>
           ) : (
@@ -2262,9 +2274,9 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
             }}>
               <div>
                 <div style={{ fontWeight: 800, fontSize: '0.82rem', color: isLight ? '#166534' : '#86efac' }}>
-                  🟢 Logged in as Citizen ({citizenProfile?.phone || 'Mobile User'})
+                  🟢 {t('profile.loggedInAs', lang)} ({citizenProfile?.phone || 'Mobile User'})
                 </div>
-                <div style={{ fontSize: '0.7rem', color: textMuted }}>Session active &amp; verified</div>
+                <div style={{ fontSize: '0.7rem', color: textMuted }}>{t('profile.sessionActive', lang)}</div>
               </div>
               <button
                 onClick={handleLogout}
@@ -2279,7 +2291,7 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
                   cursor: 'pointer'
                 }}
               >
-                Log Out
+                {t('profile.logout', lang)}
               </button>
             </div>
           )}
@@ -2288,7 +2300,7 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
           <form onSubmit={handleSaveProfile} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             <div>
               <label style={{ fontSize: '0.74rem', fontWeight: 700, color: textMuted, display: 'block', marginBottom: '4px' }}>
-                FULL NAME
+                {t('profile.fullName', lang)}
               </label>
               <input
                 type="text"
@@ -2308,68 +2320,78 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
               />
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-              <div>
-                <label style={{ fontSize: '0.74rem', fontWeight: 700, color: textMuted, display: 'block', marginBottom: '4px' }}>
-                  BLOOD GROUP
-                </label>
-                <select
-                  value={profileForm.bloodGroup || ''}
-                  onChange={e => setProfileForm({ ...profileForm, bloodGroup: e.target.value })}
-                  style={{
-                    width: '100%',
-                    background: isLight ? '#ffffff' : '#0e172a',
-                    color: textPrimary,
-                    border: `1px solid ${borderCol}`,
-                    borderRadius: '8px',
-                    padding: '8px 10px',
-                    fontSize: '0.8rem'
-                  }}
-                >
-                  <option value="">Select</option>
-                  <option value="A+">A+</option>
-                  <option value="A-">A-</option>
-                  <option value="B+">B+</option>
-                  <option value="B-">B-</option>
-                  <option value="O+">O+</option>
-                  <option value="O-">O-</option>
-                  <option value="AB+">AB+</option>
-                  <option value="AB-">AB-</option>
-                </select>
-              </div>
+            <div>
+              <label style={{ fontSize: '0.74rem', fontWeight: 700, color: textMuted, display: 'block', marginBottom: '4px' }}>
+                {t('profile.bloodGroup', lang)}
+              </label>
+              <select
+                value={profileForm.bloodGroup || ''}
+                onChange={e => setProfileForm({ ...profileForm, bloodGroup: e.target.value })}
+                style={{
+                  width: '100%',
+                  background: isLight ? '#ffffff' : '#0e172a',
+                  color: textPrimary,
+                  border: `1px solid ${borderCol}`,
+                  borderRadius: '8px',
+                  padding: '8px 10px',
+                  fontSize: '0.8rem'
+                }}
+              >
+                <option value="">Select</option>
+                <option value="A+">A+</option>
+                <option value="A-">A-</option>
+                <option value="B+">B+</option>
+                <option value="B-">B-</option>
+                <option value="O+">O+</option>
+                <option value="O-">O-</option>
+                <option value="AB+">AB+</option>
+                <option value="AB-">AB-</option>
+              </select>
+            </div>
 
+            {/* Dedicated Language Section */}
+            <div style={{
+              background: isLight ? '#f8fafc' : '#0b1329',
+              border: `1px solid ${borderCol}`,
+              borderRadius: '10px',
+              padding: '12px 14px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
               <div>
-                <label style={{ fontSize: '0.74rem', fontWeight: 700, color: textMuted, display: 'block', marginBottom: '4px' }}>
-                  LANGUAGE
-                </label>
-                <select
-                  value={profileForm.preferredLanguage || lang}
-                  onChange={e => {
-                    const l = e.target.value as any;
-                    setProfileForm({ ...profileForm, preferredLanguage: l });
-                    setLang(l);
-                    localStorage.setItem('ews_lang', l);
-                  }}
-                  style={{
-                    width: '100%',
-                    background: isLight ? '#ffffff' : '#0e172a',
-                    color: textPrimary,
-                    border: `1px solid ${borderCol}`,
-                    borderRadius: '8px',
-                    padding: '8px 10px',
-                    fontSize: '0.8rem'
-                  }}
-                >
-                  <option value="en">English</option>
-                  <option value="hi">हिंदी (Hindi)</option>
-                  <option value="as">অসমীয়া (Assamese)</option>
-                </select>
+                <div style={{ fontSize: '0.72rem', fontWeight: 800, color: textMuted, letterSpacing: '0.05em' }}>
+                  {t('profile.languageLabel', lang)}
+                </div>
+                <div style={{ fontSize: '0.88rem', fontWeight: 800, color: textPrimary, marginTop: '2px' }}>
+                  {t('profile.currentLanguage', lang)}: <span style={{ color: '#38bdf8' }}>{getLanguageLabel(lang)}</span>
+                </div>
               </div>
+              <button
+                type="button"
+                onClick={() => setShowLangSheet(true)}
+                style={{
+                  background: isLight ? '#eff6ff' : '#1e293b',
+                  border: `1px solid ${isLight ? '#bfdbfe' : '#334155'}`,
+                  color: '#2563eb',
+                  borderRadius: '8px',
+                  padding: '7px 12px',
+                  fontSize: '0.78rem',
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                {t('profile.changeLanguage', lang)} ›
+              </button>
             </div>
 
             <div>
               <label style={{ fontSize: '0.74rem', fontWeight: 700, color: textMuted, display: 'block', marginBottom: '4px' }}>
-                EMERGENCY CONTACT NAME
+                {t('profile.emergencyContactName', lang)}
               </label>
               <input
                 type="text"
@@ -2391,7 +2413,7 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
 
             <div>
               <label style={{ fontSize: '0.74rem', fontWeight: 700, color: textMuted, display: 'block', marginBottom: '4px' }}>
-                EMERGENCY CONTACT PHONE
+                {t('profile.emergencyContactPhone', lang)}
               </label>
               <input
                 type="tel"
@@ -2426,7 +2448,7 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
                 marginTop: '6px'
               }}
             >
-              {savingProfile ? 'Saving...' : 'Save Emergency Profile'}
+              {savingProfile ? t('profile.saving', lang) : t('profile.saveProfile', lang)}
             </button>
           </form>
 
@@ -2462,7 +2484,7 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
                 cursor: 'pointer'
               }}
             >
-              Officer Portal ›
+              {t('profile.switchToOfficer', lang)}
             </button>
           </div>
         </div>
@@ -2485,11 +2507,11 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
         zIndex: 40
       }}>
         {[
-          { id: 'home' as const, label: 'Home', icon: '🏠' },
-          { id: 'alerts' as const, label: 'Alerts', icon: '🔔' },
-          { id: 'map' as const, label: 'Map', icon: '🗺️' },
-          { id: 'report' as const, label: 'Report', icon: '📸' },
-          { id: 'profile' as const, label: 'Profile', icon: '👤' }
+          { id: 'home' as const, label: t('nav.home', lang), icon: '🏠' },
+          { id: 'alerts' as const, label: t('nav.alerts', lang), icon: '🔔' },
+          { id: 'map' as const, label: t('nav.map', lang), icon: '🗺️' },
+          { id: 'report' as const, label: t('nav.report', lang), icon: '📸' },
+          { id: 'profile' as const, label: t('nav.profile', lang), icon: '👤' }
         ].map(tab => (
           <button
             key={tab.id}
@@ -2541,10 +2563,10 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
               <>
                 <div style={{ fontSize: '3rem', margin: '0 auto' }}>🚨</div>
                 <h3 style={{ color: '#ef4444', margin: '10px 0 6px 0', fontSize: '1.4rem', fontWeight: 900 }}>
-                  EMERGENCY SOS
+                  {t('sos.title', lang)}
                 </h3>
                 <p style={{ color: '#cbd5e1', fontSize: '0.85rem', margin: '0 0 16px 0' }}>
-                  Broadcasting your exact GPS coordinates and distress beacon to district command in:
+                  {t('sos.broadcastingIn', lang)}
                 </p>
                 <div style={{
                   fontSize: '3.5rem',
@@ -2568,7 +2590,7 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
                       cursor: 'pointer'
                     }}
                   >
-                    Cancel
+                    {t('sos.cancel', lang)}
                   </button>
                   <button
                     onClick={executeSosBroadcast}
@@ -2583,7 +2605,7 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
                       cursor: 'pointer'
                     }}
                   >
-                    Send Now
+                    {t('sos.triggerNow', lang)}
                   </button>
                 </div>
               </>
@@ -2591,7 +2613,7 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
               <>
                 <div style={{ fontSize: '3rem', margin: '0 auto' }}>📡</div>
                 <h3 style={{ color: '#22c55e', margin: '10px 0 6px 0', fontSize: '1.3rem', fontWeight: 900 }}>
-                  SOS BEACON ACTIVE
+                  {t('sos.activeTitle', lang)}
                 </h3>
                 <div style={{ background: '#070c17', padding: '10px', borderRadius: '8px', margin: '12px 0', fontSize: '0.85rem' }}>
                   BEACON ID: <strong style={{ color: '#38bdf8' }}>{sosBeaconId}</strong><br />
@@ -2629,7 +2651,7 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
                       cursor: 'pointer'
                     }}
                   >
-                    Stop Distress
+                    {t('sos.stop', lang)}
                   </button>
                 </div>
               </>
@@ -2660,7 +2682,7 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
               <div style={{ fontWeight: 900, fontSize: '1.1rem', color: textPrimary }}>
-                🗺️ Safe Evacuation Corridor
+                🗺️ {t('route.title', lang)}
               </div>
               <button
                 onClick={() => setShowRouteModal(false)}
@@ -2672,7 +2694,7 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '0.82rem' }}>
               <div style={{ background: isLight ? '#f1f5f9' : '#1e293b', padding: '10px', borderRadius: '8px' }}>
-                <div style={{ fontSize: '0.7rem', color: textMuted }}>PRIMARY CORRIDOR</div>
+                <div style={{ fontSize: '0.7rem', color: textMuted }}>{t('route.primaryCorridor', lang)}</div>
                 <div style={{ fontWeight: 800, color: textPrimary }}>
                   {riskData?.evacuation_plan?.primary_corridor || 'Main Ridge Access Highway'}
                 </div>
@@ -2682,7 +2704,7 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
               </div>
 
               <div style={{ background: isLight ? '#f0fdf4' : 'rgba(34, 197, 94, 0.15)', border: '1px solid #22c55e', padding: '10px', borderRadius: '8px' }}>
-                <div style={{ fontSize: '0.7rem', color: isLight ? '#166534' : '#86efac' }}>DESIGNATED SAFE DETOUR</div>
+                <div style={{ fontSize: '0.7rem', color: isLight ? '#166534' : '#86efac' }}>{t('route.shelterTarget', lang)}</div>
                 <div style={{ fontWeight: 800, color: isLight ? '#14532d' : '#ffffff' }}>
                   {riskData?.evacuation_plan?.safe_evacuation_route || 'Valley Bypass Arterial Road 4'}
                 </div>
@@ -2736,7 +2758,7 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
               <div style={{ fontWeight: 900, fontSize: '1.1rem', color: textPrimary }}>
-                📞 Emergency Response Helplines
+                📞 {t('helpline.title', lang)}
               </div>
               <button
                 onClick={() => setShowContactsSheet(false)}
@@ -2748,10 +2770,10 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {[
-                { title: 'National Emergency Helpline', number: '112', desc: 'Police, Fire, Disaster 24/7' },
-                { title: 'NDMA Disaster Management', number: '1078', desc: 'National Disaster Management Control' },
-                { title: 'State Disaster Control Room', number: '1070', desc: 'State Emergency Operations Center' },
-                { title: 'Ambulance & Medical Trauma', number: '102', desc: 'Urgent medical evacuation' }
+                { title: t('helpline.national', lang), number: '112', desc: t('helpline.nationalDesc', lang) },
+                { title: t('helpline.ndma', lang), number: '1078', desc: t('helpline.ndmaDesc', lang) },
+                { title: t('helpline.state', lang), number: '1070', desc: t('helpline.stateDesc', lang) },
+                { title: t('helpline.ambulance', lang), number: '102', desc: t('helpline.ambulanceDesc', lang) }
               ].map(contact => (
                 <a
                   key={contact.number}
@@ -2934,7 +2956,7 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
               <div style={{ fontWeight: 900, fontSize: '1rem', color: textPrimary }}>
-                Select Language
+                {t('lang.selectLanguage', lang)}
               </div>
               <button
                 onClick={() => setShowLangSheet(false)}
@@ -2945,20 +2967,12 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '360px', overflowY: 'auto', paddingRight: '4px' }}>
-              {[
-                { code: 'en', label: 'English (Default)' },
-                { code: 'hi', label: 'हिंदी (Hindi)' },
-                { code: 'as', label: 'অসমীয়া (Assamese - Assam)' },
-                { code: 'bn', label: 'বাংলা (Bengali - Tripura / Assam)' },
-                { code: 'mni', label: 'মৈতৈলোন্ (Meitei - Manipur)' },
-                { code: 'miz', label: 'Mizo ṭawng (Mizo - Mizoram)' },
-                { code: 'kha', label: 'Ka Ktien Khasi (Khasi - Meghalaya)' },
-                { code: 'gar', label: 'A·chik (Garo - Meghalaya)' }
-              ].map(item => (
+              {SUPPORTED_LANGUAGES.map(item => (
                 <button
                   key={item.code}
                   onClick={() => {
                     setLang(item.code);
+                    setProfileForm(prev => ({ ...prev, preferredLanguage: item.code }));
                     localStorage.setItem('ews_lang', item.code);
                     window.dispatchEvent(new CustomEvent('satark-language-change', { detail: item.code }));
                     setShowLangSheet(false);
@@ -2978,7 +2992,12 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
                     alignItems: 'center'
                   }}
                 >
-                  <span>{item.label}</span>
+                  <div>
+                    <span>{item.label}</span>
+                    <span style={{ fontSize: '0.72rem', color: lang === item.code ? '#bfdbfe' : textMuted, display: 'block', marginTop: '1px' }}>
+                      {item.region}
+                    </span>
+                  </div>
                   {lang === item.code && <span style={{ fontSize: '0.76rem', background: '#1d4ed8', padding: '2px 8px', borderRadius: '10px' }}>✓</span>}
                 </button>
               ))}
