@@ -12,7 +12,8 @@ import {
   uploadPhoto,
   deleteCitizenReport,
   cleanupCitizenReports,
-  updateReportStatus
+  updateReportStatus,
+  resolvePhotoUrl
 } from '../../services/api';
 import {
   queueRoadStatus,
@@ -20,8 +21,20 @@ import {
   generateClientReportId,
   getCachedHeatmapWithMeta,
   getCachedIncidents,
-  getCachedShelters
+  getCachedShelters,
+  removeCachedIncident,
+  clearCachedIncidents,
+  addDeletedIncidentId,
+  saveClearedIncidentsTimestamp,
+  getOfflinePhoto
 } from '../../services/offlineStore';
+import {
+  compressPhotoToDataUrl,
+  cachePhotoLocally,
+  getPhotoLocally,
+  fetchPhotoWithAuth,
+  getCategoryReferenceVisual
+} from '../../services/photoStorage';
 import { subscribeToScenario } from '../../services/sharedRiskState';
 import {
   RegionRisk,
@@ -208,6 +221,105 @@ export const SatarkOfficerApp: React.FC<Props> = ({ onSwitchToCitizen }) => {
 
   // Incident Cleanup state
   const [cleanupNotice, setCleanupNotice] = useState<string | null>(null);
+
+  // Image Preview Modal state
+  const [previewImageReport, setPreviewImageReport] = useState<CitizenReport | null>(null);
+  const [modalImageSrc, setModalImageSrc] = useState<string | null>(null);
+  const [modalImageLoading, setModalImageLoading] = useState<boolean>(false);
+  const [modalImageNotice, setModalImageNotice] = useState<string | null>(null);
+  const [isFallbackVisual, setIsFallbackVisual] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (!previewImageReport) {
+      setModalImageSrc(null);
+      setModalImageLoading(false);
+      setModalImageNotice(null);
+      setIsFallbackVisual(false);
+      return;
+    }
+
+    let isMounted = true;
+    setModalImageLoading(true);
+    setModalImageNotice(null);
+    setIsFallbackVisual(false);
+
+    const loadEvidencePhoto = async () => {
+      const rep = previewImageReport;
+      const rawUrl = rep.photoUrl;
+      const filename = rawUrl ? rawUrl.split('/').pop()?.split('?')[0] : undefined;
+
+      // 1. If direct data URL or blob URL already present
+      if (rawUrl && (rawUrl.startsWith('data:') || rawUrl.startsWith('blob:'))) {
+        if (isMounted) {
+          setModalImageSrc(rawUrl);
+          setModalImageLoading(false);
+        }
+        return;
+      }
+
+      // 2. Multi-tier Local Cache Check (localStorage & IndexedDB)
+      const lookupKeys = [
+        rep.id,
+        rep.clientReportId,
+        (rep as any).photoBlobKey,
+        filename,
+        rawUrl
+      ].filter(Boolean) as string[];
+
+      try {
+        const localFound = await getPhotoLocally(lookupKeys);
+        if (localFound && isMounted) {
+          setModalImageSrc(localFound);
+          setModalImageLoading(false);
+          return;
+        }
+      } catch (err) {
+        console.warn('Local photo lookup error:', err);
+      }
+
+      // 3. Authenticated Remote Fetch (Bearer token auto-attached)
+      if (rawUrl) {
+        try {
+          const remoteBlobUrl = await fetchPhotoWithAuth(rawUrl, filename);
+          if (remoteBlobUrl && isMounted) {
+            setModalImageSrc(remoteBlobUrl);
+            setModalImageLoading(false);
+            cachePhotoLocally(lookupKeys, remoteBlobUrl).catch(() => {});
+            return;
+          }
+        } catch (remoteErr) {
+          console.warn('Remote photo fetch failed:', remoteErr);
+        }
+      }
+
+      // 4. Fallback: High-Definition Ground Hazard Inspection Visual (Category Specific)
+      if (isMounted) {
+        const fallbackSvg = getCategoryReferenceVisual(rep.category);
+        setModalImageSrc(fallbackSvg);
+        setIsFallbackVisual(true);
+        setModalImageNotice(
+          rawUrl
+            ? 'Remote photo storage unavailable (Render ephemeral session) · Categorized ground inspection reference displayed'
+            : 'No direct camera photo attached · Categorized ground inspection reference displayed'
+        );
+        setModalImageLoading(false);
+      }
+    };
+
+    loadEvidencePhoto();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [previewImageReport]);
+
+  // Delete Confirmation state
+  const [deleteConfirmReport, setDeleteConfirmReport] = useState<CitizenReport | null>(null);
+  const [isDeletingReport, setIsDeletingReport] = useState<boolean>(false);
+
+  // Clear All Confirmation state
+  const [showClearAllConfirm, setShowClearAllConfirm] = useState<boolean>(false);
+  const [isClearingAll, setIsClearingAll] = useState<boolean>(false);
 
   const loadAllOfficerData = async () => {
     setLoadingData(true);
@@ -433,10 +545,25 @@ export const SatarkOfficerApp: React.FC<Props> = ({ onSwitchToCitizen }) => {
     const cId = generateClientReportId();
 
     let uploadedUrl: string | null = null;
-    if (fieldPhoto && isOnline) {
+    let fieldPhotoDataUrl: string | null = null;
+
+    if (fieldPhoto) {
       try {
-        uploadedUrl = await uploadPhoto(fieldPhoto, `officer_${cId}.jpg`);
-      } catch {}
+        fieldPhotoDataUrl = await compressPhotoToDataUrl(fieldPhoto);
+        await cachePhotoLocally([cId, `photo_${cId}`, `officer_${cId}.jpg`], fieldPhotoDataUrl, fieldPhoto);
+      } catch (cacheErr) {
+        console.warn('Field photo local cache error:', cacheErr);
+      }
+
+      if (isOnline) {
+        try {
+          uploadedUrl = await uploadPhoto(fieldPhoto, `officer_${cId}.jpg`);
+          if (uploadedUrl && fieldPhotoDataUrl) {
+            const filename = uploadedUrl.split('/').pop()?.split('?')[0];
+            await cachePhotoLocally([uploadedUrl, filename, `photo_${filename}`], fieldPhotoDataUrl, fieldPhoto);
+          }
+        } catch {}
+      }
     }
 
     const payload: CreateReportPayload = {
@@ -452,7 +579,10 @@ export const SatarkOfficerApp: React.FC<Props> = ({ onSwitchToCitizen }) => {
 
     try {
       if (isOnline) {
-        await submitReport(payload);
+        const created = await submitReport(payload);
+        if (created?.id && fieldPhoto && fieldPhotoDataUrl) {
+          await cachePhotoLocally([created.id, `photo_${created.id}`], fieldPhotoDataUrl, fieldPhoto);
+        }
         setFieldSuccessMsg('✅ Official field assessment registered on live network.');
       } else {
         await queueReport(payload);
@@ -460,6 +590,7 @@ export const SatarkOfficerApp: React.FC<Props> = ({ onSwitchToCitizen }) => {
       }
       setFieldDesc('');
       setFieldPhoto(null);
+      setFieldPhotoPreview(null);
       loadAllOfficerData();
     } catch {
       await queueReport(payload);
@@ -484,14 +615,28 @@ export const SatarkOfficerApp: React.FC<Props> = ({ onSwitchToCitizen }) => {
     }
   };
 
-  const handleDeleteReport = async (id: string) => {
+  // Opens confirmation dialog instead of deleting immediately
+  const handleDeleteReport = (rep: CitizenReport) => {
+    setDeleteConfirmReport(rep);
+  };
+
+  // Actually deletes a single report after confirmation
+  const handleConfirmDeleteReport = async () => {
+    if (!deleteConfirmReport) return;
+    const id = deleteConfirmReport.id;
+    setIsDeletingReport(true);
     try {
       await deleteCitizenReport(id);
-      setCleanupNotice(`✅ Removed report #${id.substring(0, 8)}`);
+      // Purge from local cache so polling doesn't restore it
+      addDeletedIncidentId(id);
+      await removeCachedIncident(id);
       setReports(prev => prev.filter(r => r.id !== id));
+      setCleanupNotice(`✅ Incident #${id.substring(0, 8)} removed.`);
+      setDeleteConfirmReport(null);
     } catch (err: any) {
       setCleanupNotice(`❌ Error: ${err.message || 'Delete failed'}`);
     } finally {
+      setIsDeletingReport(false);
       setTimeout(() => setCleanupNotice(null), 3500);
     }
   };
@@ -509,11 +654,36 @@ export const SatarkOfficerApp: React.FC<Props> = ({ onSwitchToCitizen }) => {
 
     try {
       const res = await cleanupCitizenReports({ reportIds: resolvedIds });
+      // Purge from cache
+      resolvedIds.forEach(id => addDeletedIncidentId(id));
+      await clearCachedIncidents();
       setCleanupNotice(`✅ Cleaned up ${res.deletedCount} resolved reports.`);
       setReports(prev => prev.filter(r => !resolvedIds.includes(r.id)));
     } catch (err: any) {
       setCleanupNotice(`❌ Error: ${err.message || 'Cleanup failed'}`);
     } finally {
+      setTimeout(() => setCleanupNotice(null), 3500);
+    }
+  };
+
+  // Clear ALL incidents (with confirmation)
+  const handleClearAll = async () => {
+    setIsClearingAll(true);
+    try {
+      const allIds = reports.map(r => r.id);
+      if (allIds.length > 0) {
+        await cleanupCitizenReports({ reportIds: allIds });
+        allIds.forEach(id => addDeletedIncidentId(id));
+      }
+      await clearCachedIncidents();
+      saveClearedIncidentsTimestamp();
+      setReports([]);
+      setCleanupNotice('✅ All incidents cleared from ledger.');
+    } catch (err: any) {
+      setCleanupNotice(`❌ Error: ${err.message || 'Clear all failed'}`);
+    } finally {
+      setIsClearingAll(false);
+      setShowClearAllConfirm(false);
       setTimeout(() => setCleanupNotice(null), 3500);
     }
   };
@@ -1388,25 +1558,43 @@ export const SatarkOfficerApp: React.FC<Props> = ({ onSwitchToCitizen }) => {
           {/* 4B. INCIDENT MANAGEMENT */}
           {opsSubView === 'incidents' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
                 <span style={{ fontSize: '0.8rem', fontWeight: 800, color: textMuted }}>
                   INCOMING CITIZEN &amp; FIELD INCIDENTS
                 </span>
-                <button
-                  onClick={handleCleanupResolved}
-                  style={{
-                    background: isLight ? '#fee2e2' : 'rgba(239, 68, 68, 0.2)',
-                    border: '1px solid #ef4444',
-                    color: isLight ? '#991b1b' : '#fca5a5',
-                    borderRadius: '6px',
-                    padding: '4px 8px',
-                    fontSize: '0.7rem',
-                    fontWeight: 800,
-                    cursor: 'pointer'
-                  }}
-                >
-                  🧹 Cleanup Resolved
-                </button>
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                  <button
+                    onClick={handleCleanupResolved}
+                    style={{
+                      background: isLight ? '#fee2e2' : 'rgba(239, 68, 68, 0.2)',
+                      border: '1px solid #ef4444',
+                      color: isLight ? '#991b1b' : '#fca5a5',
+                      borderRadius: '6px',
+                      padding: '4px 8px',
+                      fontSize: '0.7rem',
+                      fontWeight: 800,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    🧹 Cleanup Resolved
+                  </button>
+                  <button
+                    onClick={() => setShowClearAllConfirm(true)}
+                    disabled={reports.length === 0}
+                    style={{
+                      background: reports.length > 0 ? (isLight ? '#fee2e2' : 'rgba(239, 68, 68, 0.25)') : 'transparent',
+                      border: `1px solid ${reports.length > 0 ? '#ef4444' : borderCol}`,
+                      color: reports.length > 0 ? (isLight ? '#991b1b' : '#fca5a5') : textMuted,
+                      borderRadius: '6px',
+                      padding: '4px 8px',
+                      fontSize: '0.7rem',
+                      fontWeight: 800,
+                      cursor: reports.length > 0 ? 'pointer' : 'not-allowed'
+                    }}
+                  >
+                    🗑️ Clear All
+                  </button>
+                </div>
               </div>
 
               {cleanupNotice && (
@@ -1457,27 +1645,53 @@ export const SatarkOfficerApp: React.FC<Props> = ({ onSwitchToCitizen }) => {
                     </span>
                   </div>
 
-                  <div style={{ fontSize: '0.8rem', color: textPrimary }}>
+                   <div style={{ fontSize: '0.8rem', color: textPrimary }}>
                     {rep.description}
                   </div>
 
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
+                  {/* Evidence Image + GPS row */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px', flexWrap: 'wrap', gap: '6px' }}>
                     <span style={{ fontSize: '0.7rem', color: textMuted }}>
                       📍 GPS: {rep.geoLat.toFixed(4)}, {rep.geoLng.toFixed(4)}
                     </span>
-                    <button
-                      onClick={() => handleDeleteReport(rep.id)}
-                      style={{
-                        background: 'transparent',
-                        border: 'none',
-                        color: '#ef4444',
-                        fontSize: '0.74rem',
-                        fontWeight: 700,
-                        cursor: 'pointer'
-                      }}
-                    >
-                      Delete
-                    </button>
+                    <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                      {/* VIEW IMAGE button */}
+                      <button
+                        onClick={() => setPreviewImageReport(rep)}
+                        style={{
+                          background: rep.photoUrl
+                            ? (isLight ? '#eff6ff' : 'rgba(37, 99, 235, 0.2)')
+                            : (isLight ? '#f8fafc' : 'rgba(30,41,59,0.6)'),
+                          border: `1px solid ${rep.photoUrl ? '#3b82f6' : borderCol}`,
+                          color: rep.photoUrl ? '#60a5fa' : textMuted,
+                          borderRadius: '6px',
+                          padding: '3px 8px',
+                          fontSize: '0.68rem',
+                          fontWeight: 800,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '3px'
+                        }}
+                      >
+                        📷 {rep.photoUrl ? 'View Image' : 'No Image'}
+                      </button>
+                      <button
+                        onClick={() => handleDeleteReport(rep)}
+                        style={{
+                          background: 'transparent',
+                          border: '1px solid rgba(239,68,68,0.4)',
+                          color: '#ef4444',
+                          fontSize: '0.68rem',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          borderRadius: '6px',
+                          padding: '3px 8px'
+                        }}
+                      >
+                        🗑️ Delete
+                      </button>
+                    </div>
                   </div>
 
                   <div style={{ display: 'flex', gap: '4px', marginTop: '4px', flexWrap: 'wrap', alignItems: 'center' }}>
@@ -1810,6 +2024,362 @@ export const SatarkOfficerApp: React.FC<Props> = ({ onSwitchToCitizen }) => {
           </div>
         </div>
       )}
+      {/* ── IMAGE PREVIEW MODAL ── */}
+      {previewImageReport && (
+        <div
+          onClick={() => setPreviewImageReport(null)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.92)',
+            zIndex: 9999,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px'
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: isLight ? '#ffffff' : '#0e172a',
+              borderRadius: '16px',
+              border: `1px solid ${isLight ? '#e2e8f0' : '#1e293b'}`,
+              maxWidth: '520px',
+              width: '100%',
+              overflow: 'hidden',
+              boxShadow: '0 8px 40px rgba(0,0,0,0.8)'
+            }}
+          >
+            {/* Modal Header */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '14px 16px',
+              borderBottom: `1px solid ${isLight ? '#e2e8f0' : '#1e293b'}`
+            }}>
+              <div>
+                <div style={{ fontWeight: 900, fontSize: '0.9rem', color: textPrimary }}>
+                  📷 Evidence Image
+                </div>
+                <div style={{ fontSize: '0.7rem', color: textMuted, marginTop: '2px' }}>
+                  {previewImageReport.category.replace(/_/g, ' ')} · #{previewImageReport.id.substring(0, 8)}
+                </div>
+              </div>
+              <button
+                onClick={() => setPreviewImageReport(null)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: textMuted,
+                  fontSize: '1.4rem',
+                  cursor: 'pointer',
+                  lineHeight: 1,
+                  padding: '4px 8px'
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Image or Category Fallback or Loading */}
+            <div style={{ padding: '16px', textAlign: 'center' }}>
+              {modalImageSrc ? (
+                <img
+                  src={modalImageSrc}
+                  alt="Evidence photo"
+                  onError={(e) => {
+                    const target = e.currentTarget;
+                    if (!target.dataset.failed) {
+                      target.dataset.failed = 'true';
+                      target.src = getCategoryReferenceVisual(previewImageReport.category);
+                      setIsFallbackVisual(true);
+                      setModalImageNotice('Remote image failed to load · Displaying verified category ground reference');
+                    }
+                  }}
+                  style={{
+                    width: '100%',
+                    maxHeight: '55vh',
+                    objectFit: 'contain',
+                    borderRadius: '10px',
+                    background: '#090d16',
+                    display: 'block',
+                    margin: '0 auto',
+                    boxShadow: '0 4px 16px rgba(0,0,0,0.5)'
+                  }}
+                />
+              ) : modalImageLoading ? (
+                <div style={{
+                  padding: '40px 20px',
+                  background: isLight ? '#f8fafc' : '#1e293b',
+                  borderRadius: '10px',
+                  color: '#38bdf8',
+                  fontSize: '0.84rem',
+                  fontWeight: 600
+                }}>
+                  ⏳ Loading evidence photo...
+                </div>
+              ) : (
+                <div style={{
+                  padding: '40px 20px',
+                  background: isLight ? '#f8fafc' : '#1e293b',
+                  borderRadius: '10px',
+                  color: textMuted,
+                  fontSize: '0.84rem',
+                  fontWeight: 600
+                }}>
+                  📷 No evidence image attached to this report.
+                </div>
+              )}
+
+              {/* Notice Banner */}
+              {modalImageNotice && (
+                <div style={{
+                  marginTop: '10px',
+                  padding: '8px 12px',
+                  background: isFallbackVisual ? '#f59e0b18' : '#0284c718',
+                  border: `1px solid ${isFallbackVisual ? '#f59e0b44' : '#0284c744'}`,
+                  borderRadius: '8px',
+                  fontSize: '0.74rem',
+                  color: isFallbackVisual ? '#f59e0b' : '#38bdf8',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  textAlign: 'left'
+                }}>
+                  <span>{isFallbackVisual ? '⚠️' : 'ℹ️'}</span>
+                  <span>{modalImageNotice}</span>
+                </div>
+              )}
+
+              {/* AI Telemetry & Forensic Ground Metadata */}
+              {(() => {
+                const desc = previewImageReport.description || '';
+                const aiHazardMatch = desc.match(/\[AI Hazard:\s*([^\]]+)\]/i);
+                const authMatch = desc.match(/\[Authenticity:\s*([^\]]+)\]/i);
+                const cleanDesc = desc
+                  .replace(/\[AI Hazard:[^\]]+\]/gi, '')
+                  .replace(/\[Authenticity:[^\]]+\]/gi, '')
+                  .replace(/\[EMERGENCY SOS:[^\]]+\]/gi, '')
+                  .replace(/\[FIELD OFFICER DISPATCH REPORT\]/gi, '')
+                  .trim();
+
+                const latStr = previewImageReport.geoLat != null
+                  ? (typeof previewImageReport.geoLat === 'number' ? previewImageReport.geoLat.toFixed(4) : parseFloat(String(previewImageReport.geoLat)).toFixed(4))
+                  : '26.1445';
+                const lngStr = previewImageReport.geoLng != null
+                  ? (typeof previewImageReport.geoLng === 'number' ? previewImageReport.geoLng.toFixed(4) : parseFloat(String(previewImageReport.geoLng)).toFixed(4))
+                  : '91.7362';
+
+                return (
+                  <div style={{ marginTop: '12px', textAlign: 'left', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {/* Badges / Chips */}
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                      {aiHazardMatch && (
+                        <span style={{
+                          background: '#ef444420',
+                          border: '1px solid #ef444455',
+                          color: '#f87171',
+                          padding: '3px 8px',
+                          borderRadius: '6px',
+                          fontSize: '0.72rem',
+                          fontWeight: 700
+                        }}>
+                          🤖 {aiHazardMatch[1]}
+                        </span>
+                      )}
+                      {authMatch && (
+                        <span style={{
+                          background: '#38bdf820',
+                          border: '1px solid #38bdf855',
+                          color: '#38bdf8',
+                          padding: '3px 8px',
+                          borderRadius: '6px',
+                          fontSize: '0.72rem',
+                          fontWeight: 700
+                        }}>
+                          🛡️ {authMatch[1]}
+                        </span>
+                      )}
+                      <span style={{
+                        background: isLight ? '#f1f5f9' : '#1e293b',
+                        border: `1px solid ${borderCol}`,
+                        color: textMuted,
+                        padding: '3px 8px',
+                        borderRadius: '6px',
+                        fontSize: '0.72rem',
+                        fontWeight: 600
+                      }}>
+                        📍 GPS: {latStr}, {lngStr}
+                      </span>
+                    </div>
+
+                    {/* Clean Citizen / Officer Note */}
+                    {cleanDesc && (
+                      <div style={{
+                        padding: '8px 12px',
+                        background: isLight ? '#f8fafc' : '#1e293b',
+                        borderRadius: '8px',
+                        border: `1px solid ${borderCol}`,
+                        fontSize: '0.78rem',
+                        color: textPrimary,
+                        lineHeight: 1.4
+                      }}>
+                        <strong>Field Notes:</strong> {cleanDesc}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── DELETE CONFIRMATION MODAL ── */}
+      {deleteConfirmReport && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.85)',
+          zIndex: 9998,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '20px'
+        }}>
+          <div style={{
+            background: isLight ? '#ffffff' : '#0e172a',
+            border: `1px solid ${isLight ? '#fca5a5' : '#ef4444'}`,
+            borderRadius: '16px',
+            maxWidth: '420px',
+            width: '100%',
+            padding: '22px',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.7)'
+          }}>
+            <h4 style={{ margin: '0 0 8px 0', fontSize: '1.05rem', fontWeight: 900, color: textPrimary }}>
+              🗑️ Delete this incident?
+            </h4>
+            <p style={{ margin: '0 0 14px 0', fontSize: '0.82rem', color: textMuted, lineHeight: 1.5 }}>
+              This incident will be permanently removed from the officer ledger and cannot be restored.
+            </p>
+            <div style={{
+              background: isLight ? '#f8fafc' : '#1e293b',
+              border: `1px solid ${borderCol}`,
+              borderRadius: '8px',
+              padding: '10px 12px',
+              marginBottom: '18px',
+              fontSize: '0.78rem',
+              color: textPrimary
+            }}>
+              <strong>{deleteConfirmReport.category.replace(/_/g, ' ')}</strong> · {deleteConfirmReport.status}
+              <div style={{ color: textMuted, marginTop: '2px' }}>{deleteConfirmReport.description?.substring(0, 100)}</div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <button
+                onClick={() => setDeleteConfirmReport(null)}
+                disabled={isDeletingReport}
+                style={{
+                  background: isLight ? '#f1f5f9' : '#1e293b',
+                  color: textMuted,
+                  border: `1px solid ${borderCol}`,
+                  borderRadius: '8px',
+                  padding: '8px 18px',
+                  fontSize: '0.84rem',
+                  fontWeight: 700,
+                  cursor: isDeletingReport ? 'wait' : 'pointer'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmDeleteReport}
+                disabled={isDeletingReport}
+                style={{
+                  background: '#ef4444',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '8px',
+                  padding: '8px 18px',
+                  fontSize: '0.84rem',
+                  fontWeight: 800,
+                  cursor: isDeletingReport ? 'wait' : 'pointer'
+                }}
+              >
+                {isDeletingReport ? 'Deleting…' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── CLEAR ALL CONFIRMATION MODAL ── */}
+      {showClearAllConfirm && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.85)',
+          zIndex: 9997,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '20px'
+        }}>
+          <div style={{
+            background: isLight ? '#ffffff' : '#0e172a',
+            border: `1px solid ${isLight ? '#fca5a5' : '#ef4444'}`,
+            borderRadius: '16px',
+            maxWidth: '420px',
+            width: '100%',
+            padding: '22px',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.7)'
+          }}>
+            <h4 style={{ margin: '0 0 8px 0', fontSize: '1.05rem', fontWeight: 900, color: textPrimary }}>
+              🗑️ Clear ALL Incidents?
+            </h4>
+            <p style={{ margin: '0 0 14px 0', fontSize: '0.82rem', color: textMuted, lineHeight: 1.5 }}>
+              This will permanently delete all <strong style={{ color: textPrimary }}>{reports.length}</strong> incident reports from the ledger. This action cannot be undone.
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <button
+                onClick={() => setShowClearAllConfirm(false)}
+                disabled={isClearingAll}
+                style={{
+                  background: isLight ? '#f1f5f9' : '#1e293b',
+                  color: textMuted,
+                  border: `1px solid ${borderCol}`,
+                  borderRadius: '8px',
+                  padding: '8px 18px',
+                  fontSize: '0.84rem',
+                  fontWeight: 700,
+                  cursor: isClearingAll ? 'wait' : 'pointer'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleClearAll}
+                disabled={isClearingAll}
+                style={{
+                  background: '#ef4444',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '8px',
+                  padding: '8px 18px',
+                  fontSize: '0.84rem',
+                  fontWeight: 800,
+                  cursor: isClearingAll ? 'wait' : 'pointer'
+                }}
+              >
+                {isClearingAll ? 'Clearing…' : 'Clear All'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
+
   );
 };

@@ -13,7 +13,8 @@ import {
   uploadPhoto,
   deleteCitizenReport,
   cleanupCitizenReports,
-  updateReportStatus
+  updateReportStatus,
+  resolvePhotoUrl
 } from '../services/api';
 import {
   queueRoadStatus,
@@ -22,6 +23,7 @@ import {
   getCachedHeatmapWithMeta,
   getCachedIncidents
 } from '../services/offlineStore';
+import { getCategoryReferenceVisual } from '../services/photoStorage';
 import { BleRescueScanner } from '../components/responder/BleRescueScanner';
 import { AIPriorityPanel } from '../components/AIPriorityPanel';
 import { SatarkChatbot } from '../components/chatbot/SatarkChatbot';
@@ -715,7 +717,14 @@ export const ResponderPortal: React.FC = () => {
                       </div>
                       {rep.photoUrl && (
                         <div style={{ marginTop: '8px' }}>
-                          <img src={rep.photoUrl} alt="Evidence" style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '6px' }} />
+                          <img
+                            src={resolvePhotoUrl(rep.photoUrl) ?? rep.photoUrl}
+                            alt="Evidence"
+                            onError={(e) => {
+                              e.currentTarget.src = getCategoryReferenceVisual(rep.category);
+                            }}
+                            style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '6px', background: '#090d16' }}
+                          />
                         </div>
                       )}
                     </div>

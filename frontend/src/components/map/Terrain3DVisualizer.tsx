@@ -17,6 +17,8 @@ export interface Terrain3DVisualizerProps {
   onBack?: () => void;
   wireframeDefault?: boolean;
   autoRotateDefault?: boolean;
+  isMaximized?: boolean;
+  onToggleMaximize?: () => void;
 }
 
 export const Terrain3DVisualizer: React.FC<Terrain3DVisualizerProps> = ({
@@ -34,7 +36,9 @@ export const Terrain3DVisualizer: React.FC<Terrain3DVisualizerProps> = ({
   showTopControls = true,
   onBack,
   wireframeDefault = false,
-  autoRotateDefault = true
+  autoRotateDefault = true,
+  isMaximized = false,
+  onToggleMaximize
 }) => {
   const mountRef = useRef<HTMLDivElement>(null);
   const [wireframe, setWireframe] = useState<boolean>(wireframeDefault);
@@ -347,7 +351,20 @@ export const Terrain3DVisualizer: React.FC<Terrain3DVisualizerProps> = ({
 
     window.addEventListener('resize', handleResize);
 
+    const resizeObserver = typeof ResizeObserver !== 'undefined'
+      ? new ResizeObserver(() => {
+          handleResize();
+        })
+      : null;
+
+    if (resizeObserver && mount) {
+      resizeObserver.observe(mount);
+    }
+
     return () => {
+      if (resizeObserver) {
+        resizeObserver.disconnect();
+      }
       window.removeEventListener('resize', handleResize);
       domElement.removeEventListener('pointerdown', onPointerDown);
       window.removeEventListener('pointermove', onPointerMove);
@@ -569,6 +586,91 @@ export const Terrain3DVisualizer: React.FC<Terrain3DVisualizerProps> = ({
             pointerEvents: 'none'
           }}>
             👆 Drag to rotate · Pinch to zoom
+          </div>
+        )}
+
+        {/* ── CAMERA ZOOM BUTTONS ── */}
+        {interactive && (
+          <div style={{
+            position: 'absolute',
+            bottom: 14,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 10,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            background: 'rgba(15, 23, 42, 0.85)',
+            backdropFilter: 'blur(10px)',
+            WebkitBackdropFilter: 'blur(10px)',
+            border: '1px solid rgba(255, 255, 255, 0.15)',
+            borderRadius: '24px',
+            padding: '5px 14px',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
+            userSelect: 'none'
+          }}>
+            {/* Zoom OUT */}
+            <button
+              onClick={() => {
+                sphericalRef.current.radius = Math.min(130, sphericalRef.current.radius + 10);
+              }}
+              title="Zoom out — move camera farther"
+              style={{
+                background: 'rgba(30, 41, 59, 0.9)',
+                border: '1px solid rgba(255,255,255,0.18)',
+                borderRadius: '10px',
+                color: '#f8fafc',
+                fontSize: '1.1rem',
+                fontWeight: 900,
+                cursor: 'pointer',
+                width: '32px',
+                height: '32px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                lineHeight: 1,
+                flexShrink: 0
+              }}
+            >
+              −
+            </button>
+
+            {/* Label */}
+            <span style={{
+              fontSize: '0.66rem',
+              fontWeight: 800,
+              color: '#94a3b8',
+              letterSpacing: '0.04em',
+              whiteSpace: 'nowrap'
+            }}>
+              ZOOM
+            </span>
+
+            {/* Zoom IN */}
+            <button
+              onClick={() => {
+                sphericalRef.current.radius = Math.max(25, sphericalRef.current.radius - 10);
+              }}
+              title="Zoom in — move camera closer"
+              style={{
+                background: 'rgba(30, 41, 59, 0.9)',
+                border: '1px solid rgba(255,255,255,0.18)',
+                borderRadius: '10px',
+                color: '#f8fafc',
+                fontSize: '1.1rem',
+                fontWeight: 900,
+                cursor: 'pointer',
+                width: '32px',
+                height: '32px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                lineHeight: 1,
+                flexShrink: 0
+              }}
+            >
+              +
+            </button>
           </div>
         )}
       </div>

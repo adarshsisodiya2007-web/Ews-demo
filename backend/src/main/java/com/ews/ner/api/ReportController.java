@@ -42,6 +42,25 @@ public class ReportController {
         return ResponseEntity.ok(url);
     }
 
+    @GetMapping("/uploads/{filename:.+}")
+    public ResponseEntity<org.springframework.core.io.Resource> getReportPhoto(@PathVariable String filename) {
+        try {
+            org.springframework.core.io.Resource res = fileStorage.loadAsResource(filename);
+            if (res == null) {
+                return ResponseEntity.notFound().build();
+            }
+            String contentType = "image/jpeg";
+            if (filename.toLowerCase().endsWith(".png")) contentType = "image/png";
+            else if (filename.toLowerCase().endsWith(".webp")) contentType = "image/webp";
+            return ResponseEntity.ok()
+                    .header(org.springframework.http.HttpHeaders.CONTENT_TYPE, contentType)
+                    .header(org.springframework.http.HttpHeaders.CACHE_CONTROL, "public, max-age=86400")
+                    .body(res);
+        } catch (Exception e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
     @GetMapping("/region/{regionId}")
     public ResponseEntity<List<CitizenReport>> getReportsForRegion(@PathVariable UUID regionId) {
         return ResponseEntity.ok(reportService.getReportsForRegion(regionId));
@@ -76,6 +95,16 @@ public class ReportController {
     public ResponseEntity<java.util.Map<String, Object>> deleteReport(@PathVariable UUID id) {
         reportService.deleteReport(id);
         return ResponseEntity.ok(java.util.Map.of("success", true, "message", "Incident report removed from ledger"));
+    }
+
+    @DeleteMapping("/all")
+    public ResponseEntity<java.util.Map<String, Object>> clearAllReports() {
+        int count = reportService.clearAllReports();
+        return ResponseEntity.ok(java.util.Map.of(
+            "success", true,
+            "deletedCount", count,
+            "message", "Successfully cleared all " + count + " incident report(s)"
+        ));
     }
 
     @PostMapping("/cleanup")

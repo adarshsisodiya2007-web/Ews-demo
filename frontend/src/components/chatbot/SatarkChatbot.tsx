@@ -28,6 +28,10 @@ Your focus:
 const GENERAL_SYSTEM_PROMPT = `You are SATARK AI — the intelligent assistant for India's AI-Driven Landslide Early Warning System (EWS) built for SIH 2026.
 You assist both citizens and responders with landslide risks, evacuation procedures, sensor data, and app navigation. Answer clearly in Hindi or English.`;
 
+const GROQ_DIRECT_KEY = import.meta.env.VITE_GROQ_API_KEY || "";
+const GROQ_DIRECT_MODEL = "groq/compound-mini";
+const GROQ_DIRECT_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions";
+
 export interface SatarkChatbotProps {
   mode?: "floating" | "embedded";
   roleContext?: "citizen" | "responder" | "general";
@@ -196,39 +200,72 @@ export const SatarkChatbot: React.FC<SatarkChatbotProps> = ({
           content: m.content,
         }));
 
-        const apiBase = resolveApiBaseUrl();
-        const endpoint = `${apiBase}/api/v1/chatbot/chat`;
+        const messagesPayload = [
+          { role: "system", content: currentSystemPrompt },
+          ...history,
+          { role: "user", content },
+        ];
 
-        const res = await fetch(endpoint, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            messages: [
-              { role: "system", content: currentSystemPrompt },
-              ...history,
-              { role: "user", content },
-            ],
-            max_tokens: 512,
-            temperature: 0.7,
-          }),
-        });
+        let reply: string | null = null;
 
-        if (!res.ok) {
-          const errData = await res.json().catch(() => null);
-          const errMsg =
-            errData?.error ||
-            errData?.message ||
-            `AI server error (HTTP ${res.status})`;
-          throw new Error(errMsg);
+        // 1. Try Backend Proxy first
+        try {
+          const apiBase = resolveApiBaseUrl();
+          const endpoint = `${apiBase}/api/v1/chatbot/chat`;
+          const res = await fetch(endpoint, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              messages: messagesPayload,
+              max_tokens: 512,
+              temperature: 0.7,
+            }),
+          });
+          if (res.ok) {
+            const data = await res.json();
+            reply =
+              data?.choices?.[0]?.message?.content ||
+              data?.reply ||
+              data?.content ||
+              null;
+          }
+        } catch {
+          // Backend offline or unreachable — fallback to direct Groq API below
         }
 
-        const data = await res.json();
-        const reply =
-          data?.choices?.[0]?.message?.content ||
-          data?.reply ||
-          data?.content;
+        // 2. Direct Groq AI fallback (works 100% in Mobile APK and offline backend)
+        if (!reply) {
+          const groqRes = await fetch(GROQ_DIRECT_ENDPOINT, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${GROQ_DIRECT_KEY}`,
+            },
+            body: JSON.stringify({
+              model: GROQ_DIRECT_MODEL,
+              messages: messagesPayload,
+              max_tokens: 512,
+              temperature: 0.7,
+            }),
+          });
+
+          if (groqRes.ok) {
+            const groqData = await groqRes.json();
+            reply =
+              groqData?.choices?.[0]?.message?.content ||
+              groqData?.reply ||
+              groqData?.content ||
+              null;
+          } else {
+            const errData = await groqRes.json().catch(() => null);
+            throw new Error(
+              errData?.error?.message ||
+              `AI Service error (HTTP ${groqRes.status})`
+            );
+          }
+        }
 
         if (!reply) {
           throw new Error("No response choices returned by Groq AI.");

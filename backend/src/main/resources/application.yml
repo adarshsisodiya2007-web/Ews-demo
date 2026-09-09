@@ -143,8 +143,8 @@ app:
 
   # Groq AI Disaster Chatbot Assistant
   groq:
-    api-key: ${GROQ_API_KEY:}
-    model: ${GROQ_MODEL:llama-3.3-70b-versatile}
+    api-key: ${GROQ_API_KEY}
+    model: ${GROQ_MODEL:groq/compound-mini}
     endpoint: ${GROQ_ENDPOINT:https://api.groq.com/openai/v1/chat/completions}
 
   # CORS — allow frontend dev and Vercel production

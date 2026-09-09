@@ -251,6 +251,52 @@ export const cacheIncidents = async (data: CitizenReport[]): Promise<void> => {
   await db.put('cached-incidents', record);
 };
 
+export const removeCachedIncident = async (id: string): Promise<void> => {
+  const record = await getCachedIncidents();
+  if (record && record.data) {
+    const updated = record.data.filter(r => r.id !== id);
+    await cacheIncidents(updated);
+  }
+};
+
+export const clearCachedIncidents = async (): Promise<void> => {
+  const db = await getDB();
+  await db.put('cached-incidents', { key: 'all', data: [], timestamp: Date.now() });
+};
+
+const DELETED_INCIDENTS_KEY = 'satark_deleted_incident_ids';
+const CLEARED_INCIDENTS_TIME_KEY = 'satark_incidents_cleared_at';
+
+export const getDeletedIncidentIds = (): Set<string> => {
+  try {
+    const raw = localStorage.getItem(DELETED_INCIDENTS_KEY);
+    if (raw) return new Set<string>(JSON.parse(raw));
+  } catch {}
+  return new Set<string>();
+};
+
+export const addDeletedIncidentId = (id: string): void => {
+  try {
+    const set = getDeletedIncidentIds();
+    set.add(id);
+    localStorage.setItem(DELETED_INCIDENTS_KEY, JSON.stringify(Array.from(set)));
+  } catch {}
+};
+
+export const saveClearedIncidentsTimestamp = (): void => {
+  try {
+    localStorage.setItem(CLEARED_INCIDENTS_TIME_KEY, Date.now().toString());
+  } catch {}
+};
+
+export const getClearedIncidentsTimestamp = (): number | null => {
+  try {
+    const raw = localStorage.getItem(CLEARED_INCIDENTS_TIME_KEY);
+    if (raw) return parseInt(raw, 10);
+  } catch {}
+  return null;
+};
+
 export const getCachedIncidents = async (): Promise<CachedRecord<CitizenReport[]> | null> => {
   const db = await getDB();
   return (await db.get('cached-incidents', 'all')) || null;

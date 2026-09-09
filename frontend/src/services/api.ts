@@ -35,8 +35,17 @@ import {
   cacheTelemetry,
   getCachedTelemetry,
   cacheIncidents,
-  getCachedIncidents
+  getCachedIncidents,
+  removeCachedIncident,
+  clearCachedIncidents,
+  getDeletedIncidentIds,
+  addDeletedIncidentId,
+  saveClearedIncidentsTimestamp,
+  getClearedIncidentsTimestamp
 } from './offlineStore';
+
+import { isCapacitorAndroid } from '../utils/platform';
+import { Capacitor } from '@capacitor/core';
 
 export let DEMO_MODE = false;
 export let IS_USING_CACHED_DATA = false;
@@ -64,10 +73,13 @@ export const resolveApiBaseUrl = (): string => {
     return clean;
   }
   if (typeof window !== 'undefined') {
-    // Check if running inside native Capacitor
-    const isCapacitor = !!(window as any).Capacitor?.isNativePlatform?.() || 
-      window.location.protocol === 'capacitor:' || 
-      window.location.hostname === 'localhost' && navigator.userAgent.includes('wv');
+    // Check if running inside native Capacitor / Android shell
+    const isCapacitor = Capacitor.isNativePlatform() ||
+      isCapacitorAndroid() ||
+      window.location.protocol === 'capacitor:' ||
+      (window.location.hostname === 'localhost' && window.location.port === '') ||
+      (navigator.userAgent && /android/i.test(navigator.userAgent) && window.location.hostname === 'localhost');
+
     if (isCapacitor) {
       return 'https://ews-backend-gateway-vck8.onrender.com';
     }
@@ -77,8 +89,8 @@ export const resolveApiBaseUrl = (): string => {
       return 'http://localhost:8080';
     }
   }
-  // In production (Vercel), default to relative API root unless an external backend is specified
-  return '';
+  // In production (Vercel), default to cloud gateway if no relative backend is co-hosted
+  return 'https://ews-backend-gateway-vck8.onrender.com';
 };
 
 export const isBackendAvailableOrConfigured = (): boolean => {
@@ -87,10 +99,14 @@ export const isBackendAvailableOrConfigured = (): boolean => {
 
 export const api = axios.create({
   baseURL: resolveApiBaseUrl(),
-  timeout: 15000,
+  timeout: 20000,
 });
 
 api.interceptors.request.use((config) => {
+  const currentBase = resolveApiBaseUrl();
+  if (currentBase && (!config.baseURL || config.baseURL === '')) {
+    config.baseURL = currentBase;
+  }
   const token = localStorage.getItem('ews_token');
   if (token && config.headers) {
     config.headers.Authorization = `Bearer ${token}`;
@@ -175,16 +191,28 @@ export const fetchRecentAlerts = async (): Promise<AlertItem[]> => {
 };
 
 export const fetchRecentReports = async (): Promise<CitizenReport[]> => {
+  const deletedIds = getDeletedIncidentIds();
+  const clearedAt = getClearedIncidentsTimestamp();
+
   try {
     const res = await api.get<CitizenReport[]>('/api/reports/recent');
-    await cacheIncidents(res.data).catch(() => {});
-    return res.data;
+    let reports = res.data || [];
+    if (clearedAt) {
+      reports = reports.filter(r => new Date(r.createdAt).getTime() > clearedAt);
+    }
+    reports = reports.filter(r => !deletedIds.has(r.id));
+    await cacheIncidents(reports).catch(() => {});
+    return reports;
   } catch {
     setDemoMode(true);
     try {
       const cached = await getCachedIncidents();
       if (cached && cached.data) {
-        return cached.data;
+        let reports = cached.data;
+        if (clearedAt) {
+          reports = reports.filter(r => new Date(r.createdAt).getTime() > clearedAt);
+        }
+        return reports.filter(r => !deletedIds.has(r.id));
       }
     } catch {}
     return [];
@@ -233,7 +261,49 @@ export const updateReportStatus = async (reportId: string, status: ReportStatus)
 };
 
 export const deleteCitizenReport = async (reportId: string): Promise<void> => {
-  await api.delete(`/api/reports/${reportId}`);
+  try {
+    await api.delete(`/api/reports/${reportId}`);
+  } catch (err: any) {
+    console.warn('[API] deleteCitizenReport remote call error, continuing with local cleanup:', err.message);
+  }
+  await removeCachedIncident(reportId).catch(() => {});
+  addDeletedIncidentId(reportId);
+};
+
+export const clearAllCitizenReports = async (): Promise<{ deletedCount: number; message: string }> => {
+  let count = 0;
+  try {
+    const res = await api.delete<{ success: boolean; deletedCount: number; message: string }>('/api/reports/all');
+    count = res.data?.deletedCount || 0;
+  } catch (err: any) {
+    console.warn('[API] clearAllCitizenReports remote call error, continuing with local cleanup:', err.message);
+  }
+  await clearCachedIncidents().catch(() => {});
+  saveClearedIncidentsTimestamp();
+  return { deletedCount: count, message: 'All incident records cleared' };
+};
+
+export const resolvePhotoUrl = (url?: string | null): string | null => {
+  if (!url || typeof url !== 'string' || !url.trim()) return null;
+  const clean = url.trim();
+
+  // If already a full URL or data/blob URI
+  if (clean.startsWith('http://') || clean.startsWith('https://') || clean.startsWith('data:') || clean.startsWith('blob:')) {
+    // If it points to localhost/127.0.0.1 on a mobile device or production where backend is remote, rewrite origin
+    if (clean.includes('localhost:8080') || clean.includes('127.0.0.1:8080') || clean.includes('localhost/uploads')) {
+      const base = resolveApiBaseUrl();
+      if (base && !base.includes('localhost')) {
+        return clean.replace(/https?:\/\/(localhost|127\.0\.0\.1)(:8080)?/, base);
+      }
+    }
+    return clean;
+  }
+
+  const base = resolveApiBaseUrl();
+  if (clean.startsWith('/')) {
+    return base ? `${base}${clean}` : clean;
+  }
+  return base ? `${base}/${clean}` : `/${clean}`;
 };
 
 export const cleanupCitizenReports = async (options?: {

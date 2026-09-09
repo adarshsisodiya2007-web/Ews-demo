@@ -345,12 +345,9 @@ export const SatarkAndroidLogin: React.FC<Props> = ({ onLoginSuccess }) => {
           }}
         >
           <img
-            src="/SATARK_ANDROID_LOGO.png"
+            src="/satark_emblem.png"
             alt="SATARK"
-            style={{ width: '82%', height: '82%', objectFit: 'contain' }}
-            onError={(e) => {
-              (e.currentTarget as HTMLElement).style.display = 'none';
-            }}
+            style={{ width: '84%', height: '84%', objectFit: 'contain' }}
           />
         </div>
         <div style={{ fontSize: '1.4rem', fontWeight: 900, letterSpacing: '2px', color: colors.textTitle }}>

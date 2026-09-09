@@ -28,8 +28,8 @@ public class ChatbotController {
     @Value("${app.groq.api-key:${GROQ_API_KEY:}}")
     private String groqApiKey;
 
-    @Value("${app.groq.model:${GROQ_MODEL:llama-3.3-70b-versatile}}")
-    private String groqModel = "llama-3.3-70b-versatile";
+    @Value("${app.groq.model:${GROQ_MODEL:groq/compound-mini}}")
+    private String groqModel = "groq/compound-mini";
 
     @Value("${app.groq.endpoint:https://api.groq.com/openai/v1/chat/completions}")
     private String groqEndpoint = "https://api.groq.com/openai/v1/chat/completions";
@@ -60,9 +60,8 @@ public class ChatbotController {
             Map<String, Object> groqPayload = new HashMap<>();
 
             String model = (String) requestBody.getOrDefault("model", groqModel);
-            // Translate legacy/invalid compound-mini to supported Groq LLM
-            if (model == null || model.contains("compound-mini") || model.trim().isEmpty()) {
-                model = (groqModel != null && !groqModel.isEmpty()) ? groqModel : "llama-3.3-70b-versatile";
+            if (model == null || model.trim().isEmpty()) {
+                model = (groqModel != null && !groqModel.isEmpty()) ? groqModel : "groq/compound-mini";
             }
             groqPayload.put("model", model);
 

@@ -53,11 +53,16 @@ export const Satark3DTerrainScreen: React.FC<Props> = ({
     setShowCitySheet(false);
   };
 
+  // 5. Maximize/Minimize State (declared early, used in back button handler)
+  const [isMaximized, setIsMaximized] = useState<boolean>(false);
+
   // 2. Hardware Android Back Button Handling
   useEffect(() => {
     const handleAndroidBack = (e: Event) => {
       e.preventDefault(); // consume event
-      if (showCitySheet) {
+      if (isMaximized) {
+        setIsMaximized(false);
+      } else if (showCitySheet) {
         setShowCitySheet(false);
       } else {
         onClose();
@@ -65,7 +70,7 @@ export const Satark3DTerrainScreen: React.FC<Props> = ({
     };
     window.addEventListener('satark-android-back', handleAndroidBack);
     return () => window.removeEventListener('satark-android-back', handleAndroidBack);
-  }, [onClose, showCitySheet]);
+  }, [onClose, showCitySheet, isMaximized]);
 
   // 3. Network / Offline State
   const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
@@ -113,79 +118,81 @@ export const Satark3DTerrainScreen: React.FC<Props> = ({
       flexDirection: 'column',
       overflow: 'hidden'
     }}>
-      {/* ── TOP MOBILE NAVIGATION BAR ── */}
-      <header style={{
-        position: 'relative',
-        zIndex: 20,
-        background: bgHeader,
-        backdropFilter: 'blur(12px)',
-        WebkitBackdropFilter: 'blur(12px)',
-        borderBottom: `1px solid ${borderCol}`,
-        padding: '10px 14px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: '8px'
-      }}>
-        {/* Back Button */}
-        <button
-          onClick={onClose}
-          style={{
-            background: isLight ? '#f1f5f9' : 'rgba(30, 41, 59, 0.9)',
-            border: `1px solid ${borderCol}`,
-            borderRadius: '8px',
-            color: '#38bdf8',
-            padding: '6px 12px',
-            fontSize: '0.82rem',
-            fontWeight: 800,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '4px'
-          }}
-        >
-          ← Back
-        </button>
+      {/* ── TOP MOBILE NAVIGATION BAR (hidden when maximized) ── */}
+      {!isMaximized && (
+        <header style={{
+          position: 'relative',
+          zIndex: 20,
+          background: bgHeader,
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+          borderBottom: `1px solid ${borderCol}`,
+          padding: '10px 14px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '8px'
+        }}>
+          {/* Back Button */}
+          <button
+            onClick={onClose}
+            style={{
+              background: isLight ? '#f1f5f9' : 'rgba(30, 41, 59, 0.9)',
+              border: `1px solid ${borderCol}`,
+              borderRadius: '8px',
+              color: '#38bdf8',
+              padding: '6px 12px',
+              fontSize: '0.82rem',
+              fontWeight: 800,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px'
+            }}
+          >
+            ← Back
+          </button>
 
-        {/* Title */}
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontWeight: 900, fontSize: '0.88rem', letterSpacing: '-0.01em', color: textPrimary }}>
-            🏔️ 3D Terrain &amp; Runoff
+          {/* Title */}
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontWeight: 900, fontSize: '0.88rem', letterSpacing: '-0.01em', color: textPrimary }}>
+              🏔️ 3D Terrain &amp; Runoff
+            </div>
+            <div style={{ fontSize: '0.64rem', color: textMuted }}>
+              NASA SRTM 30m DEM Simulator
+            </div>
           </div>
-          <div style={{ fontSize: '0.64rem', color: textMuted }}>
-            NASA SRTM 30m DEM Simulator
-          </div>
-        </div>
 
-        {/* City Selector Pill */}
-        <button
-          onClick={() => setShowCitySheet(true)}
-          style={{
-            background: isLight ? '#eff6ff' : 'rgba(30, 41, 59, 0.9)',
-            border: `1px solid ${isLight ? '#bfdbfe' : 'rgba(56, 189, 248, 0.4)'}`,
-            borderRadius: '16px',
-            color: isLight ? '#0284c7' : '#38bdf8',
-            padding: '4px 10px',
-            fontSize: '0.74rem',
-            fontWeight: 800,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '4px',
-            maxWidth: '120px',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap'
-          }}
-        >
-          <span>📍</span>
-          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{shortName}</span>
-          <span>▾</span>
-        </button>
-      </header>
+          {/* City Selector Pill */}
+          <button
+            onClick={() => setShowCitySheet(true)}
+            style={{
+              background: isLight ? '#eff6ff' : 'rgba(30, 41, 59, 0.9)',
+              border: `1px solid ${isLight ? '#bfdbfe' : 'rgba(56, 189, 248, 0.4)'}`,
+              borderRadius: '16px',
+              color: isLight ? '#0284c7' : '#38bdf8',
+              padding: '4px 10px',
+              fontSize: '0.74rem',
+              fontWeight: 800,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              maxWidth: '120px',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            <span>📍</span>
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{shortName}</span>
+            <span>▾</span>
+          </button>
+        </header>
+      )}
 
-      {/* ── OFFLINE STATUS NOTICE (NON-INTRUSIVE) ── */}
-      {!isOnline && (
+      {/* ── OFFLINE STATUS NOTICE (hidden when maximized) ── */}
+      {!isOnline && !isMaximized && (
         <div style={{
           background: 'rgba(245, 158, 11, 0.2)',
           borderBottom: '1px solid rgba(245, 158, 11, 0.4)',
@@ -199,6 +206,7 @@ export const Satark3DTerrainScreen: React.FC<Props> = ({
           ⚠️ Offline Mode · Local NASA SRTM DEM &amp; Runoff Cached Data Active
         </div>
       )}
+
 
       {/* ── 3D WEBGL TERRAIN + RUNOFF CANVAS ── */}
       <div style={{ flex: 1, position: 'relative', width: '100%', height: '100%' }}>
@@ -280,6 +288,29 @@ export const Satark3DTerrainScreen: React.FC<Props> = ({
           flexDirection: 'column',
           gap: '8px'
         }}>
+          {/* Maximize / Minimize Toggle */}
+          <button
+            onClick={() => setIsMaximized(!isMaximized)}
+            title={isMaximized ? 'Minimize 3D terrain' : 'Maximize 3D terrain to full-screen'}
+            style={{
+              background: isMaximized ? '#2563eb' : 'rgba(15, 23, 42, 0.88)',
+              backdropFilter: 'blur(8px)',
+              border: '1px solid rgba(255, 255, 255, 0.25)',
+              borderRadius: '8px',
+              color: '#ffffff',
+              padding: '6px 10px',
+              fontSize: '0.82rem',
+              fontWeight: 900,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              boxShadow: '0 4px 14px rgba(0,0,0,0.5)'
+            }}
+          >
+            {isMaximized ? '⊖ Min' : '⛶ Max'}
+          </button>
+
           {/* Quick Layers Panel Toggle */}
           <button
             onClick={() => setShowControls(!showControls)}

@@ -24,6 +24,7 @@ public class ReportService {
     private final RegionRepository regionRepo;
     private final RiskService riskService;
     private final LiveFeedService liveFeed;
+    private final com.ews.ner.infra.storage.FileStorageService fileStorage;
 
     @Transactional
     public CitizenReport createReport(CreateReportRequest req, UUID reporterId, String photoUrl) {
@@ -123,6 +124,9 @@ public class ReportService {
         CitizenReport report = reportRepo.findById(reportId)
             .orElseThrow(() -> new IllegalArgumentException("Report not found: " + reportId));
         UUID regionId = report.getRegionId();
+        if (report.getPhotoUrl() != null) {
+            fileStorage.deleteFile(report.getPhotoUrl());
+        }
         reportRepo.delete(report);
         log.info("Officer deleted incident report: {}", reportId);
         if (regionId != null) {
@@ -136,6 +140,12 @@ public class ReportService {
         List<CitizenReport> reports = reportRepo.findAllById(reportIds);
         if (reports.isEmpty()) return 0;
 
+        reports.forEach(r -> {
+            if (r.getPhotoUrl() != null) {
+                fileStorage.deleteFile(r.getPhotoUrl());
+            }
+        });
+
         List<UUID> affectedRegions = reports.stream()
             .map(CitizenReport::getRegionId)
             .filter(java.util.Objects::nonNull)
@@ -147,6 +157,30 @@ public class ReportService {
 
         affectedRegions.forEach(riskService::computeAndSave);
         return reports.size();
+    }
+
+    @Transactional
+    public int clearAllReports() {
+        List<CitizenReport> all = reportRepo.findAll();
+        if (all.isEmpty()) return 0;
+
+        all.forEach(r -> {
+            if (r.getPhotoUrl() != null) {
+                fileStorage.deleteFile(r.getPhotoUrl());
+            }
+        });
+
+        List<UUID> affectedRegions = all.stream()
+            .map(CitizenReport::getRegionId)
+            .filter(java.util.Objects::nonNull)
+            .distinct()
+            .toList();
+
+        reportRepo.deleteAll();
+        log.info("Officer cleared all {} incident reports", all.size());
+
+        affectedRegions.forEach(riskService::computeAndSave);
+        return all.size();
     }
 
     @Transactional

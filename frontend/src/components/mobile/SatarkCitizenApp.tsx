@@ -31,6 +31,10 @@ import {
   saveOfflinePhoto
 } from '../../services/offlineStore';
 import {
+  compressPhotoToDataUrl,
+  cachePhotoLocally
+} from '../../services/photoStorage';
+import {
   sendCitizenOtp,
   verifyCitizenOtp,
   getCachedCitizenProfile,
@@ -1180,13 +1184,25 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
 
     let uploadedUrl: string | null = null;
     let photoBlobKey: string | null = null;
+    let compressedPhotoDataUrl: string | null = null;
 
     if (reportPhoto) {
       photoBlobKey = `photo_${cId}`;
-      await saveOfflinePhoto(photoBlobKey, reportPhoto, `hazard_${cId}.jpg`).catch(() => {});
+      try {
+        compressedPhotoDataUrl = await compressPhotoToDataUrl(reportPhoto);
+        await cachePhotoLocally([cId, photoBlobKey, `hazard_${cId}.jpg`], compressedPhotoDataUrl, reportPhoto);
+      } catch (cacheErr) {
+        console.warn('Citizen photo local cache error:', cacheErr);
+        await saveOfflinePhoto(photoBlobKey, reportPhoto, `hazard_${cId}.jpg`).catch(() => {});
+      }
+
       if (isOnline) {
         try {
           uploadedUrl = await uploadPhoto(reportPhoto, `hazard_${cId}.jpg`);
+          if (uploadedUrl && compressedPhotoDataUrl) {
+            const filename = uploadedUrl.split('/').pop()?.split('?')[0];
+            await cachePhotoLocally([uploadedUrl, filename, `photo_${filename}`], compressedPhotoDataUrl, reportPhoto);
+          }
         } catch (uploadErr) {
           console.warn('Online photo upload had error, local IndexedDB backup preserved:', uploadErr);
         }
@@ -1212,7 +1228,10 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
 
     try {
       if (isOnline) {
-        await submitReport(payload);
+        const created = await submitReport(payload);
+        if (created?.id && reportPhoto && compressedPhotoDataUrl) {
+          await cachePhotoLocally([created.id, `photo_${created.id}`], compressedPhotoDataUrl, reportPhoto);
+        }
         setReportSuccessNotice('✅ Hazard report transmitted directly to central disaster control.');
       } else {
         await queueReport(payload, reportPhoto ?? undefined);
