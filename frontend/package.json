@@ -17,6 +17,7 @@
     "@capacitor/status-bar": "^8.0.3",
     "@stomp/stompjs": "^7.0.0",
     "@types/leaflet": "^1.9.12",
+    "@types/sockjs-client": "^1.5.4",
     "@types/three": "^0.185.4",
     "axios": "^1.7.2",
     "date-fns": "^3.6.0",
@@ -27,6 +28,7 @@
     "react-leaflet": "^4.2.1",
     "react-router-dom": "^6.24.0",
     "recharts": "^2.12.7",
+    "sockjs-client": "^1.6.1",
     "three": "^0.185.1"
   },
   "devDependencies": {

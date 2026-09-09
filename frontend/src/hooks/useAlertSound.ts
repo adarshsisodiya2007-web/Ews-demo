@@ -50,6 +50,23 @@ export function useAlertSound() {
     return ctxRef.current;
   }, []);
 
+  // Unlock AudioContext on first user interaction to comply with browser autoplay policies
+  useEffect(() => {
+    const unlockAudio = () => {
+      if (ctxRef.current && ctxRef.current.state === 'suspended') {
+        ctxRef.current.resume().catch(() => {});
+      }
+    };
+    window.addEventListener('click', unlockAudio, { once: true });
+    window.addEventListener('keydown', unlockAudio, { once: true });
+    window.addEventListener('touchstart', unlockAudio, { once: true });
+    return () => {
+      window.removeEventListener('click', unlockAudio);
+      window.removeEventListener('keydown', unlockAudio);
+      window.removeEventListener('touchstart', unlockAudio);
+    };
+  }, []);
+
   // ── 3. Platform-Specific Play Logic ──
   const playCriticalSirenAndroid = useCallback(() => {
     try {

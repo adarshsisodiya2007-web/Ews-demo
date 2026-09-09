@@ -2,6 +2,7 @@ package com.ews.ner.service;
 
 import com.ews.ner.api.dto.AlertDTO;
 import com.ews.ner.api.dto.CitizenReportDTO;
+import com.ews.ner.api.dto.ResponderAlertDTO;
 import com.ews.ner.domain.alert.Alert;
 import com.ews.ner.domain.report.CitizenReport;
 import lombok.RequiredArgsConstructor;
@@ -12,7 +13,8 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class LiveFeedService {
     private final SimpMessagingTemplate messagingTemplate;
-    
+
+    /** Broadcast auto-generated system alert (risk score threshold crossed) */
     public void broadcastAlert(Alert alert, String regionName) {
         AlertDTO dto = new AlertDTO();
         dto.setId(alert.getId());
@@ -22,7 +24,17 @@ public class LiveFeedService {
         dto.setCreatedAt(alert.getCreatedAt());
         messagingTemplate.convertAndSend("/topic/alerts", dto);
     }
-    
+
+    /**
+     * Broadcast responder-created alert to all connected clients.
+     * Clients filter based on their selected location.
+     * Topic: /topic/responder-alerts
+     */
+    public void broadcastResponderAlert(Alert alert) {
+        ResponderAlertDTO dto = ResponderAlertDTO.from(alert);
+        messagingTemplate.convertAndSend("/topic/responder-alerts", dto);
+    }
+
     public void broadcastReport(CitizenReport report) {
         CitizenReportDTO dto = new CitizenReportDTO();
         dto.setId(report.getId());

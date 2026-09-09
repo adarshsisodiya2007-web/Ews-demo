@@ -25,6 +25,8 @@ import {
 import { BleRescueScanner } from '../components/responder/BleRescueScanner';
 import { AIPriorityPanel } from '../components/AIPriorityPanel';
 import { SatarkChatbot } from '../components/chatbot/SatarkChatbot';
+import { CreateAlertPanel } from '../components/responder/CreateAlertPanel';
+import { ResponderAlertList } from '../components/responder/ResponderAlertList';
 
 export const ResponderPortal: React.FC = () => {
   const navigate = useNavigate();
@@ -33,7 +35,8 @@ export const ResponderPortal: React.FC = () => {
 
   const [officerRole, setOfficerRole] = useState<string>('FIELD_OFFICER');
   const [officerUser, setOfficerUser] = useState<string>('field_officer');
-  const [activeTab, setActiveTab] = useState<'ai_priority' | 'tactical_ai' | 'ble_scanner' | 'roads' | 'field_report' | 'incidents' | 'sync_queue'>('ai_priority');
+  const [activeTab, setActiveTab] = useState<'ai_priority' | 'tactical_ai' | 'ble_scanner' | 'roads' | 'field_report' | 'incidents' | 'sync_queue' | 'alert_mgmt'>('ai_priority');
+  const [alertRefresh, setAlertRefresh] = useState(0);
 
   const [regions, setRegions] = useState<RegionRisk[]>([]);
   const [reports, setReports] = useState<CitizenReport[]>([]);
@@ -329,13 +332,14 @@ export const ResponderPortal: React.FC = () => {
         {/* Tactical Nav Tabs */}
         <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', borderBottom: '1px solid #1e293b', overflowX: 'auto', paddingBottom: '4px' }}>
           {[
-            { id: 'ai_priority', label: '🤖 AI Response Priority' },
-            { id: 'tactical_ai', label: '🎖️ Tactical AI Assistant' },
-            { id: 'ble_scanner', label: '🚑 BLE Rescue Scanner & Detections' },
-            { id: 'roads', label: '🛣️ Road Corridor Status' },
-            { id: 'field_report', label: '📸 Quick Field Incident Report' },
+            { id: 'ai_priority', label: '🎯 AI Response Priority' },
+            { id: 'tactical_ai', label: '🤖 Tactical AI Assistant' },
+            { id: 'ble_scanner', label: '📡 BLE Rescue Scanner & Detections' },
+            { id: 'roads', label: '🚧 Road Corridor Status' },
+            { id: 'field_report', label: '📝 Quick Field Incident Report' },
             { id: 'incidents', label: `📋 Monitored Reports (${reports.length})` },
-            { id: 'sync_queue', label: `🔄 Offline Sync Queue (${pendingCount})` }
+            { id: 'sync_queue', label: `📥 Offline Sync Queue (${pendingCount})` },
+            { id: 'alert_mgmt', label: '🚨 Alert Management' }
           ].map(tab => (
             <button
               key={tab.id}
@@ -376,6 +380,16 @@ export const ResponderPortal: React.FC = () => {
         {activeTab === 'tactical_ai' && (
           <div style={{ marginBottom: '20px' }}>
             <SatarkChatbot mode="embedded" roleContext="responder" />
+          </div>
+        )}
+
+        {/* ALERT MANAGEMENT TAB */}
+        {activeTab === 'alert_mgmt' && (
+          <div style={{ padding: '8px 0' }}>
+            <div style={{ marginBottom: 24 }}>
+              <CreateAlertPanel onAlertCreated={() => setAlertRefresh(p => p + 1)} />
+            </div>
+            <ResponderAlertList refreshTrigger={alertRefresh} />
           </div>
         )}
 
