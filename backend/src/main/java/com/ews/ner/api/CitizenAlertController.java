@@ -21,22 +21,27 @@ public class CitizenAlertController {
     private final AlertRepository alertRepo;
 
     /**
-     * GET /api/citizen/alerts/active?regionId={uuid}&district={}&state={}
+     * GET /api/citizen/alerts/active?targetRegion={}&regionId={uuid}&district={}&state={}
      * Returns active alerts matching the citizen's location.
      * Location matching priority:
-     * 1. Exact regionId match
-     * 2. District match (if scope=DISTRICT)
-     * 3. State match (if scope=STATE)
+     * 1. Exact targetRegion match (canonical SATARK region)
+     * 2. Exact regionId match
+     * 3. District match (if scope=DISTRICT)
+     * 4. State match (if scope=STATE)
      */
     @GetMapping("/active")
     public ResponseEntity<List<ResponderAlertDTO>> getActiveAlerts(
+            @RequestParam(required = false) String targetRegion,
             @RequestParam(required = false) UUID regionId,
             @RequestParam(required = false) String district,
             @RequestParam(required = false) String state) {
 
         List<ResponderAlertDTO> result;
 
-        if (regionId != null) {
+        if (targetRegion != null && !targetRegion.isBlank()) {
+            result = alertRepo.findActiveAlertsForTargetRegion(targetRegion.trim(), district, state)
+                    .stream().map(ResponderAlertDTO::from).collect(Collectors.toList());
+        } else if (regionId != null) {
             // Full match: region + district + state
             result = alertRepo.findActiveAlertsForLocation(regionId, district, state)
                     .stream().map(ResponderAlertDTO::from).collect(Collectors.toList());

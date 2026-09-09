@@ -54,6 +54,18 @@ public interface AlertRepository extends JpaRepository<Alert, UUID> {
             @Param("district") String district,
             @Param("state") String state);
 
+    // Fetch all active alerts matching exact SATARK targetRegion or broader scope
+    @Query("SELECT a FROM Alert a WHERE a.isResponderCreated = true AND a.status = 'ACTIVE' " +
+           "AND (" +
+           "  (LOWER(a.locationName) = LOWER(:targetRegion)) OR " +
+           "  (a.scope = 'DISTRICT' AND :district IS NOT NULL AND LOWER(a.district) = LOWER(:district)) OR " +
+           "  (a.scope = 'STATE' AND :state IS NOT NULL AND LOWER(a.state) = LOWER(:state))" +
+           ") ORDER BY a.createdAt DESC")
+    List<Alert> findActiveAlertsForTargetRegion(
+            @Param("targetRegion") String targetRegion,
+            @Param("district") String district,
+            @Param("state") String state);
+
     // Alerts to expire (active but past expiry_time)
     @Query("SELECT a FROM Alert a WHERE a.status = 'ACTIVE' AND a.expiryTime IS NOT NULL AND a.expiryTime < :now")
     List<Alert> findAlertsToExpire(@Param("now") OffsetDateTime now);

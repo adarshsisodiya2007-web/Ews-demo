@@ -13,6 +13,7 @@ export interface ResponderAlert {
   alertType: AlertType;
   regionId?: string;
   locationName?: string;
+  targetRegion?: string;
   district?: string;
   state?: string;
   lat?: number;
@@ -32,6 +33,7 @@ export interface CreateAlertPayload {
   alertType: AlertType;
   regionId?: string;
   locationName?: string;
+  targetRegion?: string;
   district?: string;
   state?: string;
   lat?: number;

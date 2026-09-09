@@ -15,6 +15,11 @@ import {
   fetchHeatmap
 } from '../../services/api';
 import {
+  fetchActiveAlertsForLocation,
+  alertMatchesLocation
+} from '../../services/alertService';
+import { ResponderAlert } from '../../types/alertTypes';
+import {
   queueReport,
   generateClientReportId,
   generateBeaconId,
@@ -22,7 +27,8 @@ import {
   getEmergencyDistressState,
   EmergencyDistressState,
   getCachedHeatmapWithMeta,
-  getCachedShelters
+  getCachedShelters,
+  saveOfflinePhoto
 } from '../../services/offlineStore';
 import {
   sendCitizenOtp,
@@ -407,50 +413,67 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
 
   useEffect(() => {
     let isMounted = true;
-    const loadAlerts = () => {
-      fetchRecentAlerts()
-        .then(res => {
-          if (isMounted) {
-            const config = getCityConfig(citizenCityId);
-            const demoAlerts: AlertItem[] = config.demoAlerts.map(a => ({
-              id: a.id,
-              regionName: citizenCityId === 'other' && citizenCustomLocation ? citizenCustomLocation : config.displayName,
-              regionId: config.id,
-              severity: a.severity,
-              messageEn: a.messageEn,
-              messageAs: a.messageEn,
-              contributingSummary: a.summary,
-              status: 'ACTIVE',
-              createdAt: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
-              active: true,
-              broadcastLevel: a.severity === 'CRITICAL' ? 'ALL_CHANNELS' : 'SMS_APP',
-              targetAudience: 'CITIZEN'
-            }));
-            const existingIds = new Set(demoAlerts.map(d => d.id));
-            const filteredBackend = (res || []).filter(r => !existingIds.has(r.id));
-            setAlerts([...demoAlerts, ...filteredBackend]);
-          }
-        })
-        .catch(() => {
-          if (isMounted) {
-            const config = getCityConfig(citizenCityId);
-            const demoAlerts: AlertItem[] = config.demoAlerts.map(a => ({
-              id: a.id,
-              regionName: citizenCityId === 'other' && citizenCustomLocation ? citizenCustomLocation : config.displayName,
-              regionId: config.id,
-              severity: a.severity,
-              messageEn: a.messageEn,
-              messageAs: a.messageEn,
-              contributingSummary: a.summary,
-              status: 'ACTIVE',
-              createdAt: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
-              active: true,
-              broadcastLevel: a.severity === 'CRITICAL' ? 'ALL_CHANNELS' : 'SMS_APP',
-              targetAudience: 'CITIZEN'
-            }));
-            setAlerts(demoAlerts);
-          }
-        });
+    const loadAlerts = async () => {
+      const config = getCityConfig(citizenCityId);
+      const demoAlerts: AlertItem[] = config.demoAlerts.map(a => ({
+        id: a.id,
+        regionName: citizenCityId === 'other' && citizenCustomLocation ? citizenCustomLocation : config.displayName,
+        regionId: config.id,
+        severity: a.severity,
+        messageEn: a.messageEn,
+        messageAs: a.messageEn,
+        contributingSummary: a.summary,
+        status: 'ACTIVE',
+        createdAt: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
+        active: true,
+        broadcastLevel: a.severity === 'CRITICAL' ? 'ALL_CHANNELS' : 'SMS_APP',
+        targetAudience: 'CITIZEN'
+      }));
+
+      try {
+        // 1. Fetch real-time active alerts matching this citizen's exact SATARK region
+        const responderAlerts = await fetchActiveAlertsForLocation(
+          undefined,
+          config.district,
+          config.state,
+          citizenCityId
+        );
+
+        if (!isMounted) return;
+
+        // 2. Convert matching ResponderAlert items into AlertItem format
+        const convertedResponderAlerts: AlertItem[] = (responderAlerts || [])
+          .filter(ra => alertMatchesLocation(ra, undefined, config.district, config.state, citizenCityId))
+          .map(ra => ({
+            id: ra.id,
+            regionName: ra.locationName || config.displayName,
+            regionId: ra.regionId || config.id,
+            severity: ra.severity,
+            messageEn: ra.title ? `${ra.title}: ${ra.description}` : ra.description,
+            messageAs: null,
+            contributingSummary: `${ra.alertType || 'LANDSLIDE'} Alert · Target: ${ra.locationName || ra.targetRegion || config.name}`,
+            status: ra.status,
+            createdAt: ra.createdAt,
+            active: ra.status === 'ACTIVE',
+            broadcastLevel: ra.severity === 'CRITICAL' ? 'ALL_CHANNELS' : 'SMS_APP',
+            targetAudience: 'CITIZEN'
+          }));
+
+        // 3. Fetch generic system threshold alerts (optional supplement)
+        const genericAlerts = await fetchRecentAlerts().catch(() => []);
+        const existingIds = new Set([
+          ...demoAlerts.map(d => d.id),
+          ...convertedResponderAlerts.map(r => r.id)
+        ]);
+        const filteredGeneric = (genericAlerts || []).filter(g => !existingIds.has(g.id));
+
+        // Prioritize: responder-published alerts FIRST, then demo alerts, then generic
+        setAlerts([...convertedResponderAlerts, ...demoAlerts, ...filteredGeneric]);
+      } catch {
+        if (isMounted) {
+          setAlerts(demoAlerts);
+        }
+      }
     };
 
     loadAlerts();
@@ -459,10 +482,38 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
       loadAlerts();
     });
 
+    // Reactive listener for alerts published by officer
+    const handleAlertPublished = (e: any) => {
+      const alert: ResponderAlert = e.detail;
+      const config = getCityConfig(citizenCityId);
+      if (alert && alert.status === 'ACTIVE') {
+        if (alertMatchesLocation(alert, undefined, config.district, config.state, citizenCityId)) {
+          loadAlerts();
+        }
+      } else {
+        loadAlerts();
+      }
+    };
+
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'satark_published_responder_alerts') {
+        loadAlerts();
+      }
+    };
+
+    window.addEventListener('satark-responder-alert-published', handleAlertPublished);
+    window.addEventListener('satark-responder-alert-updated', handleAlertPublished);
+    window.addEventListener('satark-responder-alert-deleted', handleAlertPublished);
+    window.addEventListener('storage', handleStorage);
+
     return () => {
       isMounted = false;
       clearInterval(interval);
       unsub();
+      window.removeEventListener('satark-responder-alert-published', handleAlertPublished);
+      window.removeEventListener('satark-responder-alert-updated', handleAlertPublished);
+      window.removeEventListener('satark-responder-alert-deleted', handleAlertPublished);
+      window.removeEventListener('storage', handleStorage);
     };
   }, [citizenCityId, citizenCustomLocation]);
 
@@ -1128,10 +1179,18 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
     const cId = generateClientReportId();
 
     let uploadedUrl: string | null = null;
-    if (reportPhoto && isOnline) {
-      try {
-        uploadedUrl = await uploadPhoto(reportPhoto, `hazard_${cId}.jpg`);
-      } catch {}
+    let photoBlobKey: string | null = null;
+
+    if (reportPhoto) {
+      photoBlobKey = `photo_${cId}`;
+      await saveOfflinePhoto(photoBlobKey, reportPhoto, `hazard_${cId}.jpg`).catch(() => {});
+      if (isOnline) {
+        try {
+          uploadedUrl = await uploadPhoto(reportPhoto, `hazard_${cId}.jpg`);
+        } catch (uploadErr) {
+          console.warn('Online photo upload had error, local IndexedDB backup preserved:', uploadErr);
+        }
+      }
     }
 
     let finalDesc = reportDesc.trim();
@@ -1146,6 +1205,7 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
       description: finalDesc,
       reporterType: 'CITIZEN',
       photoUrl: uploadedUrl,
+      photoBlobKey: photoBlobKey,
       medicalUrgent: reportMedicalUrgent,
       clientReportId: cId
     };
@@ -1155,13 +1215,13 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
         await submitReport(payload);
         setReportSuccessNotice('✅ Hazard report transmitted directly to central disaster control.');
       } else {
-        await queueReport(payload);
+        await queueReport(payload, reportPhoto ?? undefined);
         setReportSuccessNotice('📴 OFFLINE: Report preserved in local IndexedDB queue. Automatic cloud sync active.');
       }
       setReportDesc('');
       handleRemovePhoto();
     } catch {
-      await queueReport(payload);
+      await queueReport(payload, reportPhoto ?? undefined);
       setReportSuccessNotice('📴 Saved locally to offline queue.');
     } finally {
       setSubmittingReport(false);

@@ -1,25 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import { CreateAlertPayload, AlertSeverity, AlertScope, AlertType } from '../../types/alertTypes';
+import React, { useState } from 'react';
+import { CreateAlertPayload, AlertSeverity, AlertType } from '../../types/alertTypes';
 import { createResponderAlert } from '../../services/alertService';
-
-interface RegionOption {
-  id: string;
-  name: string;
-  district: string;
-  state: string;
-}
+import { CITY_AREA_OPTIONS, CityAreaConfig } from '../../services/citizenLocationService';
 
 interface Props {
   onAlertCreated: () => void;
 }
 
-const resolveBase = (): string => {
-  const env = (import.meta as any).env || {};
-  return env.VITE_API_BASE_URL || env.VITE_API_URL || 'https://ews-backend-gateway-vck8.onrender.com';
-};
-
 export const CreateAlertPanel: React.FC<Props> = ({ onAlertCreated }) => {
-  const [regions, setRegions] = useState<RegionOption[]>([]);
+  const [selectedCityId, setSelectedCityId] = useState<string>('');
   const [form, setForm] = useState<Partial<CreateAlertPayload & { regionName: string }>>({
     severity: 'HIGH',
     scope: 'EXACT_REGION',
@@ -30,40 +19,40 @@ export const CreateAlertPanel: React.FC<Props> = ({ onAlertCreated }) => {
   const [success, setSuccess] = useState<string | null>(null);
   const [preview, setPreview] = useState(false);
 
-  useEffect(() => {
-    fetch(`${resolveBase()}/api/regions`)
-      .then(r => r.json())
-      .then((data: any[]) => {
-        setRegions(data.map(r => ({
-          id: r.id || r.regionId,
-          name: r.name,
-          district: r.district || '',
-          state: r.state || '',
-        })));
-      })
-      .catch(() => setRegions([]));
-  }, []);
-
   const set = (key: string, value: any) => setForm(p => ({ ...p, [key]: value }));
 
-  const handleRegionSelect = (regionId: string) => {
-    const r = regions.find(x => x.id === regionId);
+  const handleRegionSelect = (cityId: string) => {
+    setSelectedCityId(cityId);
+    const r = CITY_AREA_OPTIONS.find(c => c.id === cityId);
     if (r) {
-      set('regionId', regionId);
-      set('regionName', r.name);
-      set('locationName', r.name);
-      set('district', r.district);
-      set('state', r.state);
+      setForm(p => ({
+        ...p,
+        targetRegion: r.id,
+        locationName: r.name,
+        district: r.district,
+        state: r.state,
+        lat: r.lat,
+        lng: r.lon,
+        scope: 'EXACT_REGION'
+      }));
+    } else {
+      setForm(p => ({
+        ...p,
+        targetRegion: undefined,
+        locationName: undefined,
+        district: undefined,
+        state: undefined,
+        lat: undefined,
+        lng: undefined,
+      }));
     }
   };
 
   const validate = (): string | null => {
     if (!form.title?.trim()) return 'Alert title is required';
     if (!form.severity) return 'Severity is required';
+    if (!selectedCityId) return 'Please select a SATARK Region';
     if (!form.description?.trim()) return 'Alert description is required';
-    if (!form.regionId && !form.district?.trim() && !form.state?.trim()) {
-      return 'Select a region OR enter district/state';
-    }
     return null;
   };
 
@@ -74,8 +63,10 @@ export const CreateAlertPanel: React.FC<Props> = ({ onAlertCreated }) => {
     setSubmitting(true);
     try {
       await createResponderAlert(form as CreateAlertPayload);
-      setSuccess('✅ Alert published and broadcast to matching citizens!');
+      const targetName = form.locationName || selectedCityId;
+      setSuccess(`✅ Alert published to ${targetName} and broadcast to citizens in real time!`);
       setForm({ severity: 'HIGH', scope: 'EXACT_REGION', alertType: 'LANDSLIDE' });
+      setSelectedCityId('');
       setPreview(false);
       onAlertCreated();
       setTimeout(() => setSuccess(null), 5000);
@@ -113,6 +104,8 @@ export const CreateAlertPanel: React.FC<Props> = ({ onAlertCreated }) => {
     LOW: '#3b82f6', MODERATE: '#eab308', HIGH: '#f97316', CRITICAL: '#ef4444',
   };
 
+  const selectedRegionConfig = CITY_AREA_OPTIONS.find(c => c.id === selectedCityId);
+
   return (
     <div style={{
       background: '#0f172a',
@@ -126,7 +119,7 @@ export const CreateAlertPanel: React.FC<Props> = ({ onAlertCreated }) => {
           🚨 Create Landslide Alert
         </h3>
         <p style={{ color: '#64748b', fontSize: '0.82rem', margin: '4px 0 0' }}>
-          Alert will be broadcast in real-time to matching citizens.
+          Alert will be targeted to the selected SATARK region and broadcast in real-time.
         </p>
       </div>
 
@@ -151,7 +144,7 @@ export const CreateAlertPanel: React.FC<Props> = ({ onAlertCreated }) => {
           <label style={labelStyle}>Alert Title *</label>
           <input
             style={inputStyle}
-            placeholder="e.g. High landslide risk detected in Mawsynram area"
+            placeholder="e.g. Critical Landslide Warning"
             value={form.title || ''}
             onChange={e => set('title', e.target.value)}
           />
@@ -164,6 +157,7 @@ export const CreateAlertPanel: React.FC<Props> = ({ onAlertCreated }) => {
             {SEVERITIES.map(sev => (
               <button
                 key={sev}
+                type="button"
                 onClick={() => set('severity', sev)}
                 style={{
                   flex: 1, padding: '8px 4px',
@@ -191,68 +185,31 @@ export const CreateAlertPanel: React.FC<Props> = ({ onAlertCreated }) => {
           </select>
         </div>
 
-        {/* Region Select */}
+        {/* SATARK Region Dropdown */}
         <div style={{ gridColumn: '1 / -1' }}>
-          <label style={labelStyle}>Select Region (or enter manually below)</label>
+          <label style={labelStyle}>SATARK Region *</label>
           <select
-            style={{ ...inputStyle }}
-            value={form.regionId || ''}
+            style={{
+              ...inputStyle,
+              border: selectedCityId ? '1px solid #3b82f6' : '1px solid #334155'
+            }}
+            value={selectedCityId}
             onChange={e => handleRegionSelect(e.target.value)}
           >
-            <option value="">— Choose from existing regions —</option>
-            {regions.map(r => (
-              <option key={r.id} value={r.id}>
-                {r.name} — {r.district}, {r.state}
+            <option value="">— Select SATARK Region —</option>
+            {CITY_AREA_OPTIONS.map(c => (
+              <option key={c.id} value={c.id}>
+                {c.name}
               </option>
             ))}
           </select>
-        </div>
-
-        {/* Alert Scope */}
-        <div>
-          <label style={labelStyle}>Alert Scope</label>
-          <select
-            style={{ ...inputStyle }}
-            value={form.scope || 'EXACT_REGION'}
-            onChange={e => set('scope', e.target.value as AlertScope)}
-          >
-            <option value="EXACT_REGION">📌 Exact Region only</option>
-            <option value="DISTRICT">🏙️ Entire District</option>
-            <option value="STATE">🗺️ Entire State</option>
-          </select>
-        </div>
-
-        {/* Location Name */}
-        <div>
-          <label style={labelStyle}>Location Name</label>
-          <input
-            style={inputStyle}
-            placeholder="e.g. Mawsynram, Wayanad..."
-            value={form.locationName || ''}
-            onChange={e => set('locationName', e.target.value)}
-          />
-        </div>
-
-        {/* District */}
-        <div>
-          <label style={labelStyle}>District</label>
-          <input
-            style={inputStyle}
-            placeholder="e.g. East Khasi Hills"
-            value={form.district || ''}
-            onChange={e => set('district', e.target.value)}
-          />
-        </div>
-
-        {/* State */}
-        <div>
-          <label style={labelStyle}>State</label>
-          <input
-            style={inputStyle}
-            placeholder="e.g. Meghalaya"
-            value={form.state || ''}
-            onChange={e => set('state', e.target.value)}
-          />
+          {selectedRegionConfig && (
+            <div style={{ fontSize: '0.74rem', color: '#38bdf8', marginTop: 4, display: 'flex', gap: 12 }}>
+              <span>📍 Targeted: <strong>{selectedRegionConfig.name}</strong></span>
+              <span>🏙️ District: <strong>{selectedRegionConfig.district}</strong></span>
+              <span>🗺️ State: <strong>{selectedRegionConfig.state}</strong></span>
+            </div>
+          )}
         </div>
 
         {/* Description */}
@@ -260,7 +217,7 @@ export const CreateAlertPanel: React.FC<Props> = ({ onAlertCreated }) => {
           <label style={labelStyle}>Alert Description / Message *</label>
           <textarea
             style={{ ...inputStyle, minHeight: 80, resize: 'vertical' }}
-            placeholder="Describe the landslide risk, evacuation instructions, emergency contacts..."
+            placeholder="Critical landslide risk detected in the selected SATARK region. Citizens should move to a safe location and follow official evacuation instructions."
             value={form.description || ''}
             onChange={e => set('description', e.target.value)}
           />
@@ -281,6 +238,7 @@ export const CreateAlertPanel: React.FC<Props> = ({ onAlertCreated }) => {
       {/* Actions */}
       <div style={{ display: 'flex', gap: 12, marginTop: 20 }}>
         <button
+          type="button"
           onClick={() => { const e = validate(); setError(e); if (!e) setPreview(!preview); }}
           style={{
             flex: 1, padding: '10px 16px',
@@ -292,6 +250,7 @@ export const CreateAlertPanel: React.FC<Props> = ({ onAlertCreated }) => {
         >{preview ? 'Hide Preview' : '👁️ Preview Alert'}</button>
 
         <button
+          type="button"
           onClick={handleSubmit}
           disabled={submitting}
           style={{
@@ -319,14 +278,14 @@ export const CreateAlertPanel: React.FC<Props> = ({ onAlertCreated }) => {
             {form.severity && `[${form.severity}] `}{form.title}
           </div>
           <div style={{ color: '#94a3b8', fontSize: '0.82rem', marginTop: 4 }}>
-            📍 {form.locationName || form.district || form.state || 'Location not set'}
-            {form.district && form.state && ` — ${form.district}, ${form.state}`}
+            📍 SATARK Region: <strong>{form.locationName || selectedCityId}</strong>
+            {form.district && form.state && ` (${form.district}, ${form.state})`}
           </div>
           <div style={{ color: '#cbd5e1', fontSize: '0.85rem', marginTop: 8 }}>
             {form.description}
           </div>
           <div style={{ color: '#64748b', fontSize: '0.75rem', marginTop: 8 }}>
-            Scope: {form.scope} | Type: {form.alertType}
+            Type: {form.alertType} | Scope: EXACT_REGION
             {form.expiryTime && ` | Expires: ${new Date(form.expiryTime).toLocaleString()}`}
           </div>
         </div>

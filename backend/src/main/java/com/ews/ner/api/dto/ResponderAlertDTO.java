@@ -20,6 +20,7 @@ public class ResponderAlertDTO {
     // Location
     private UUID regionId;
     private String locationName;
+    private String targetRegion;
     private String district;
     private String state;
     private BigDecimal lat;
@@ -43,6 +44,7 @@ public class ResponderAlertDTO {
         dto.setAlertType(a.getAlertType());
         dto.setRegionId(a.getRegionId());
         dto.setLocationName(a.getLocationName());
+        dto.setTargetRegion(a.getLocationName());
         dto.setDistrict(a.getDistrict());
         dto.setState(a.getState());
         dto.setLat(a.getLat());

@@ -61,15 +61,21 @@ public class ResponderAlertController {
         if (req.getDescription() == null || req.getDescription().isBlank()) {
             return ResponseEntity.badRequest().body("Alert description is required");
         }
-        // Location validation: must have regionId OR district OR state
+        // Location validation: must have targetRegion OR locationName OR regionId OR district OR state
         if (req.getRegionId() == null
+                && (req.getLocationName() == null || req.getLocationName().isBlank())
+                && (req.getTargetRegion() == null || req.getTargetRegion().isBlank())
                 && (req.getDistrict() == null || req.getDistrict().isBlank())
                 && (req.getState() == null || req.getState().isBlank())) {
-            return ResponseEntity.badRequest().body("At least one location field (regionId, district, or state) is required");
+            return ResponseEntity.badRequest().body("At least one location field (SATARK region, district, or state) is required");
         }
         if (req.getScope() == null || req.getScope().isBlank()) {
             req.setScope("EXACT_REGION");
         }
+
+        String targetLoc = (req.getLocationName() != null && !req.getLocationName().isBlank())
+                ? req.getLocationName()
+                : req.getTargetRegion();
 
         OffsetDateTime now = OffsetDateTime.now();
         Alert alert = Alert.builder()
@@ -81,7 +87,7 @@ public class ResponderAlertController {
                 .scope(req.getScope())
                 .alertType(req.getAlertType() != null ? req.getAlertType() : "LANDSLIDE")
                 .regionId(req.getRegionId())
-                .locationName(req.getLocationName())
+                .locationName(targetLoc)
                 .district(req.getDistrict())
                 .state(req.getState())
                 .lat(req.getLat())

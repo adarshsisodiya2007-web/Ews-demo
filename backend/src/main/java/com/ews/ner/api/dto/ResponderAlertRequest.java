@@ -14,9 +14,10 @@ public class ResponderAlertRequest {
     private RiskScore.Severity severity;  // LOW | MODERATE | HIGH | CRITICAL
     private String scope;              // EXACT_REGION | DISTRICT | STATE
 
-    // Location (at least one of regionId or district must be provided)
+    // Location (at least one of regionId, locationName, targetRegion, or district must be provided)
     private UUID regionId;
     private String locationName;
+    private String targetRegion;
     private String district;
     private String state;
     private BigDecimal lat;
