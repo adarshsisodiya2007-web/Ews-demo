@@ -2,6 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useGeolocation } from '../../hooks/useGeolocation';
 import { useAlertSound } from '../../hooks/useAlertSound';
 import { useVoiceAssistant } from '../../hooks/useVoiceAssistant';
+import { isCapacitorAndroid } from '../../utils/platform';
+import { SatarkCriticalLandslideWarning } from './SatarkCriticalLandslideWarning';
+import { SatarkFamilySafetyPopup } from './SatarkFamilySafetyPopup';
+import { SatarkFamilyMembersManager } from './SatarkFamilyMembersManager';
 import { analyzeImageCanvas, CompleteImageAnalysis } from '../../services/imageAnalysisService';
 import {
   fetchRecentAlerts,
@@ -50,6 +54,7 @@ import { PhotoCapture } from '../report/PhotoCapture';
 import { OfflineRescueMode } from '../emergency/OfflineRescueMode';
 import { OfflineHowItWorksIllustration } from '../emergency/OfflineHowItWorksIllustration';
 import { FamilyChecklist } from './FamilyChecklist';
+import { Satark3DTerrainScreen } from './Satark3DTerrainScreen';
 import {
   getCityConfig,
   getCitizenLocation,
@@ -144,7 +149,6 @@ interface Props {
 export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
   const { coords: userLocation } = useGeolocation();
   const { isPlaying: isSirenPlaying, playCriticalSiren, stopSiren } = useAlertSound();
-  const toggleSiren = () => { if (isSirenPlaying) stopSiren(); else playCriticalSiren(); };
 
   // Selected City / Area state (Driven by Citizen Onboarding / Profile)
   const [citizenCityId, setCitizenCityId] = useState<string>(() => getCitizenLocation() || 'guwahati');
@@ -174,12 +178,27 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
 
   const handleSelectCity = (cityId: string, customName?: string) => {
     setCitizenCityId(cityId);
+    let finalCustom = '';
     if (cityId === 'other') {
-      const custom = (customName !== undefined ? customName : customCityInput || 'Other Area').trim();
-      setCitizenCustomLocation(custom);
-      setCitizenLocation('other', custom);
+      finalCustom = (customName !== undefined ? customName : customCityInput || 'Other Area').trim();
+      setCitizenCustomLocation(finalCustom);
+      setCitizenLocation('other', finalCustom);
     } else {
       setCitizenLocation(cityId);
+    }
+
+    const cfg = getCityConfig(cityId);
+    if (cfg) {
+      setSelectedZone({
+        name: `${cfg.name} Slopes (NER)`,
+        district: cfg.district,
+        lat: cfg.lat,
+        lon: cfg.lon,
+        slope: cfg.slope,
+        state: cfg.state,
+        elev: cfg.elev
+      });
+      setMapCenter([cfg.lat, cfg.lon]);
     }
     setShowCitySheet(false);
   };
@@ -192,6 +211,11 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
 
   // Dedicated Family Checklist View (Landslide & Flood Checklists)
   const [showFamilyChecklist, setShowFamilyChecklist] = useState<boolean>(false);
+
+  // Dedicated 3D Terrain & Runoff View
+  const [show3DTerrainView, setShow3DTerrainView] = useState<boolean>(() => {
+    return window.location.pathname === '/citizen/3d-terrain';
+  });
 
   // Theme & Language
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
@@ -276,7 +300,24 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
     slope: number;
     state: string;
     elev?: number;
-  }>(ZONES[0]);
+  }>(() => {
+    try {
+      const savedCity = getCitizenLocation();
+      const cfg = getCityConfig(savedCity);
+      if (cfg) {
+        return {
+          name: `${cfg.name} Slopes (NER)`,
+          district: cfg.district,
+          lat: cfg.lat,
+          lon: cfg.lon,
+          slope: cfg.slope,
+          state: cfg.state,
+          elev: cfg.elev
+        };
+      }
+    } catch {}
+    return ZONES[0];
+  });
   const [showZoneSheet, setShowZoneSheet] = useState(false);
 
   // Controlled Demo / Simulation Mode (Strictly deterministic, NO Math.random)
@@ -331,6 +372,38 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
   // Alerts state
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
   const [alertFilter, setAlertFilter] = useState<Severity | 'ALL'>('ALL');
+  const [dismissedAlertIds, setDismissedAlertIds] = useState<Set<string>>(() => {
+    try {
+      const raw = localStorage.getItem('satark_dismissed_alert_ids');
+      return raw ? new Set(JSON.parse(raw)) : new Set();
+    } catch {
+      return new Set();
+    }
+  });
+
+  const handleDeleteAlert = (id: string) => {
+    setDismissedAlertIds(prev => {
+      const next = new Set(prev);
+      next.add(id);
+      try {
+        localStorage.setItem('satark_dismissed_alert_ids', JSON.stringify(Array.from(next)));
+      } catch (e) {}
+      return next;
+    });
+  };
+
+  const handleClearAllAlerts = () => {
+    if (window.confirm('Clear all displayed alert notifications from your list?')) {
+      setDismissedAlertIds(prev => {
+        const next = new Set(prev);
+        alerts.forEach(a => next.add(a.id));
+        try {
+          localStorage.setItem('satark_dismissed_alert_ids', JSON.stringify(Array.from(next)));
+        } catch (e) {}
+        return next;
+      });
+    }
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -512,10 +585,44 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
   // Deduplication ref to prevent repeated sirens/voice loops on re-renders and repeated polling
   const lastCriticalAlertIdRef = useRef<string | null>(null);
 
+  // Critical Landslide Emergency Warning state (Android only)
+  const [showCriticalWarning, setShowCriticalWarning] = useState<boolean>(false);
+  const [dismissedWarningKey, setDismissedWarningKey] = useState<string | null>(null);
+  const [currentCriticalAlertInfo, setCurrentCriticalAlertInfo] = useState<{
+    severity: 'CRITICAL' | 'HIGH';
+    message: string;
+    warningKey: string;
+  } | null>(null);
+
+  // Family Safety Popup state (Android App-Open / Session)
+  const [showFamilyPopup, setShowFamilyPopup] = useState<boolean>(false);
+  const hasDismissedFamilyPopupRef = useRef<boolean>(false);
+  const familyPopupTimerRef = useRef<any>(null);
+
+  // App-open Family Safety Popup Coordinator:
+  // Non-critical area: Family Safety Popup appears directly on app open (~1.5s delay).
+  // Critical area: Critical Warning shows first; when citizen closes it, wait ~10s, then show Family Safety Popup.
+  useEffect(() => {
+    if (!isCapacitorAndroid()) return;
+
+    const isRiskCritical =
+      riskData?.assessment?.level === 'RED' ||
+      riskData?.assessment?.severity === 'CRITICAL' ||
+      activeCityConfig.demoRisk.level === 'RED' ||
+      activeCityConfig.demoRisk.severity === 'CRITICAL';
+
+    if (!isRiskCritical && !showCriticalWarning && !hasDismissedFamilyPopupRef.current) {
+      const t = setTimeout(() => {
+        if (!hasDismissedFamilyPopupRef.current && !showCriticalWarning) {
+          setShowFamilyPopup(true);
+        }
+      }, 1500);
+      return () => clearTimeout(t);
+    }
+  }, [riskData, showCriticalWarning, activeCityConfig]);
+
   // Area-Specific Emergency Alert & Critical Horn (alarm.mp3) Logic with Deduplication by UNIQUE Alert/Assessment ID
   useEffect(() => {
-    if (!riskData) return;
-
     // Check if there is an active critical alert matching this zone
     const matchingCriticalAlert = alerts.find(a =>
       a.severity === 'CRITICAL' && (
@@ -527,43 +634,60 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
       )
     );
 
-    const isRiskCritical = riskData.assessment?.level === 'RED' || riskData.assessment?.severity === 'CRITICAL';
+    const isRiskCritical =
+      riskData?.assessment?.level === 'RED' ||
+      riskData?.assessment?.severity === 'CRITICAL' ||
+      activeCityConfig.demoRisk.level === 'RED' ||
+      activeCityConfig.demoRisk.severity === 'CRITICAL';
     const isCritical = isRiskCritical || !!matchingCriticalAlert;
 
     if (isCritical) {
       // Deduplication based on the UNIQUE CRITICAL ALERT/ASSESSMENT ID:
       const criticalAlertId =
         matchingCriticalAlert?.id ||
-        riskData.assessment?.id ||
-        riskData.id ||
+        riskData?.assessment?.id ||
+        riskData?.id ||
         (riskData as any)?.assessmentId ||
-        `crit_assess_${selectedZone.name}_${riskData.assessment?.score ?? '0'}_${riskData.weather?.rain_24h_mm ?? '0'}_${riskData.weather?.soil_moisture ?? '0'}`;
+        `crit_assess_${selectedZone.name}_${activeCityConfig.id}`;
+
+      const warningKey = `${citizenCityId}_${criticalAlertId}`;
+      const critSeverity = (matchingCriticalAlert?.severity as 'CRITICAL' | 'HIGH') || (riskData?.assessment?.severity as any) || activeCityConfig.demoRisk.severity || 'CRITICAL';
+      const critMessage =
+        matchingCriticalAlert?.messageEn ||
+        riskData?.assessment?.action_protocol ||
+        activeCityConfig.demoRisk.action_protocol ||
+        'IMMEDIATE EVACUATION ADVISED. Extreme slope saturation and active landslide triggers detected.';
+
+      setCurrentCriticalAlertInfo({
+        severity: critSeverity === 'HIGH' ? 'HIGH' : 'CRITICAL',
+        message: critMessage,
+        warningKey
+      });
+
+      // On Android: automatically show the critical warning overlay if not previously dismissed
+      // Popup MUST REMAIN OPEN indefinitely until citizen presses "✓ Understand & Close"
+      if (isCapacitorAndroid() && dismissedWarningKey !== warningKey) {
+        setShowCriticalWarning(true);
+      }
 
       // 1. New CRITICAL alert ID -> play alarm.mp3.
       // 2. Same CRITICAL alert ID received repeatedly through polling -> DO NOT restart the siren.
-      // 3. Different/new CRITICAL alert ID, even if for the same area -> play alarm.mp3 again.
       if (lastCriticalAlertIdRef.current !== criticalAlertId) {
         lastCriticalAlertIdRef.current = criticalAlertId;
-        // Trigger critical emergency horn / alarm.mp3
         playCriticalSiren();
-        // Play multilingual voice advisory
-        speakAlert(
-          selectedZone.name,
-          'RED',
-          matchingCriticalAlert?.messageEn ||
-          riskData.assessment?.action_protocol ||
-          'Immediate Evacuation Required. Move to safe relief shelter.'
-        );
+        // NOTE: SPOKEN ADVISOR STARTS OFF BY DEFAULT — No automatic speech playback.
       }
     } else {
-      // 4. Non-critical alerts -> no siren.
+      // Non-critical area
       if (lastCriticalAlertIdRef.current !== null) {
         lastCriticalAlertIdRef.current = null;
         stopSiren();
         stopVoiceSpeaking();
       }
+      setShowCriticalWarning(false);
+      setCurrentCriticalAlertInfo(null);
     }
-  }, [riskData, alerts, selectedZone, playCriticalSiren, stopSiren, speakAlert, stopVoiceSpeaking]);
+  }, [riskData, alerts, selectedZone, citizenCityId, activeCityConfig, dismissedWarningKey, playCriticalSiren, stopSiren, stopVoiceSpeaking]);
 
   // GIS Risk Heatmap Regions state for Citizen Map
   const [gisRegions, setGisRegions] = useState<RegionRisk[]>([]);
@@ -1179,6 +1303,25 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
     );
   }
 
+  // ── IF FULL 3D TERRAIN & RUNOFF VIEW IS OPEN ──
+  if (show3DTerrainView) {
+    return (
+      <Satark3DTerrainScreen
+        onClose={() => {
+          setShow3DTerrainView(false);
+          if (window.location.pathname === '/citizen/3d-terrain') {
+            try {
+              window.history.replaceState(null, '', '/citizen');
+            } catch {}
+          }
+        }}
+        lang={lang}
+        theme={theme}
+        initialCityId={citizenCityId}
+      />
+    );
+  }
+
   return (
     <div style={{
       minHeight: '100vh',
@@ -1241,16 +1384,6 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
         >
           <span>📍</span>
           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{activeCityShortName}</span>
-          <span style={{
-            fontSize: '0.58rem',
-            background: '#3b82f6',
-            color: '#ffffff',
-            padding: '1px 4px',
-            borderRadius: '4px',
-            fontWeight: 800,
-            marginLeft: '2px',
-            flexShrink: 0
-          }}>DEMO</span>
           <span>▾</span>
         </button>
 
@@ -1283,23 +1416,6 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
             title={isDemoMode ? 'Click to rotate demo scenario' : 'Switch to demo simulation scenarios'}
           >
             {isDemoMode ? `DEMO ${demoScenarioIdx + 1}/3 ↻` : 'LIVE 🟢'}
-          </button>
-
-          {/* Siren */}
-          <button
-            onClick={toggleSiren}
-            style={{
-              background: isSirenPlaying ? '#ef4444' : (isLight ? '#f1f5f9' : '#1e293b'),
-              border: `1px solid ${isSirenPlaying ? '#b91c1c' : borderCol}`,
-              borderRadius: '6px',
-              padding: '4px 7px',
-              fontSize: '0.8rem',
-              color: isSirenPlaying ? '#fff' : textPrimary,
-              cursor: 'pointer'
-            }}
-            title="Emergency Siren"
-          >
-            {isSirenPlaying ? '🔊' : '🔈'}
           </button>
 
           {/* Theme */}
@@ -1454,18 +1570,6 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <span style={{ fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', color: textMuted }}>
                   {t('home.statusTitle', lang)}
-                </span>
-                <span style={{
-                  fontSize: '0.62rem',
-                  background: isLight ? '#e0f2fe' : 'rgba(56, 189, 248, 0.15)',
-                  color: isLight ? '#0284c7' : '#38bdf8',
-                  border: `1px solid ${isLight ? '#bae6fd' : 'rgba(56, 189, 248, 0.3)'}`,
-                  padding: '1px 5px',
-                  borderRadius: '4px',
-                  fontWeight: 800,
-                  letterSpacing: '0.04em'
-                }}>
-                  {t('common.demoData', lang) || 'DEMO DATA'}
                 </span>
               </div>
               <span style={{
@@ -1748,6 +1852,56 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
                 </div>
               </div>
             </div>
+
+            {/* ── 🏔️ 3D TERRAIN & RUNOFF ACTION ── */}
+            <div style={{
+              marginTop: '10px',
+              padding: '11px 13px',
+              borderRadius: '10px',
+              background: isLight
+                ? 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)'
+                : 'linear-gradient(135deg, rgba(30, 41, 59, 0.85) 0%, rgba(15, 23, 42, 0.95) 100%)',
+              border: `1px solid ${isLight ? '#bae6fd' : 'rgba(56, 189, 248, 0.3)'}`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '10px'
+            }}>
+              <div>
+                <div style={{ fontSize: '0.84rem', fontWeight: 900, color: isLight ? '#0369a1' : '#38bdf8', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span>🏔️</span> 3D TERRAIN &amp; RUNOFF
+                </div>
+                <div style={{ fontSize: '0.72rem', color: textMuted, marginTop: '2px', lineHeight: 1.3 }}>
+                  Explore terrain, slopes and runoff flow for your area
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShow3DTerrainView(true);
+                  try {
+                    window.history.pushState(null, '', '/citizen/3d-terrain');
+                  } catch {}
+                }}
+                style={{
+                  background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '8px',
+                  padding: '8px 14px',
+                  fontSize: '0.78rem',
+                  fontWeight: 900,
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                  boxShadow: '0 2px 8px rgba(2, 132, 199, 0.35)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}
+              >
+                VIEW 3D →
+              </button>
+            </div>
           </div>
 
           {/* Local Incidents / Reports Card */}
@@ -1767,7 +1921,6 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
                   <span>📋</span>
                   <span>Local Area Reports ({activeCityConfig.demoIncidents.length})</span>
                 </div>
-                <span style={{ fontSize: '0.62rem', background: '#3b82f6', color: '#fff', padding: '1px 5px', borderRadius: '4px', fontWeight: 800 }}>DEMO DATA</span>
               </div>
               {activeCityConfig.demoIncidents.map(inc => (
                 <div key={inc.id} style={{
@@ -1841,56 +1994,133 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
               </button>
             </div>
           </div>
+
+          {/* ── FAMILY SAFETY STATUS CARD ── */}
+          <div style={{
+            background: bgCard,
+            border: `1px solid ${borderCol}`,
+            borderRadius: '14px',
+            padding: '14px',
+            boxShadow: isLight ? '0 2px 10px rgba(0,0,0,0.04)' : '0 4px 16px rgba(0,0,0,0.3)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '10px'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{
+                width: '38px',
+                height: '38px',
+                borderRadius: '50%',
+                backgroundColor: isLight ? '#ecfdf5' : 'rgba(16, 185, 129, 0.15)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '20px'
+              }}>
+                ☀️
+              </div>
+              <div>
+                <div style={{ fontWeight: 800, fontSize: '0.88rem', color: textPrimary }}>
+                  Family Safety Status
+                </div>
+                <div style={{ fontSize: '0.72rem', color: textMuted }}>
+                  Track loved ones' locations & safety score
+                </div>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowFamilyPopup(true)}
+              style={{
+                background: '#10b981',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: '8px',
+                padding: '7px 12px',
+                fontSize: '0.76rem',
+                fontWeight: 800,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)'
+              }}
+            >
+              View Status ›
+            </button>
+          </div>
         </div>
       )}
 
       {/* ── TAB 2: ALERTS ── */}
-      {activeTab === 'alerts' && (
-        <div style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 900, color: textPrimary }}>
-              🚨 {t('alerts.title', lang)} ({alerts.length})
-            </h3>
-            {/* Filter Pills */}
-            <div style={{ display: 'flex', gap: '4px' }}>
-              {(['ALL', 'CRITICAL', 'HIGH'] as const).map(sev => (
-                <button
-                  key={sev}
-                  onClick={() => setAlertFilter(sev)}
-                  style={{
-                    background: alertFilter === sev ? (sev === 'CRITICAL' ? '#ef4444' : '#2563eb') : (isLight ? '#f1f5f9' : '#1e293b'),
-                    color: alertFilter === sev ? '#ffffff' : textMuted,
-                    border: `1px solid ${borderCol}`,
-                    borderRadius: '12px',
-                    padding: '2px 8px',
-                    fontSize: '0.68rem',
-                    fontWeight: 700,
-                    cursor: 'pointer'
-                  }}
-                >
-                  {sev === 'ALL' ? t('alerts.filterAll', lang) : sev === 'CRITICAL' ? t('alerts.filterCritical', lang) : t('alerts.filterHigh', lang)}
-                </button>
-              ))}
-            </div>
-          </div>
+      {activeTab === 'alerts' && (() => {
+        const displayedAlerts = alerts.filter(a => !dismissedAlertIds.has(a.id) && (alertFilter === 'ALL' || a.severity === alertFilter));
+        const totalNonDismissed = alerts.filter(a => !dismissedAlertIds.has(a.id)).length;
 
-          {alerts.filter(a => alertFilter === 'ALL' || a.severity === alertFilter).length === 0 && (
-            <div style={{
-              background: bgCard,
-              border: `1px solid ${borderCol}`,
-              borderRadius: '12px',
-              padding: '24px',
-              textAlign: 'center',
-              color: textMuted,
-              fontSize: '0.84rem'
-            }}>
-              {t('alerts.noAlerts', lang)}
+        return (
+          <div style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
+              <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 900, color: textPrimary }}>
+                🚨 {t('alerts.title', lang)} ({totalNonDismissed})
+              </h3>
+              {/* Filter Pills & Clear All */}
+              <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                {(['ALL', 'CRITICAL', 'HIGH'] as const).map(sev => (
+                  <button
+                    key={sev}
+                    onClick={() => setAlertFilter(sev)}
+                    style={{
+                      background: alertFilter === sev ? (sev === 'CRITICAL' ? '#ef4444' : '#2563eb') : (isLight ? '#f1f5f9' : '#1e293b'),
+                      color: alertFilter === sev ? '#ffffff' : textMuted,
+                      border: `1px solid ${borderCol}`,
+                      borderRadius: '12px',
+                      padding: '2px 8px',
+                      fontSize: '0.68rem',
+                      fontWeight: 700,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {sev === 'ALL' ? t('alerts.filterAll', lang) : sev === 'CRITICAL' ? t('alerts.filterCritical', lang) : t('alerts.filterHigh', lang)}
+                  </button>
+                ))}
+                {totalNonDismissed > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleClearAllAlerts}
+                    style={{
+                      background: isLight ? '#fee2e2' : 'rgba(239, 68, 68, 0.2)',
+                      color: '#ef4444',
+                      border: '1px solid rgba(239, 68, 68, 0.4)',
+                      borderRadius: '12px',
+                      padding: '2px 8px',
+                      fontSize: '0.68rem',
+                      fontWeight: 700,
+                      cursor: 'pointer'
+                    }}
+                    title="Clear all displayed alert notifications"
+                  >
+                    🧹 Clear All
+                  </button>
+                )}
+              </div>
             </div>
-          )}
 
-          {alerts
-            .filter(a => alertFilter === 'ALL' || a.severity === alertFilter)
-            .map(alert => (
+            {displayedAlerts.length === 0 && (
+              <div style={{
+                background: bgCard,
+                border: `1px solid ${borderCol}`,
+                borderRadius: '12px',
+                padding: '24px',
+                textAlign: 'center',
+                color: textMuted,
+                fontSize: '0.84rem'
+              }}>
+                {t('alerts.noAlerts', lang)}
+              </div>
+            )}
+
+            {displayedAlerts.map(alert => (
               <div
                 key={alert.id}
                 style={{
@@ -1921,13 +2151,37 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
                 <div style={{ fontSize: '0.78rem', color: textPrimary }}>
                   {lang === 'as' && alert.messageAs ? alert.messageAs : alert.messageEn}
                 </div>
-                <div style={{ fontSize: '0.7rem', color: textMuted }}>
-                  {alert.contributingSummary} · {new Date(alert.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '2px' }}>
+                  <div style={{ fontSize: '0.7rem', color: textMuted }}>
+                    {alert.contributingSummary} · {new Date(alert.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteAlert(alert.id)}
+                    style={{
+                      background: isLight ? '#fef2f2' : 'rgba(239, 68, 68, 0.15)',
+                      border: '1px solid rgba(239, 68, 68, 0.3)',
+                      color: isLight ? '#dc2626' : '#f87171',
+                      fontSize: '0.7rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '3px',
+                      padding: '2px 8px',
+                      borderRadius: '6px'
+                    }}
+                    title="Delete Notification"
+                  >
+                    <span>🗑️</span>
+                    <span>Delete</span>
+                  </button>
                 </div>
               </div>
             ))}
-        </div>
-      )}
+          </div>
+        );
+      })()}
 
       {/* ── TAB 3: CITIZEN GIS & RISK MAP ── */}
       {activeTab === 'map' && (
@@ -2758,7 +3012,6 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
                 <div style={{ fontSize: '0.88rem', fontWeight: 800, color: textPrimary, marginTop: '2px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <span>📍</span>
                   <span>{activeCityDisplayName}</span>
-                  <span style={{ fontSize: '0.62rem', background: '#3b82f6', color: '#ffffff', padding: '1px 5px', borderRadius: '4px', fontWeight: 800 }}>DEMO</span>
                 </div>
               </div>
               <button
@@ -2782,6 +3035,16 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
                 {t('profile.changeCity', lang)} ›
               </button>
             </div>
+
+            {/* Family Members Section */}
+            <SatarkFamilyMembersManager
+              isLight={isLight}
+              borderCol={borderCol}
+              textPrimary={textPrimary}
+              textMuted={textMuted}
+              bgCard={bgCard}
+              onOpenSafetyPopup={() => setShowFamilyPopup(true)}
+            />
 
             <div>
               <label style={{ fontSize: '0.74rem', fontWeight: 700, color: textMuted, display: 'block', marginBottom: '4px' }}>
@@ -3205,6 +3468,140 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
         </div>
       )}
 
+      {/* ── CITY / AREA SELECTOR SHEET (Predefined SATARK Areas) ── */}
+      {showCitySheet && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.8)',
+          zIndex: 1000,
+          display: 'flex',
+          alignItems: 'flex-end'
+        }}>
+          <div style={{
+            background: bgCard,
+            borderTop: `1px solid ${borderCol}`,
+            borderTopLeftRadius: '20px',
+            borderTopRightRadius: '20px',
+            padding: '20px',
+            width: '100%',
+            maxHeight: '82vh',
+            overflowY: 'auto',
+            boxSizing: 'border-box'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+              <div>
+                <div style={{ fontWeight: 900, fontSize: '1.05rem', color: textPrimary }}>
+                  {t('profile.changeCity', lang)}
+                </div>
+                <div style={{ fontSize: '0.72rem', color: textMuted, marginTop: '2px' }}>
+                  Select your monitored city or operational area
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowCitySheet(false)}
+                style={{ background: 'transparent', border: 'none', color: textMuted, fontSize: '1.3rem', cursor: 'pointer', padding: '4px 8px' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {CITY_AREA_OPTIONS.map(c => {
+                const isSelected = citizenCityId === c.id;
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => {
+                      if (c.id !== 'other') {
+                        handleSelectCity(c.id);
+                      } else {
+                        setCitizenCityId('other');
+                      }
+                    }}
+                    style={{
+                      background: isSelected ? (isLight ? '#eff6ff' : '#1e3a5f') : (isLight ? '#f8fafc' : '#1e293b'),
+                      border: `1.5px solid ${isSelected ? '#2563eb' : borderCol}`,
+                      borderRadius: '12px',
+                      padding: '12px 14px',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center'
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontWeight: 800, fontSize: '0.92rem', color: textPrimary, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span>📍</span>
+                        <span>{c.displayName}</span>
+                      </div>
+                      <div style={{ fontSize: '0.72rem', color: textMuted, marginTop: '3px' }}>
+                        {c.district} · Slope: {c.slope}° · Risk: {c.demoRisk.level}
+                      </div>
+                    </div>
+                    {isSelected && (
+                      <span style={{ fontSize: '1.1rem', color: '#2563eb', fontWeight: 900 }}>✓</span>
+                    )}
+                  </button>
+                );
+              })}
+
+              {/* Custom Locality Input if 'other' is selected */}
+              {citizenCityId === 'other' && (
+                <div style={{
+                  marginTop: '8px',
+                  background: isLight ? '#f1f5f9' : '#0e172a',
+                  border: `1px solid ${borderCol}`,
+                  borderRadius: '12px',
+                  padding: '12px'
+                }}>
+                  <label style={{ fontSize: '0.74rem', fontWeight: 800, color: textPrimary, display: 'block', marginBottom: '6px' }}>
+                    Custom Locality / Area Name:
+                  </label>
+                  <input
+                    type="text"
+                    value={customCityInput}
+                    onChange={(e) => setCustomCityInput(e.target.value)}
+                    placeholder="Enter locality or district name"
+                    style={{
+                      width: '100%',
+                      background: isLight ? '#ffffff' : '#1e293b',
+                      color: textPrimary,
+                      border: `1px solid ${borderCol}`,
+                      borderRadius: '8px',
+                      padding: '8px 10px',
+                      fontSize: '0.82rem',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleSelectCity('other', customCityInput)}
+                    style={{
+                      marginTop: '8px',
+                      width: '100%',
+                      background: '#2563eb',
+                      color: '#ffffff',
+                      border: 'none',
+                      borderRadius: '8px',
+                      padding: '8px',
+                      fontSize: '0.82rem',
+                      fontWeight: 800,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Save Custom Area
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── HOW IT WORKS SHEET ── */}
       {showHowItWorksSheet && (
         <div style={{
@@ -3523,6 +3920,74 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
             )}
           </div>
         </div>
+      )}
+
+      {/* ── Android-Only Critical Landslide Warning Popup ── */}
+      {isCapacitorAndroid() && showCriticalWarning && currentCriticalAlertInfo && (
+        <SatarkCriticalLandslideWarning
+          isOpen={showCriticalWarning}
+          areaName={activeCityDisplayName}
+          district={selectedZone.district}
+          state={selectedZone.state}
+          severity={currentCriticalAlertInfo.severity}
+          riskScore={riskData?.assessment?.score ?? activeCityConfig.demoRisk.score}
+          issuedAt="just now"
+          validUntil={
+            new Date(Date.now() + 4 * 60 * 60 * 1000).toLocaleTimeString([], {
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: true
+            })
+          }
+          message={currentCriticalAlertInfo.message}
+          isSirenPlaying={isSirenPlaying}
+          onMuteSound={() => {
+            stopSiren();
+          }}
+          isVoiceSpeaking={isVoiceSpeaking}
+          onToggleVoiceSpeaking={() => {
+            if (isVoiceSpeaking) {
+              stopVoiceSpeaking();
+            } else {
+              speakAlert(
+                selectedZone.name,
+                'RED',
+                currentCriticalAlertInfo.message || 'Immediate Evacuation Required. Move to safe relief shelter.'
+              );
+            }
+          }}
+          onClose={() => {
+            stopSiren();
+            stopVoiceSpeaking();
+            if (currentCriticalAlertInfo.warningKey) {
+              setDismissedWarningKey(currentCriticalAlertInfo.warningKey);
+            }
+            setShowCriticalWarning(false);
+
+            // Step 6: Wait approximately 10 seconds after critical warning is closed, then show Family Safety Popup!
+            if (isCapacitorAndroid() && !hasDismissedFamilyPopupRef.current) {
+              if (familyPopupTimerRef.current) clearTimeout(familyPopupTimerRef.current);
+              familyPopupTimerRef.current = setTimeout(() => {
+                setShowFamilyPopup(true);
+              }, 10000); // 10 seconds
+            }
+          }}
+          videoSrc="/assets/video/whatsapp_landslide_safety.mp4"
+        />
+      )}
+
+      {/* ── Android-Only Family Safety Status Popup (Screenshot 2/3) ── */}
+      {isCapacitorAndroid() && showFamilyPopup && !showCriticalWarning && (
+        <SatarkFamilySafetyPopup
+          isOpen={showFamilyPopup && !showCriticalWarning}
+          onClose={() => {
+            hasDismissedFamilyPopupRef.current = true;
+            setShowFamilyPopup(false);
+          }}
+          onOpenProfileFamily={() => {
+            setActiveTab('profile');
+          }}
+        />
       )}
     </div>
   );

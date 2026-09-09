@@ -26,7 +26,11 @@ import {
 import { RiskAssessmentResponse } from '../types';
 import { SatarkChatbot } from '../components/chatbot/SatarkChatbot';
 
-export const CitizenPortal: React.FC = () => {
+export interface CitizenPortalProps {
+  initialTab?: 'overview' | 'ai_assistant' | '3d_terrain' | 'shelters' | 'offline_sos';
+}
+
+export const CitizenPortal: React.FC<CitizenPortalProps> = ({ initialTab = 'overview' }) => {
   const navigate = useNavigate();
   const [lang, setLang] = useState<'en' | 'hi' | 'as'>('en');
   const { playCriticalSiren, playWarningBeep, stopSiren, isPlaying } = useAlertSound();
@@ -36,7 +40,7 @@ export const CitizenPortal: React.FC = () => {
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [loading, setLoading] = useState<boolean>(true);
   const [data, setData] = useState<RiskAssessmentResponse | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'ai_assistant' | '3d_terrain' | 'shelters' | 'offline_sos'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'ai_assistant' | '3d_terrain' | 'shelters' | 'offline_sos'>(initialTab);
 
   const [profileMenuOpen, setProfileMenuOpen] = useState<boolean>(false);
   const [citizenProfile, setCitizenProfile] = useState(() => getCachedCitizenProfile());

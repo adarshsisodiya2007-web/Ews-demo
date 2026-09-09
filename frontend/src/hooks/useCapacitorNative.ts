@@ -38,7 +38,7 @@ export function useCapacitorNative() {
         }
 
         // Sub-pages navigate back to their portal roots
-        if (currentPath === '/profile' || currentPath === '/privacy' || currentPath === '/offline-rescue' || currentPath === '/report') {
+        if (currentPath === '/profile' || currentPath === '/privacy' || currentPath === '/offline-rescue' || currentPath === '/report' || currentPath === '/citizen/3d-terrain') {
           navigate('/citizen');
           return;
         }

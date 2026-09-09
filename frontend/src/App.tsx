@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ProtectedRoute } from './components/layout/ProtectedRoute';
 import { DemoBanner } from './components/layout/DemoBanner';
@@ -84,7 +84,8 @@ function AppContent({ permsDone, onPermComplete }: { permsDone: boolean; onPermC
       <Routes>
         <Route path="/"              element={<RootRoute />} />
         <Route path="/login"         element={<LoginPage />} />
-        <Route path="/citizen"        element={<CitizenPortal />} />
+        <Route path="/citizen"            element={<CitizenPortal />} />
+        <Route path="/citizen/3d-terrain" element={<CitizenPortal initialTab="3d_terrain" />} />
         <Route path="/profile"        element={<ProfilePage />} />
         <Route path="/privacy"        element={<PrivacyDataPage />} />
         <Route path="/offline-rescue" element={<OfflineRescuePage />} />
