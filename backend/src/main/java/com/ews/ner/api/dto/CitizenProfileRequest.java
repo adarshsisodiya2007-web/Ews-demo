@@ -17,4 +17,10 @@ public class CitizenProfileRequest {
     private String emergencyContactName;
     private String emergencyContactPhone;
     private String accessibilityNeeds;
+
+    // Location selection
+    private java.util.UUID selectedRegionId;
+    private String selectedLocationName;
+    private String selectedDistrict;
+    private String selectedState;
 }

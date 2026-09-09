@@ -43,6 +43,20 @@ public class CitizenProfile {
     @Column(name = "accessibility_needs")
     private String accessibilityNeeds;
 
+    // ── Location fields (V9) ──────────────────────────────────────────────────
+    @Column(name = "selected_region_id")
+    private UUID selectedRegionId;
+
+    @Column(name = "selected_location_name")
+    private String selectedLocationName;
+
+    @Column(name = "selected_district")
+    private String selectedDistrict;
+
+    @Column(name = "selected_state")
+    private String selectedState;
+    // ─────────────────────────────────────────────────────────────────────────
+
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
@@ -51,12 +65,8 @@ public class CitizenProfile {
 
     @PrePersist
     protected void onCreate() {
-        if (createdAt == null) {
-            createdAt = OffsetDateTime.now();
-        }
-        if (updatedAt == null) {
-            updatedAt = OffsetDateTime.now();
-        }
+        if (createdAt == null) createdAt = OffsetDateTime.now();
+        if (updatedAt == null) updatedAt = OffsetDateTime.now();
     }
 
     @PreUpdate

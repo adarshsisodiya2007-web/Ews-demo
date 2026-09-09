@@ -22,4 +22,10 @@ public class CitizenProfileDTO {
     private String accessibilityNeeds;
     private OffsetDateTime createdAt;
     private OffsetDateTime updatedAt;
+
+    // Location
+    private java.util.UUID selectedRegionId;
+    private String selectedLocationName;
+    private String selectedDistrict;
+    private String selectedState;
 }

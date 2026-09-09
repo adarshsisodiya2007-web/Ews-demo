@@ -25,6 +25,9 @@ import {
 } from '../services/sharedRiskState';
 import { RiskAssessmentResponse } from '../types';
 import { SatarkChatbot } from '../components/chatbot/SatarkChatbot';
+import { ActiveAlertsPanel } from '../components/citizen/ActiveAlertsPanel';
+import { AlertNotificationBanner } from '../components/citizen/AlertNotificationBanner';
+import { useRealTimeAlerts } from '../hooks/useRealTimeAlerts';
 
 export const CitizenPortal: React.FC = () => {
   const navigate = useNavigate();
@@ -63,6 +66,13 @@ export const CitizenPortal: React.FC = () => {
 
   const lastAlertLevel = useRef<string | null>(null);
   const notificationSent = useRef<Set<string>>(new Set());
+
+  const { alerts: activeAlerts, newAlert, dismissNewAlert, connected: alertConnected, loading: alertsLoading } = useRealTimeAlerts({
+    regionId: selectedZone?.id,
+    district: selectedZone?.district,
+    state: selectedZone?.state,
+    enabled: true,
+  });
 
   // If user location detected, find nearest zone
   useEffect(() => {
@@ -608,6 +618,10 @@ export const CitizenPortal: React.FC = () => {
       {/* ── Main Container ── */}
       <main style={{ flex: 1, maxWidth: '1100px', width: '100%', margin: '0 auto', padding: '24px 16px' }}>
 
+        {newAlert && (
+          <AlertNotificationBanner alert={newAlert} onDismiss={dismissNewAlert} />
+        )}
+
         {/* Hero */}
         <div style={{ marginBottom: '20px', textAlign: 'center' }}>
           <div style={{
@@ -623,6 +637,13 @@ export const CitizenPortal: React.FC = () => {
           <h1 style={{ fontSize: '1.8rem', fontWeight: 800, margin: '0 0 6px 0', letterSpacing: '-0.03em', color: fg }}>{t.title}</h1>
           <p style={{ color: theme === 'dark' ? '#94a3b8' : '#475569', fontSize: '0.92rem', margin: 0 }}>{t.subtitle}</p>
         </div>
+
+        <ActiveAlertsPanel
+          alerts={activeAlerts}
+          loading={alertsLoading}
+          connected={alertConnected}
+          theme={theme}
+        />
 
         {/* ── Complete Citizen Offline Rescue Mode (6 Interactive Workflows & Beacon) ── */}
         <OfflineRescueMode

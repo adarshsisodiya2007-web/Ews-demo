@@ -44,6 +44,10 @@ public class CitizenProfileController {
                 .emergencyContactName(p.getEmergencyContactName())
                 .emergencyContactPhone(p.getEmergencyContactPhone())
                 .accessibilityNeeds(p.getAccessibilityNeeds())
+                .selectedRegionId(p.getSelectedRegionId())
+                .selectedLocationName(p.getSelectedLocationName())
+                .selectedDistrict(p.getSelectedDistrict())
+                .selectedState(p.getSelectedState())
                 .createdAt(p.getCreatedAt())
                 .updatedAt(p.getUpdatedAt())
                 .build();
@@ -79,6 +83,10 @@ public class CitizenProfileController {
                 .emergencyContactName(req.getEmergencyContactName())
                 .emergencyContactPhone(req.getEmergencyContactPhone())
                 .accessibilityNeeds(req.getAccessibilityNeeds())
+                .selectedRegionId(req.getSelectedRegionId())
+                .selectedLocationName(req.getSelectedLocationName())
+                .selectedDistrict(req.getSelectedDistrict())
+                .selectedState(req.getSelectedState())
                 .createdAt(OffsetDateTime.now())
                 .updatedAt(OffsetDateTime.now())
                 .build();
@@ -116,6 +124,10 @@ public class CitizenProfileController {
         profile.setEmergencyContactName(req.getEmergencyContactName());
         profile.setEmergencyContactPhone(req.getEmergencyContactPhone());
         profile.setAccessibilityNeeds(req.getAccessibilityNeeds());
+        profile.setSelectedRegionId(req.getSelectedRegionId());
+        profile.setSelectedLocationName(req.getSelectedLocationName());
+        profile.setSelectedDistrict(req.getSelectedDistrict());
+        profile.setSelectedState(req.getSelectedState());
         profile.setUpdatedAt(OffsetDateTime.now());
 
         CitizenProfile saved = profileRepo.save(profile);

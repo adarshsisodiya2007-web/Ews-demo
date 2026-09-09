@@ -40,6 +40,12 @@ public class SecurityConfig {
                 .requestMatchers(org.springframework.http.HttpMethod.PATCH, "/api/reports/**").permitAll()
                 .requestMatchers(org.springframework.http.HttpMethod.DELETE, "/api/reports/**").hasAnyRole("ADMIN", "DISTRICT_OFFICIAL", "FIELD_OFFICER")
                 .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/reports/cleanup").hasAnyRole("ADMIN", "DISTRICT_OFFICIAL", "FIELD_OFFICER")
+                .requestMatchers("/api/citizen/alerts/**").permitAll()
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/responder/alerts/**").hasAnyRole("ADMIN", "DISTRICT_OFFICIAL", "FIELD_OFFICER")
+                .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/responder/alerts/**").hasAnyRole("ADMIN", "DISTRICT_OFFICIAL", "FIELD_OFFICER")
+                .requestMatchers(org.springframework.http.HttpMethod.PUT, "/api/responder/alerts/**").hasAnyRole("ADMIN", "DISTRICT_OFFICIAL", "FIELD_OFFICER")
+                .requestMatchers(org.springframework.http.HttpMethod.PATCH, "/api/responder/alerts/**").hasAnyRole("ADMIN", "DISTRICT_OFFICIAL", "FIELD_OFFICER")
+                .requestMatchers(org.springframework.http.HttpMethod.DELETE, "/api/responder/alerts/**").hasAnyRole("ADMIN", "DISTRICT_OFFICIAL")
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
