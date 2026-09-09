@@ -381,6 +381,10 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
 
   // Alerts state
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
+  // Raw responder alerts — kept separately for accurate targetRegion matching
+  const [activeResponderAlerts, setActiveResponderAlerts] = useState<ResponderAlert[]>([]);
+  // Siren mute ref — when user clicks Stop, don't re-trigger siren until NEW alert ID appears
+  const isSirenMutedRef = useRef<boolean>(false);
   const [alertFilter, setAlertFilter] = useState<Severity | 'ALL'>('ALL');
   const [dismissedAlertIds, setDismissedAlertIds] = useState<Set<string>>(() => {
     try {
@@ -473,9 +477,15 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
 
         // Prioritize: responder-published alerts FIRST, then demo alerts, then generic
         setAlerts([...convertedResponderAlerts, ...demoAlerts, ...filteredGeneric]);
+        // Store raw active responder alerts for precise targetRegion/citizenCityId matching
+        const activeRaw = (responderAlerts || []).filter(ra =>
+          ra.status === 'ACTIVE' && ra.severity === 'CRITICAL'
+        );
+        setActiveResponderAlerts(activeRaw);
       } catch {
         if (isMounted) {
           setAlerts(demoAlerts);
+          setActiveResponderAlerts([]);
         }
       }
     };
@@ -678,39 +688,49 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
 
   // Area-Specific Emergency Alert & Critical Horn (alarm.mp3) Logic with Deduplication by UNIQUE Alert/Assessment ID
   useEffect(() => {
-    // Check if there is an active critical alert matching this zone
-    const matchingCriticalAlert = alerts.find(a =>
+    // PRIMARY: Check raw responder alerts first — most accurate targetRegion match
+    const matchingResponderAlert = activeResponderAlerts.find(ra =>
+      ra.targetRegion === citizenCityId ||
+      ra.targetRegion === selectedZone.name.toLowerCase() ||
+      ra.locationName?.toLowerCase() === citizenCityId ||
+      ra.locationName?.toLowerCase() === selectedZone.name.toLowerCase() ||
+      ra.locationName?.toLowerCase().includes(selectedZone.name.toLowerCase()) ||
+      selectedZone.name.toLowerCase().includes((ra.locationName || '').toLowerCase())
+    );
+
+    // SECONDARY: Fallback — check converted AlertItem list
+    const matchingAlertItem = !matchingResponderAlert ? alerts.find(a =>
       a.severity === 'CRITICAL' && a.status !== 'EXPIRED' && a.status !== 'RESOLVED' && (
         a.regionId === citizenCityId ||
-        (a as any).targetRegion === citizenCityId ||
         a.regionName?.toLowerCase() === selectedZone.name.toLowerCase() ||
-        (selectedZone as any).canonicalId === a.regionId ||
-        (selectedZone as any).id === a.regionId ||
         a.regionName?.toLowerCase().includes(selectedZone.name.toLowerCase()) ||
         selectedZone.name.toLowerCase().includes(a.regionName?.toLowerCase() || '')
       )
-    );
+    ) : null;
 
     const isRiskCritical =
       riskData?.assessment?.level === 'RED' ||
       riskData?.assessment?.severity === 'CRITICAL' ||
       activeCityConfig.demoRisk.level === 'RED' ||
       activeCityConfig.demoRisk.severity === 'CRITICAL';
-    const isCritical = isRiskCritical || !!matchingCriticalAlert;
+
+    const isCritical = isRiskCritical || !!matchingResponderAlert || !!matchingAlertItem;
 
     if (isCritical) {
       // Deduplication based on the UNIQUE CRITICAL ALERT/ASSESSMENT ID:
       const criticalAlertId =
-        matchingCriticalAlert?.id ||
+        matchingResponderAlert?.id ||
+        matchingAlertItem?.id ||
         riskData?.assessment?.id ||
         riskData?.id ||
         (riskData as any)?.assessmentId ||
         `crit_assess_${selectedZone.name}_${activeCityConfig.id}`;
 
       const warningKey = `${citizenCityId}_${criticalAlertId}`;
-      const critSeverity = (matchingCriticalAlert?.severity as 'CRITICAL' | 'HIGH') || (riskData?.assessment?.severity as any) || activeCityConfig.demoRisk.severity || 'CRITICAL';
+      const critSeverity = (matchingResponderAlert?.severity as 'CRITICAL' | 'HIGH') || (matchingAlertItem?.severity as any) || (riskData?.assessment?.severity as any) || activeCityConfig.demoRisk.severity || 'CRITICAL';
       const critMessage =
-        matchingCriticalAlert?.messageEn ||
+        matchingResponderAlert?.description ||
+        matchingAlertItem?.messageEn ||
         riskData?.assessment?.action_protocol ||
         activeCityConfig.demoRisk.action_protocol ||
         'IMMEDIATE EVACUATION ADVISED. Extreme slope saturation and active landslide triggers detected.';
@@ -721,30 +741,31 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
         warningKey
       });
 
-      // Automatically show the critical warning overlay if not previously dismissed
-      // Popup MUST REMAIN OPEN indefinitely until citizen presses "✓ Understand & Close"
+      // Show the critical warning overlay if not previously dismissed
       if (dismissedWarningKey !== warningKey) {
         setShowCriticalWarning(true);
       }
 
-      // 1. New CRITICAL alert ID -> play alarm.mp3.
-      // 2. Same CRITICAL alert ID received repeatedly through polling -> DO NOT restart the siren.
+      // Only play siren when a truly NEW alert ID arrives AND user has NOT manually muted
       if (lastCriticalAlertIdRef.current !== criticalAlertId) {
+        // New alert: reset mute so siren plays fresh
+        isSirenMutedRef.current = false;
         lastCriticalAlertIdRef.current = criticalAlertId;
         playCriticalSiren();
-        // NOTE: SPOKEN ADVISOR STARTS OFF BY DEFAULT — No automatic speech playback.
       }
+      // If same alert but siren was muted by user -> do NOT restart it
     } else {
-      // Non-critical area
+      // Non-critical area — reset everything
       if (lastCriticalAlertIdRef.current !== null) {
         lastCriticalAlertIdRef.current = null;
+        isSirenMutedRef.current = false;
         stopSiren();
         stopVoiceSpeaking();
       }
       setShowCriticalWarning(false);
       setCurrentCriticalAlertInfo(null);
     }
-  }, [riskData, alerts, selectedZone, citizenCityId, activeCityConfig, dismissedWarningKey, playCriticalSiren, stopSiren, stopVoiceSpeaking]);
+  }, [riskData, alerts, activeResponderAlerts, selectedZone, citizenCityId, activeCityConfig, dismissedWarningKey, playCriticalSiren, stopSiren, stopVoiceSpeaking]);
 
   // GIS Risk Heatmap Regions state for Citizen Map
   const [gisRegions, setGisRegions] = useState<RegionRisk[]>([]);
@@ -4023,6 +4044,7 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
           message={currentCriticalAlertInfo.message}
           isSirenPlaying={isSirenPlaying}
           onMuteSound={() => {
+            isSirenMutedRef.current = true;
             stopSiren();
           }}
           isVoiceSpeaking={isVoiceSpeaking}
