@@ -141,10 +141,15 @@ export const ResponderPortal: React.FC = () => {
     window.addEventListener('ews-reports-updated', handleSyncComplete);
 
     loadData();
+    // Reports from another device cannot dispatch a browser event in this window.
+    const refreshInterval = window.setInterval(() => {
+      if (document.visibilityState === 'visible') loadData();
+    }, 10000);
 
     return () => {
       window.removeEventListener('ews-sync-completed', handleSyncComplete);
       window.removeEventListener('ews-reports-updated', handleSyncComplete);
+      window.clearInterval(refreshInterval);
     };
   }, []);
 

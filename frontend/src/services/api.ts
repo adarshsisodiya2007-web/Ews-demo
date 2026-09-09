@@ -99,8 +99,16 @@ export const isBackendAvailableOrConfigured = (): boolean => {
 
 export const api = axios.create({
   baseURL: resolveApiBaseUrl(),
-  timeout: 20000,
+  // Render cold starts can exceed the former 20-second request timeout.
+  timeout: 75000,
 });
+
+/** Tell open dashboards to reload the canonical incident ledger. */
+export const notifyReportsChanged = (): void => {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('ews-reports-updated'));
+  }
+};
 
 api.interceptors.request.use((config) => {
   const currentBase = resolveApiBaseUrl();
@@ -252,6 +260,8 @@ export const submitReport = async (payload: CreateReportPayload): Promise<Citize
   };
 
   const res = await api.post<CitizenReport>('/api/reports', backendPayload);
+  // Online submissions must refresh open officer ledgers too.
+  notifyReportsChanged();
   return res.data;
 };
 
@@ -268,6 +278,7 @@ export const deleteCitizenReport = async (reportId: string): Promise<void> => {
   }
   await removeCachedIncident(reportId).catch(() => {});
   addDeletedIncidentId(reportId);
+  notifyReportsChanged();
 };
 
 export const clearAllCitizenReports = async (): Promise<{ deletedCount: number; message: string }> => {
@@ -280,6 +291,7 @@ export const clearAllCitizenReports = async (): Promise<{ deletedCount: number; 
   }
   await clearCachedIncidents().catch(() => {});
   saveClearedIncidentsTimestamp();
+  notifyReportsChanged();
   return { deletedCount: count, message: 'All incident records cleared' };
 };
 
@@ -312,6 +324,7 @@ export const cleanupCitizenReports = async (options?: {
   includeDismissed?: boolean;
 }): Promise<{ deletedCount: number; message: string }> => {
   const res = await api.post<{ success: boolean; deletedCount: number; message: string }>('/api/reports/cleanup', options || {});
+  notifyReportsChanged();
   return res.data;
 };
 
