@@ -4,9 +4,10 @@ import { ResponderAlert, SEVERITY_CONFIG } from '../../types/alertTypes';
 interface Props {
   alert: ResponderAlert;
   onDismiss: () => void;
+  onMute?: () => void;
 }
 
-export const AlertNotificationBanner: React.FC<Props> = ({ alert, onDismiss }) => {
+export const AlertNotificationBanner: React.FC<Props> = ({ alert, onDismiss, onMute }) => {
   const cfg = SEVERITY_CONFIG[alert.severity];
 
   useEffect(() => {
@@ -68,6 +69,28 @@ export const AlertNotificationBanner: React.FC<Props> = ({ alert, onDismiss }) =
           {alert.description && alert.description !== alert.title && (
             <div style={{ color: '#94a3b8', fontSize: '0.78rem', marginTop: 4 }}>
               {alert.description}
+            </div>
+          )}
+          {onMute && (
+            <div style={{ marginTop: 8 }}>
+              <button
+                onClick={onMute}
+                style={{
+                  background: 'rgba(239,68,68,0.25)',
+                  border: '1px solid rgba(239,68,68,0.6)',
+                  color: '#fff',
+                  borderRadius: 6,
+                  padding: '3px 8px',
+                  fontSize: '0.72rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 4
+                }}
+              >
+                🔇 Silence Siren
+              </button>
             </div>
           )}
         </div>

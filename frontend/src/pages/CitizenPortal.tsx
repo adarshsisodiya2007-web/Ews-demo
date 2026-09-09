@@ -74,6 +74,31 @@ export const CitizenPortal: React.FC = () => {
     enabled: true,
   });
 
+  // Play siren / warning sound and voice announcement when matching real-time alert is published
+  useEffect(() => {
+    if (!newAlert) return;
+
+    const loc = newAlert.locationName || newAlert.district || selectedZone.name;
+
+    if (newAlert.severity === 'CRITICAL') {
+      playCriticalSiren();
+      try {
+        speakAlert(loc, 'CRITICAL', `${newAlert.title}. ${newAlert.description || ''}`);
+      } catch (err) {
+        console.warn('[CitizenPortal] Voice announcement error:', err);
+      }
+    } else if (newAlert.severity === 'HIGH') {
+      playWarningBeep();
+      try {
+        speakAlert(loc, 'HIGH', newAlert.title);
+      } catch (err) {
+        console.warn('[CitizenPortal] Voice announcement error:', err);
+      }
+    } else {
+      playWarningBeep();
+    }
+  }, [newAlert, playCriticalSiren, playWarningBeep, speakAlert, selectedZone.name]);
+
   // If user location detected, find nearest zone
   useEffect(() => {
     if (userLocation) {
@@ -619,7 +644,14 @@ export const CitizenPortal: React.FC = () => {
       <main style={{ flex: 1, maxWidth: '1100px', width: '100%', margin: '0 auto', padding: '24px 16px' }}>
 
         {newAlert && (
-          <AlertNotificationBanner alert={newAlert} onDismiss={dismissNewAlert} />
+          <AlertNotificationBanner
+            alert={newAlert}
+            onDismiss={() => {
+              stopSiren();
+              dismissNewAlert();
+            }}
+            onMute={isPlaying ? stopSiren : undefined}
+          />
         )}
 
         {/* Hero */}
