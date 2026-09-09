@@ -481,7 +481,7 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
     };
 
     loadAlerts();
-    const interval = setInterval(loadAlerts, 15000);
+    const interval = setInterval(loadAlerts, 3000);
     const unsub = subscribeToScenario(() => {
       loadAlerts();
     });
@@ -680,7 +680,9 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
   useEffect(() => {
     // Check if there is an active critical alert matching this zone
     const matchingCriticalAlert = alerts.find(a =>
-      a.severity === 'CRITICAL' && (
+      a.severity === 'CRITICAL' && a.status !== 'EXPIRED' && a.status !== 'RESOLVED' && (
+        a.regionId === citizenCityId ||
+        (a as any).targetRegion === citizenCityId ||
         a.regionName?.toLowerCase() === selectedZone.name.toLowerCase() ||
         (selectedZone as any).canonicalId === a.regionId ||
         (selectedZone as any).id === a.regionId ||
@@ -719,9 +721,9 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
         warningKey
       });
 
-      // On Android: automatically show the critical warning overlay if not previously dismissed
+      // Automatically show the critical warning overlay if not previously dismissed
       // Popup MUST REMAIN OPEN indefinitely until citizen presses "✓ Understand & Close"
-      if (isCapacitorAndroid() && dismissedWarningKey !== warningKey) {
+      if (dismissedWarningKey !== warningKey) {
         setShowCriticalWarning(true);
       }
 
@@ -4001,8 +4003,8 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
         </div>
       )}
 
-      {/* ── Android-Only Critical Landslide Warning Popup ── */}
-      {isCapacitorAndroid() && showCriticalWarning && currentCriticalAlertInfo && (
+      {/* ── Critical Landslide Warning Popup with Emergency Siren ── */}
+      {showCriticalWarning && currentCriticalAlertInfo && (
         <SatarkCriticalLandslideWarning
           isOpen={showCriticalWarning}
           areaName={activeCityDisplayName}
