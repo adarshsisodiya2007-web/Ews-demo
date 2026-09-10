@@ -19,6 +19,7 @@ import {
   MOCK_HEATMAP,
   MOCK_ALERTS,
   MOCK_USERS,
+  MOCK_REPORTS,
   getMockRiskDetail,
 } from './mockData';
 import {
@@ -234,9 +235,9 @@ export const fetchRecentReports = async (): Promise<CitizenReport[]> => {
         return reports.filter(r => !deletedIds.has(r.id));
       }
     } catch {}
-    // Never substitute demo incidents for the authoritative shared ledger.
-    // The offline queue keeps unsent reports safe until the server wakes.
-    return [];
+    // Demo/offline mode: provide four clearly synthetic sample incidents.
+    // Real server reports replace these automatically after the backend wakes.
+    return MOCK_REPORTS.slice(0, 4);
   }
 };
 
