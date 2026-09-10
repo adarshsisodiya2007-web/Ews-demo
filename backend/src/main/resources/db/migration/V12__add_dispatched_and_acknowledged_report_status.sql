@@ -1,6 +1,6 @@
 -- flyway:executeInTransaction=false
 -- ─────────────────────────────────────────────────────────────────────────────
---  SIH 26001 — V9__add_dispatched_and_acknowledged_report_status.sql
+--  SIH 26001 — V12__add_dispatched_and_acknowledged_report_status.sql
 --  Add ACKNOWLEDGED and DISPATCHED to report_status_enum for field responder workflow
 -- ─────────────────────────────────────────────────────────────────────────────
 

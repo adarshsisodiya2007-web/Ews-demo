@@ -1865,6 +1865,32 @@ export const SatarkOfficerApp: React.FC<Props> = ({ onSwitchToCitizen }) => {
             <div style={{ fontSize: '0.76rem', color: textMuted }}>
               Pending Reports: <strong>{pendingReports.length}</strong> · Pending Road Statuses: <strong>{pendingRoads.length}</strong>
             </div>
+            {pendingCount > 0 && !isSyncing && (
+              <div style={{ marginTop: '4px' }}>
+                <div style={{ fontSize: '0.72rem', color: '#f59e0b', marginBottom: '6px' }}>
+                  ⚠️ Server may be sleeping (free tier). Tap below to wake it up, then press Sync Now.
+                </div>
+                <button
+                  onClick={() => {
+                    warmupBackend();
+                    setTimeout(() => syncNow(), 65000);
+                  }}
+                  style={{
+                    background: '#78350f',
+                    color: '#fde68a',
+                    border: '1px solid #f59e0b',
+                    borderRadius: '6px',
+                    padding: '6px 14px',
+                    fontSize: '0.73rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    width: '100%'
+                  }}
+                >
+                  🔄 Wake Up Server & Auto-Sync (waits 65s)
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Switch to Civilian Mode */}

@@ -20,12 +20,11 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("/api/v1/chatbot")
-@CrossOrigin(origins = "*")
 public class ChatbotController {
 
     private static final Logger log = LoggerFactory.getLogger(ChatbotController.class);
 
-    @Value("${app.groq.api-key:${GROQ_API_KEY:}}")
+    @Value("${app.groq.api-key:}")
     private String groqApiKey;
 
     @Value("${app.groq.model:${GROQ_MODEL:groq/compound-mini}}")

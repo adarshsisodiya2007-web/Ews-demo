@@ -143,7 +143,7 @@ app:
 
   # Groq AI Disaster Chatbot Assistant
   groq:
-    api-key: ${GROQ_API_KEY}
+    api-key: ${GROQ_API_KEY:}
     model: ${GROQ_MODEL:groq/compound-mini}
     endpoint: ${GROQ_ENDPOINT:https://api.groq.com/openai/v1/chat/completions}
 
