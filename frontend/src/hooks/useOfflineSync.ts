@@ -10,6 +10,7 @@ import {
   removePendingRoadStatus,
   getEmergencyDistressState,
   setEmergencyDistressState,
+  clearSyncFilter,
 } from '../services/offlineStore';
 import { submitReport, uploadPhoto, updateRoadStatus } from '../services/api';
 import { PendingReportItem, PendingRoadStatusItem } from '../types';
@@ -94,6 +95,8 @@ export function useOfflineSync() {
             await deleteOfflinePhoto(item.payload.photoBlobKey).catch(() => {});
           }
           await removePendingReport(item.id);
+          // Clear the 'cleared at' timestamp so freshly-synced reports are never filtered out.
+          clearSyncFilter();
           window.dispatchEvent(new CustomEvent('ews-reports-updated'));
         } catch (reportErr: any) {
           console.error('Failed to sync report:', item.id, reportErr);

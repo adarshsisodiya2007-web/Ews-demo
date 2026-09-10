@@ -1,4 +1,4 @@
-/**
+﻿/**
  * API Service — SIH 26001 EWS-NER
  * Transparently integrates IndexedDB caching, offline fallback, and truthful disaster status.
  */
@@ -216,9 +216,8 @@ export const fetchRecentReports = async (): Promise<CitizenReport[]> => {
   try {
     const res = await api.get<CitizenReport[]>('/api/reports/recent');
     let reports = res.data || [];
-    if (clearedAt) {
-      reports = reports.filter(r => new Date(r.createdAt).getTime() > clearedAt);
-    }
+    // ONLINE: never apply clearedAt to fresh server data — that filter is only for offline cache.
+    // Removing it ensures synced citizen reports always appear in the officer incident dashboard.
     reports = reports.filter(r => !deletedIds.has(r.id));
     await cacheIncidents(reports).catch(() => {});
     return reports;

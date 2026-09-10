@@ -289,6 +289,13 @@ export const saveClearedIncidentsTimestamp = (): void => {
   } catch {}
 };
 
+export const clearSyncFilter = (): void => {
+  try {
+    // Called after a successful offline sync: reset the 'cleared at' timestamp so
+    // freshly-synced incident reports are never hidden by the officer dashboard filter.
+    localStorage.removeItem(CLEARED_INCIDENTS_TIME_KEY);
+  } catch {}
+};
 export const getClearedIncidentsTimestamp = (): number | null => {
   try {
     const raw = localStorage.getItem(CLEARED_INCIDENTS_TIME_KEY);
