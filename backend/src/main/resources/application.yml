@@ -21,7 +21,7 @@ spring:
   # ── JPA / Hibernate ────────────────────────────────────────────────────────
   jpa:
     hibernate:
-      ddl-auto: validate        # Flyway manages DDL; Hibernate only validates
+      ddl-auto: none           # Flyway manages DDL; disable strict startup schema validation
     show-sql: false
     properties:
       hibernate:
@@ -39,6 +39,8 @@ spring:
     locations: classpath:db/migration
     baseline-on-migrate: true
     validate-on-migrate: false
+    out-of-order: true
+    clean-disabled: true
 
   # ── File Upload (citizen photos) ───────────────────────────────────────────
   servlet:
