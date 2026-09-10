@@ -100,9 +100,8 @@ export const isBackendAvailableOrConfigured = (): boolean => {
 
 export const api = axios.create({
   baseURL: resolveApiBaseUrl(),
-  // Render Free can take 50+ seconds to wake. A short timeout leaves a real
-  // incident stuck in the local queue before the canonical server is ready.
-  timeout: 75000,
+  // Render Free can take about 50 seconds to wake; preserve a small safety margin.
+  timeout: 55000,
 });
 
 // Fire-and-forget backend wake-up ping — call on app mount to pre-warm Render free tier
