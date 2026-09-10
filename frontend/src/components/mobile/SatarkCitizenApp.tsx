@@ -12,7 +12,8 @@ import {
   submitReport,
   uploadPhoto,
   fetchRiskAssessment,
-  fetchHeatmap
+  fetchHeatmap,
+  warmupBackend
 } from '../../services/api';
 import {
   fetchActiveAlertsForLocation,
@@ -490,8 +491,10 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
       }
     };
 
+    // Wake up Render backend immediately so it's ready when alerts are needed
+    warmupBackend();
     loadAlerts();
-    const interval = setInterval(loadAlerts, 3000);
+    const interval = setInterval(loadAlerts, 10000); // 10s — less aggressive, prevents flooding sleeping backend
     const unsub = subscribeToScenario(() => {
       loadAlerts();
     });

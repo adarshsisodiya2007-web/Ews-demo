@@ -170,7 +170,8 @@ export function useOfflineSync() {
       }
     });
 
-    // Background auto-retry interval: periodically retry pending queue when online
+    // Background auto-retry interval: retry pending queue when online
+    // Use 60s interval — prevents flooding the Render free-tier backend when it's sleeping
     intervalId = setInterval(() => {
       if (navigator.onLine && !isSyncingRef.current) {
         getPendingReports().then((reps) => {
@@ -185,7 +186,7 @@ export function useOfflineSync() {
           }
         }).catch(() => {});
       }
-    }, 15000);
+    }, 60000);
 
     return () => {
       window.removeEventListener('online', handleOnline);

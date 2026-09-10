@@ -123,7 +123,7 @@ const makeSensorReadings = (baseRain: number): SensorReading[] => {
 };
 
 // ── Mock citizen reports ─────────────────────────────────────────────────────
-const MOCK_REPORTS: CitizenReport[] = [
+export const MOCK_REPORTS: CitizenReport[] = [
   { id: 'r1', reporterType: 'FIELD_OFFICER', category: 'CRACK', description: 'Large crack visible on NH-6 embankment near km marker 42', photoUrl: null, status: 'VERIFIED', createdAt: new Date(Date.now() - 7200000).toISOString(), syncedAt: null, geoLat: 23.74, geoLng: 92.72 },
   { id: 'r2', reporterType: 'CITIZEN', category: 'SLOPE_MOVEMENT', description: 'Small stones falling on road continuously', photoUrl: null, status: 'PENDING', createdAt: new Date(Date.now() - 14400000).toISOString(), syncedAt: null, geoLat: 25.27, geoLng: 91.73 },
   { id: 'r3', reporterType: 'FIELD_OFFICER', category: 'BLOCKED_ROAD', description: 'NH-44 completely blocked at Chaltlang — debris across full width', photoUrl: null, status: 'PENDING', createdAt: new Date(Date.now() - 3600000).toISOString(), syncedAt: null, geoLat: 23.74, geoLng: 92.70 },

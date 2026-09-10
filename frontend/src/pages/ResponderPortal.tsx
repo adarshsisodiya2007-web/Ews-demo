@@ -14,7 +14,8 @@ import {
   deleteCitizenReport,
   cleanupCitizenReports,
   updateReportStatus,
-  resolvePhotoUrl
+  resolvePhotoUrl,
+  warmupBackend
 } from '../services/api';
 import {
   queueRoadStatus,
@@ -140,6 +141,7 @@ export const ResponderPortal: React.FC = () => {
     window.addEventListener('ews-sync-completed', handleSyncComplete);
     window.addEventListener('ews-reports-updated', handleSyncComplete);
 
+    warmupBackend(); // Pre-warm Render backend so reports load faster
     loadData();
     // Reports from another device cannot dispatch a browser event in this window.
     const refreshInterval = window.setInterval(() => {

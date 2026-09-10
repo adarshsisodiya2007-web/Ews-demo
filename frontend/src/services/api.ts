@@ -19,6 +19,7 @@ import {
   MOCK_HEATMAP,
   MOCK_ALERTS,
   MOCK_USERS,
+  MOCK_REPORTS,
   getMockRiskDetail,
 } from './mockData';
 import {
@@ -99,9 +100,19 @@ export const isBackendAvailableOrConfigured = (): boolean => {
 
 export const api = axios.create({
   baseURL: resolveApiBaseUrl(),
-  // Render cold starts can exceed the former 20-second request timeout.
-  timeout: 75000,
+  // 12s timeout — fast enough to fail-fast on sleeping Render so UI doesn't freeze
+  timeout: 12000,
 });
+
+// Fire-and-forget backend wake-up ping — call on app mount to pre-warm Render free tier
+export const warmupBackend = (): void => {
+  const base = resolveApiBaseUrl();
+  if (!base || base.includes('localhost')) return;
+  // Use fetch with a short no-store request so it doesn't block any UI flow
+  fetch(`${base}/actuator/health`, { method: 'GET', cache: 'no-store' })
+    .then(() => { /* backend is awake */ })
+    .catch(() => { /* still waking up, next real call will retry */ });
+};
 
 /** Tell open dashboards to reload the canonical incident ledger. */
 export const notifyReportsChanged = (): void => {
@@ -215,7 +226,7 @@ export const fetchRecentReports = async (): Promise<CitizenReport[]> => {
     setDemoMode(true);
     try {
       const cached = await getCachedIncidents();
-      if (cached && cached.data) {
+      if (cached && cached.data && cached.data.length > 0) {
         let reports = cached.data;
         if (clearedAt) {
           reports = reports.filter(r => new Date(r.createdAt).getTime() > clearedAt);
@@ -223,7 +234,8 @@ export const fetchRecentReports = async (): Promise<CitizenReport[]> => {
         return reports.filter(r => !deletedIds.has(r.id));
       }
     } catch {}
-    return [];
+    // Backend down + no cache: show demo reports so the panel is not blank
+    return MOCK_REPORTS.filter(r => !deletedIds.has(r.id));
   }
 };
 

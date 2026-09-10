@@ -13,7 +13,8 @@ import {
   deleteCitizenReport,
   cleanupCitizenReports,
   updateReportStatus,
-  resolvePhotoUrl
+  resolvePhotoUrl,
+  warmupBackend
 } from '../../services/api';
 import {
   queueRoadStatus,
@@ -351,6 +352,7 @@ export const SatarkOfficerApp: React.FC<Props> = ({ onSwitchToCitizen }) => {
   };
 
   useEffect(() => {
+    warmupBackend(); // Pre-warm Render free tier on app open
     loadAllOfficerData();
     const iv = setInterval(loadAllOfficerData, 12000);
     const handleSyncUpdate = () => {
