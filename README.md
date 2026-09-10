@@ -1,4 +1,4 @@
-﻿# 🛰️ SATARK — Landslide Early Warning System (NER)
+# 🛰️ SATARK — Landslide Early Warning System (NER)
 ### Smart India Hackathon (SIH) 2026 · Problem Statement SIH 26001
 
 > **SATARK** is an AI-driven, multi-hazard disaster early warning, risk assessment, offline mesh rescue, and incident response platform designed specifically for the rugged terrain of Northeast India.
@@ -8,7 +8,7 @@
 ## 🌟 Quick Links
 
 - **Handover Guide**: See [HANDOVER_README.md](HANDOVER_README.md) for full developer onboarding, architecture, and deployment instructions.
-- **Production Web Application**: [https://landslide-ews.vercel.app](https://landslide-ews.vercel.app)
+- **Production Web Application**: [https://satark.vercel.app](https://satark.vercel.app) (also accessible at [https://landslide-ews.vercel.app](https://landslide-ews.vercel.app))
 - **Production Spring Boot API**: [https://ews-backend-gateway-vck8.onrender.com](https://ews-backend-gateway-vck8.onrender.com)
 - **GitHub Repository**: [https://github.com/adarshsisodiya2007-web/Ews-demo](https://github.com/adarshsisodiya2007-web/Ews-demo) (Branch: main)
 

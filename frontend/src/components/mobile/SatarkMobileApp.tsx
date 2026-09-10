@@ -5,12 +5,17 @@ import { SatarkSplashScreen } from './SatarkSplashScreen';
 import { SatarkAndroidLogin } from './SatarkAndroidLogin';
 import { SatarkCitizenOnboarding } from './SatarkCitizenOnboarding';
 import { hasCitizenCompletedLocation } from '../../services/citizenLocationService';
-import { login } from '../../services/api';
+import { login, warmupBackend } from '../../services/api';
 import { sendOfficerOtp, verifyOfficerOtp } from '../../services/citizenAuthService';
 import { getValidSession, clearAuthSession } from '../../utils/authSession';
 
 export const SatarkMobileApp: React.FC = () => {
   const [showSplash, setShowSplash] = useState<boolean>(true);
+
+  // Pre-warm backend immediately on app launch
+  useEffect(() => {
+    warmupBackend();
+  }, []);
 
   // Authentication gate state for Android
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {

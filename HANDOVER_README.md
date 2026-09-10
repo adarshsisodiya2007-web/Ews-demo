@@ -1,4 +1,4 @@
-﻿# 🛰️ SATARK — AI Landslide Early Warning System (NER)
+# 🛰️ SATARK — AI Landslide Early Warning System (NER)
 ### SIH 26001 · Complete Project Handover & Developer Guide
 
 Welcome to the **SATARK** (System for Alert, Tracking, Analysis & Landslide Risk in Northeast Region) codebase. This repository contains the complete end-to-end mission-critical disaster management platform:
@@ -15,7 +15,7 @@ Welcome to the **SATARK** (System for Alert, Tracking, Analysis & Landslide Risk
 
 - **GitHub Repository**: https://github.com/adarshsisodiya2007-web/Ews-demo.git
 - **Main Branch**: main
-- **Live Production Web App**: https://landslide-ews.vercel.app
+- **Live Production Web App**: https://satark.vercel.app (and https://landslide-ews.vercel.app)
 - **Live Production Backend API**: https://ews-backend-gateway-vck8.onrender.com
 - **Backend Health Check**: https://ews-backend-gateway-vck8.onrender.com/actuator/health
 
