@@ -715,6 +715,9 @@ export const resolveAiEngineUrl = (): string => {
     if (host === 'localhost' || host === '127.0.0.1') {
       return 'http://localhost:8000';
     }
+    if (host) {
+      return `http://${host}:8000`;
+    }
   }
   return 'http://localhost:8000';
 };

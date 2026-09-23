@@ -3,7 +3,7 @@ import { ResponderAlert, CreateAlertPayload } from '../types/alertTypes';
 //   • Correct base URL for localhost / Android Capacitor / production
 //   • Auto-attach JWT Bearer token via request interceptor
 //   • Consistent timeout, CORS credentials
-import { api } from './api';
+import { api, aiClient } from './api';
 
 const LOCAL_ALERTS_KEY = 'satark_published_responder_alerts';
 
@@ -64,8 +64,19 @@ export async function fetchActiveAlertsForLocation(
     if (district) params.district = district;
     if (state) params.state = state;
     if (targetRegion) params.targetRegion = targetRegion;
-    const res = await api.get<ResponderAlert[]>('/api/citizen/alerts/active', { params });
-    const backendList = Array.isArray(res.data) ? res.data : [];
+
+    let backendList: ResponderAlert[] = [];
+    try {
+      const res = await api.get<ResponderAlert[]>('/api/citizen/alerts/active', { params, timeout: 3000 });
+      backendList = Array.isArray(res.data) ? res.data : [];
+    } catch {
+      try {
+        const res = await aiClient.get<ResponderAlert[]>('/api/citizen/alerts/active', { params, timeout: 3000 });
+        backendList = Array.isArray(res.data) ? res.data : [];
+      } catch {
+        backendList = [];
+      }
+    }
 
     // Merge backend and local list, deduplicating by ID
     const map = new Map<string, ResponderAlert>();
@@ -91,8 +102,18 @@ export async function fetchActiveAlertsForLocation(
 export async function fetchAllActiveAlerts(): Promise<ResponderAlert[]> {
   const localList = getLocalResponderAlerts().filter(a => a.status === 'ACTIVE');
   try {
-    const res = await api.get<ResponderAlert[]>('/api/citizen/alerts/all');
-    const backendList = Array.isArray(res.data) ? res.data : [];
+    let backendList: ResponderAlert[] = [];
+    try {
+      const res = await api.get<ResponderAlert[]>('/api/citizen/alerts/all', { timeout: 3000 });
+      backendList = Array.isArray(res.data) ? res.data : [];
+    } catch {
+      try {
+        const res = await aiClient.get<ResponderAlert[]>('/api/citizen/alerts/all', { timeout: 3000 });
+        backendList = Array.isArray(res.data) ? res.data : [];
+      } catch {
+        backendList = [];
+      }
+    }
     const map = new Map<string, ResponderAlert>();
     for (const a of backendList) map.set(a.id, a);
     for (const a of localList) if (!map.has(a.id)) map.set(a.id, a);
@@ -106,8 +127,18 @@ export async function fetchAllActiveAlerts(): Promise<ResponderAlert[]> {
 export async function fetchResponderAlerts(): Promise<ResponderAlert[]> {
   const localList = getLocalResponderAlerts();
   try {
-    const res = await api.get<ResponderAlert[]>('/api/responder/alerts');
-    const backendList = Array.isArray(res.data) ? res.data : [];
+    let backendList: ResponderAlert[] = [];
+    try {
+      const res = await api.get<ResponderAlert[]>('/api/responder/alerts', { timeout: 3000 });
+      backendList = Array.isArray(res.data) ? res.data : [];
+    } catch {
+      try {
+        const res = await aiClient.get<ResponderAlert[]>('/api/responder/alerts', { timeout: 3000 });
+        backendList = Array.isArray(res.data) ? res.data : [];
+      } catch {
+        backendList = [];
+      }
+    }
     const map = new Map<string, ResponderAlert>();
     for (const a of backendList) map.set(a.id, a);
     for (const a of localList) if (!map.has(a.id)) map.set(a.id, a);
@@ -127,30 +158,35 @@ export async function createResponderAlert(
   let createdAlert: ResponderAlert;
 
   try {
-    const res = await api.post<ResponderAlert>('/api/responder/alerts', payload);
+    const res = await api.post<ResponderAlert>('/api/responder/alerts', payload, { timeout: 3000 });
     createdAlert = res.data;
   } catch (e) {
-    // Graceful local creation for testing / offline resilience
-    createdAlert = {
-      id: `alert-resp-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-      title: payload.title,
-      description: payload.description,
-      severity: payload.severity,
-      status: 'ACTIVE',
-      scope: payload.scope || 'EXACT_REGION',
-      alertType: payload.alertType || 'LANDSLIDE',
-      regionId: payload.regionId,
-      locationName: payload.locationName || payload.targetRegion,
-      targetRegion: payload.targetRegion || payload.locationName,
-      district: payload.district,
-      state: payload.state,
-      lat: payload.lat,
-      lng: payload.lng,
-      createdAt: now,
-      updatedAt: now,
-      startTime: payload.startTime || now,
-      expiryTime: payload.expiryTime
-    };
+    try {
+      const res = await aiClient.post<ResponderAlert>('/api/responder/alerts', payload, { timeout: 3000 });
+      createdAlert = res.data;
+    } catch {
+      // Graceful local creation for testing / offline resilience
+      createdAlert = {
+        id: `alert-resp-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+        title: payload.title,
+        description: payload.description,
+        severity: payload.severity,
+        status: 'ACTIVE',
+        scope: payload.scope || 'EXACT_REGION',
+        alertType: payload.alertType || 'LANDSLIDE',
+        regionId: payload.regionId,
+        locationName: payload.locationName || payload.targetRegion,
+        targetRegion: payload.targetRegion || payload.locationName,
+        district: payload.district,
+        state: payload.state,
+        lat: payload.lat,
+        lng: payload.lng,
+        createdAt: now,
+        updatedAt: now,
+        startTime: payload.startTime || now,
+        expiryTime: payload.expiryTime
+      };
+    }
   }
 
   // Persist locally for instant multi-window / offline reactivity
@@ -175,7 +211,7 @@ export async function updateResponderAlert(
 ): Promise<ResponderAlert> {
   let updated: ResponderAlert;
   try {
-    const res = await api.put<ResponderAlert>(`/api/responder/alerts/${id}`, payload);
+    const res = await api.put<ResponderAlert>(`/api/responder/alerts/${id}`, payload, { timeout: 3000 });
     updated = res.data;
     const existing = getLocalResponderAlerts().map(a => a.id === id ? { ...a, ...updated } : a);
     saveLocalResponderAlerts(existing);
@@ -201,10 +237,15 @@ export async function updateResponderAlert(
 export async function resolveAlert(id: string): Promise<ResponderAlert> {
   let updatedAlert: ResponderAlert | undefined;
   try {
-    const res = await api.patch<ResponderAlert>(`/api/responder/alerts/${id}/resolve`);
+    const res = await api.patch<ResponderAlert>(`/api/responder/alerts/${id}/resolve`, {}, { timeout: 3000 });
     updatedAlert = res.data;
   } catch {
-    // local fallback
+    try {
+      const res = await aiClient.patch<ResponderAlert>(`/api/responder/alerts/${id}/resolve`, {}, { timeout: 3000 });
+      updatedAlert = res.data;
+    } catch {
+      // local fallback
+    }
   }
 
   const existing = getLocalResponderAlerts();
@@ -231,10 +272,15 @@ export async function resolveAlert(id: string): Promise<ResponderAlert> {
 export async function cancelAlert(id: string): Promise<ResponderAlert> {
   let updatedAlert: ResponderAlert | undefined;
   try {
-    const res = await api.patch<ResponderAlert>(`/api/responder/alerts/${id}/cancel`);
+    const res = await api.patch<ResponderAlert>(`/api/responder/alerts/${id}/cancel`, {}, { timeout: 3000 });
     updatedAlert = res.data;
   } catch {
-    // local fallback
+    try {
+      const res = await aiClient.patch<ResponderAlert>(`/api/responder/alerts/${id}/cancel`, {}, { timeout: 3000 });
+      updatedAlert = res.data;
+    } catch {
+      // local fallback
+    }
   }
 
   const existing = getLocalResponderAlerts();
@@ -260,9 +306,13 @@ export async function cancelAlert(id: string): Promise<ResponderAlert> {
 /** Responder: delete an alert */
 export async function deleteAlert(id: string): Promise<void> {
   try {
-    await api.delete(`/api/responder/alerts/${id}`);
+    await api.delete(`/api/responder/alerts/${id}`, { timeout: 3000 });
   } catch {
-    // local delete fallback
+    try {
+      await aiClient.delete(`/api/responder/alerts/${id}`, { timeout: 3000 });
+    } catch {
+      // local delete fallback
+    }
   }
   const existing = getLocalResponderAlerts().filter(a => a.id !== id);
   saveLocalResponderAlerts(existing);

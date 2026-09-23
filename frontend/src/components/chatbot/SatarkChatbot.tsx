@@ -29,7 +29,7 @@ const GENERAL_SYSTEM_PROMPT = `You are SATARK AI — the intelligent assistant f
 You assist both citizens and responders with landslide risks, evacuation procedures, sensor data, and app navigation. Answer clearly in Hindi or English.`;
 
 const GROQ_DIRECT_KEY = (import.meta as any).env?.VITE_GROQ_API_KEY || ['gs','k_','FrCEmx6vrxLzzL','zGf74IWGdyb3F','YGjGP3VOgE9obQ','GlCZkambUem'].join('');
-const GROQ_DIRECT_MODEL = "groq/compound-mini";
+const GROQ_DIRECT_MODEL = "qwen/qwen3.8-27b";
 const GROQ_DIRECT_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions";
 
 export interface SatarkChatbotProps {

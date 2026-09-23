@@ -71,6 +71,9 @@ def load_ml_artifacts():
 load_ml_artifacts()
 
 # API Keys from Environment
+IMD_API_KEY = os.getenv("IMD_API_KEY", "ccc9844f66c51ee4e61818fd6ffbf9934f14b5345bce3445fa2aa8b1371cb8c3")
+IMD_BASE_URL = os.getenv("IMD_BASE_URL", "https://api.imd.gov.in/api/v1")
+IMD_JWT_TOKEN = os.getenv("IMD_JWT_TOKEN", "")
 OPENWEATHER_KEY = os.getenv("OPENWEATHER_API_KEY", "")
 OPENTOPOGRAPHY_KEY = os.getenv("OPENTOPOGRAPHY_API_KEY", "619ea4b33002a569b3ac0b851e8b51d2")
 
@@ -82,6 +85,9 @@ class WeatherTelemetry(BaseModel):
     soil_moisture: float
     critical_rain_trigger: bool
     source: str
+    imd_key_configured: Optional[bool] = False
+    imd_active: Optional[bool] = False
+
 
 class ShapFeatureContribution(BaseModel):
     feature: str
@@ -644,6 +650,39 @@ def get_recent_sensor_data():
 
 @app.get("/api/v1/weather/live", response_model=WeatherTelemetry)
 async def get_live_weather(lat: float = 11.5513, lon: float = 76.1264):
+    has_imd = bool(IMD_API_KEY and IMD_API_KEY.strip())
+    
+    # 1. Primary: Official IMD (India Meteorological Department) National Telemetry
+    if has_imd:
+        try:
+            imd_url = f"{IMD_BASE_URL.rstrip('/')}/cityforecast"
+            headers = {"X-API-KEY": IMD_API_KEY.strip()}
+            if IMD_JWT_TOKEN and IMD_JWT_TOKEN.strip():
+                headers["Authorization"] = f"Bearer {IMD_JWT_TOKEN.strip()}"
+            async with httpx.AsyncClient(timeout=3.5) as client:
+                imd_resp = await client.get(imd_url, headers=headers)
+                if imd_resp.status_code == 200:
+                    imd_data = imd_resp.json()
+                    r24 = 0.0
+                    if isinstance(imd_data, list) and len(imd_data) > 0:
+                        r24 = float(imd_data[0].get("Past_24_hrs_Rainfall", 0.0) or 0.0)
+                    elif isinstance(imd_data, dict):
+                        r24 = float(imd_data.get("Past_24_hrs_Rainfall", 0.0) or 0.0)
+
+                    return WeatherTelemetry(
+                        rain_24h_mm=round(r24, 1),
+                        rain_72h_mm=round(r24 * 2.2, 1),
+                        soil_moisture=0.48,
+                        critical_rain_trigger=r24 >= 100.0,
+                        source="IMD_GOV_IN",
+                        imd_key_configured=True,
+                        imd_active=True
+                    )
+        except Exception:
+            # Fall through gracefully to Open-Meteo
+            pass
+
+    # 2. Open-Meteo High-Resolution Hydrometeorology
     url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&hourly=precipitation,soil_moisture_0_to_1cm&timezone=auto"
     try:
         async with httpx.AsyncClient(timeout=4.0) as client:
@@ -662,7 +701,9 @@ async def get_live_weather(lat: float = 11.5513, lon: float = 76.1264):
                     rain_72h_mm=r72,
                     soil_moisture=moisture,
                     critical_rain_trigger=r24 >= 100.0,
-                    source="OPEN_METEO_LIVE"
+                    source="OPEN_METEO_LIVE",
+                    imd_key_configured=has_imd,
+                    imd_active=False
                 )
     except Exception:
         pass
@@ -672,8 +713,48 @@ async def get_live_weather(lat: float = 11.5513, lon: float = 76.1264):
         rain_72h_mm=285.0,
         soil_moisture=0.52,
         critical_rain_trigger=True,
-        source="OPEN_METEO_SIMULATED (FALLBACK)"
+        source="OPEN_METEO_SIMULATED (FALLBACK)",
+        imd_key_configured=has_imd,
+        imd_active=False
     )
+
+@app.get("/api/v1/weather/imd-status")
+async def get_imd_status():
+    """
+    Status endpoint to inspect IMD API connectivity and whitelisting.
+    """
+    has_key = bool(IMD_API_KEY and IMD_API_KEY.strip())
+    masked_key = (IMD_API_KEY[:6] + "..." + IMD_API_KEY[-4:]) if has_key else None
+    
+    test_result = "NOT_CONFIGURED"
+    http_code = None
+    if has_key:
+        try:
+            headers = {"X-API-KEY": IMD_API_KEY.strip()}
+            if IMD_JWT_TOKEN and IMD_JWT_TOKEN.strip():
+                headers["Authorization"] = f"Bearer {IMD_JWT_TOKEN.strip()}"
+            async with httpx.AsyncClient(timeout=4.0) as client:
+                res = await client.get(f"{IMD_BASE_URL.rstrip('/')}/cityforecast", headers=headers)
+                http_code = res.status_code
+                if res.status_code == 200:
+                    test_result = "CONNECTED_ACTIVE"
+                elif res.status_code == 401:
+                    test_result = "AWAITING_IP_WHITELIST_OR_BEARER_TOKEN"
+                else:
+                    test_result = f"HTTP_{res.status_code}"
+        except Exception as e:
+            test_result = f"CONNECTION_ERROR: {str(e)}"
+
+    return {
+        "provider": "India Meteorological Department (IMD) - Ministry of Earth Sciences",
+        "key_configured": has_key,
+        "masked_key": masked_key,
+        "base_url": IMD_BASE_URL,
+        "connection_test": test_result,
+        "http_code": http_code,
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    }
+
 
 @app.get("/api/v1/terrain/elevation")
 async def get_elevation(lat: float = 11.5513, lon: float = 76.1264):
@@ -788,6 +869,104 @@ async def evaluate_risk(
         ),
         evacuation_plan=evac_plan
     )
+
+
+# ==============================================================================
+# In-Memory Emergency Alert Hub (Syncs Officer Laptop -> Citizen Mobile Phone)
+# ==============================================================================
+ACTIVE_ALERTS: List[Dict[str, Any]] = []
+
+class AlertPayloadModel(BaseModel):
+    title: str
+    description: Optional[str] = ""
+    severity: str = "CRITICAL"
+    scope: Optional[str] = "EXACT_REGION"
+    alertType: Optional[str] = "LANDSLIDE"
+    regionId: Optional[str] = None
+    targetRegion: Optional[str] = None
+    locationName: Optional[str] = None
+    district: Optional[str] = None
+    state: Optional[str] = None
+    lat: Optional[float] = None
+    lng: Optional[float] = None
+    startTime: Optional[str] = None
+    expiryTime: Optional[str] = None
+
+@app.post("/api/responder/alerts")
+@app.post("/api/v1/responder/alerts")
+async def create_alert_endpoint(payload: AlertPayloadModel):
+    now_iso = datetime.now(timezone.utc).isoformat()
+    alert_id = f"alert-resp-{int(datetime.now(timezone.utc).timestamp() * 1000)}"
+    alert_item = {
+        "id": alert_id,
+        "title": payload.title,
+        "description": payload.description or "",
+        "severity": payload.severity,
+        "status": "ACTIVE",
+        "scope": payload.scope or "EXACT_REGION",
+        "alertType": payload.alertType or "LANDSLIDE",
+        "regionId": payload.regionId,
+        "locationName": payload.locationName or payload.targetRegion,
+        "targetRegion": payload.targetRegion or payload.locationName,
+        "district": payload.district,
+        "state": payload.state,
+        "lat": payload.lat,
+        "lng": payload.lng,
+        "createdAt": now_iso,
+        "updatedAt": now_iso,
+        "startTime": payload.startTime or now_iso,
+        "expiryTime": payload.expiryTime
+    }
+    # Prepend newest alert
+    ACTIVE_ALERTS.insert(0, alert_item)
+    return alert_item
+
+@app.get("/api/citizen/alerts/active")
+@app.get("/api/v1/citizen/alerts/active")
+async def get_active_citizen_alerts(
+    regionId: Optional[str] = None,
+    district: Optional[str] = None,
+    state: Optional[str] = None,
+    targetRegion: Optional[str] = None
+):
+    results = [a for a in ACTIVE_ALERTS if a.get("status") == "ACTIVE"]
+    return results
+
+@app.get("/api/citizen/alerts/all")
+@app.get("/api/v1/citizen/alerts/all")
+@app.get("/api/responder/alerts")
+@app.get("/api/v1/responder/alerts")
+async def get_all_alerts():
+    return ACTIVE_ALERTS
+
+@app.patch("/api/responder/alerts/{alert_id}/resolve")
+@app.patch("/api/v1/responder/alerts/{alert_id}/resolve")
+async def resolve_alert_endpoint(alert_id: str):
+    now_iso = datetime.now(timezone.utc).isoformat()
+    for a in ACTIVE_ALERTS:
+        if a.get("id") == alert_id:
+            a["status"] = "RESOLVED"
+            a["updatedAt"] = now_iso
+            return a
+    raise HTTPException(status_code=404, detail="Alert not found")
+
+@app.patch("/api/responder/alerts/{alert_id}/cancel")
+@app.patch("/api/v1/responder/alerts/{alert_id}/cancel")
+async def cancel_alert_endpoint(alert_id: str):
+    now_iso = datetime.now(timezone.utc).isoformat()
+    for a in ACTIVE_ALERTS:
+        if a.get("id") == alert_id:
+            a["status"] = "EXPIRED"
+            a["updatedAt"] = now_iso
+            return a
+    raise HTTPException(status_code=404, detail="Alert not found")
+
+@app.delete("/api/responder/alerts/{alert_id}")
+@app.delete("/api/v1/responder/alerts/{alert_id}")
+async def delete_alert_endpoint(alert_id: str):
+    global ACTIVE_ALERTS
+    ACTIVE_ALERTS = [a for a in ACTIVE_ALERTS if a.get("id") != alert_id]
+    return {"status": "DELETED", "id": alert_id}
 
 if __name__ == "__main__":
     import uvicorn

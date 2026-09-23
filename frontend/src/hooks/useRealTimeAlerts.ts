@@ -58,7 +58,7 @@ export function useRealTimeAlerts({
 
     const startPolling = () => {
       if (pollIntervalRef.current) return;
-      pollIntervalRef.current = setInterval(loadAlerts, 15000);
+      pollIntervalRef.current = setInterval(loadAlerts, 2500);
     };
 
     const connectWebSocket = () => {

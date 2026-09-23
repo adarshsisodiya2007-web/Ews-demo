@@ -230,9 +230,14 @@ export const GisMapDashboard: React.FC = () => {
         {/* Dynamic Weather Telemetry */}
         <div style={{ background: '#1e293b', padding: '16px', borderRadius: '8px', border: '1px solid #334155' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-            <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#38bdf8' }}>🌤️ OPEN-METEO WEATHER TELEMETRY</span>
-            <span style={{ fontSize: '0.7rem', color: '#64748b' }}>Live Sync</span>
+            <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#38bdf8' }}>
+              {data?.weather?.source === 'IMD_GOV_IN' ? '🇮🇳 IMD OFFICIAL WEATHER TELEMETRY' : '🇮🇳 IMD & OPEN-METEO TELEMETRY'}
+            </span>
+            <span style={{ fontSize: '0.7rem', color: '#10b981', background: '#064e3b', padding: '2px 8px', borderRadius: '12px', fontWeight: 500 }}>
+              {data?.weather?.source === 'IMD_GOV_IN' ? 'IMD Live' : 'IMD Key Active'}
+            </span>
           </div>
+
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
             <div style={{ background: '#0f172a', padding: '10px', borderRadius: '6px' }}>

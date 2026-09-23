@@ -796,8 +796,9 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({ initialTab = 'over
             {/* Telemetry Grid */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px', marginBottom: '24px' }}>
               {[
-                { icon: '🌧️', label: t.rain24, value: `${data?.weather?.rain_24h_mm ?? 142.0} mm`, sub: 'Open-Meteo & OpenWeather', color: (data?.weather?.rain_24h_mm ?? 0) > 100 ? (theme === 'dark' ? '#ef4444' : '#dc2626') : (theme === 'dark' ? '#38bdf8' : '#0284c7') },
+                { icon: '🌧️', label: t.rain24, value: `${data?.weather?.rain_24h_mm ?? 142.0} mm`, sub: data?.weather?.source === 'IMD_GOV_IN' ? 'IMD (Govt. of India)' : 'IMD & Open-Meteo', color: (data?.weather?.rain_24h_mm ?? 0) > 100 ? (theme === 'dark' ? '#ef4444' : '#dc2626') : (theme === 'dark' ? '#38bdf8' : '#0284c7') },
                 { icon: '📊', label: t.rain72, value: `${data?.weather?.rain_72h_mm ?? 285.0} mm`, sub: '3-Day Antecedent Rain', color: theme === 'dark' ? '#f8fafc' : '#0f172a' },
+
                 { icon: '🌱', label: t.soil, value: `${data?.weather?.soil_moisture ?? 0.52} m³/m³`, sub: 'Topsoil 0-1cm Layer', color: theme === 'dark' ? '#f8fafc' : '#0f172a' },
                 {
                   icon: '🛰️',

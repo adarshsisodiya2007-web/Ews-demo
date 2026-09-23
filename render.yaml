@@ -19,6 +19,8 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.9
+      - key: IMD_API_KEY
+        value: ccc9844f66c51ee4e61818fd6ffbf9934f14b5345bce3445fa2aa8b1371cb8c3
       - key: OPENWEATHER_API_KEY
         value: 248691ae6b30abce7f3cf5a4319520d2
       - key: OPENTOPOGRAPHY_API_KEY
@@ -39,10 +41,13 @@ services:
         value: 8080
       - key: SPRING_PROFILES_ACTIVE
         value: prod
+      - key: IMD_API_KEY
+        value: ccc9844f66c51ee4e61818fd6ffbf9934f14b5345bce3445fa2aa8b1371cb8c3
       - key: OPENWEATHER_API_KEY
         value: 248691ae6b30abce7f3cf5a4319520d2
       - key: OPENTOPOGRAPHY_API_KEY
         value: 619ea4b33002a569b3ac0b851e8b51d2
+
       - key: SPRING_DATASOURCE_HOST
         fromDatabase:
           name: ews-postgres-db

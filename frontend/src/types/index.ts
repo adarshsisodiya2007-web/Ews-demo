@@ -147,7 +147,11 @@ export interface LiveWeatherMetrics {
   soil_moisture: number;
   critical_rain_trigger: boolean;
   source: string;
+  imd_key_configured?: boolean;
+  imd_active?: boolean;
+  provider?: string;
 }
+
 
 export interface LandslideAssessment {
   id?: string;
