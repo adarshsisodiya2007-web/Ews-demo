@@ -3,10 +3,19 @@ import { TopBar } from '../components/layout/TopBar';
 import { RiskHeatmap } from '../components/map/RiskHeatmap';
 import { RegionDetailPanel } from '../components/panels/RegionDetailPanel';
 import { LiveAlertTicker } from '../components/feed/LiveAlertTicker';
-import { RegionRisk, Severity } from '../types';
-import { fetchHeatmap } from '../services/api';
+import { RegionRisk, Severity, CitizenReport, ReportStatus } from '../types';
+import {
+  fetchHeatmap,
+  fetchRecentReports,
+  updateReportStatus,
+  deleteCitizenReport,
+  resolvePhotoUrl
+} from '../services/api';
+import { getCategoryReferenceVisual } from '../services/photoStorage';
 import { OfflineStatusHeader } from '../components/layout/OfflineStatusHeader';
 import { AIPriorityPanel } from '../components/AIPriorityPanel';
+import { SimulationWorkbench } from '../components/panels/SimulationWorkbench';
+import { ModelMonitoringPanel } from '../components/panels/ModelMonitoringPanel';
 import {
   subscribeToScenario,
   getActiveScenario,
@@ -20,6 +29,8 @@ function getStoredRole(): string {
 
 const OfficialDashboard = () => {
   const [heatmapData, setHeatmapData]       = useState<RegionRisk[]>([]);
+  const [reports, setReports]               = useState<CitizenReport[]>([]);
+  const [noticeMsg, setNoticeMsg]           = useState<string | null>(null);
   const [selectedRegionId, setSelectedRegionId] = useState<string | null>(null);
   const [severityFilter, setSeverityFilter]  = useState<Severity | 'ALL'>('ALL');
   const [selectedDistrict, setSelectedDistrict] = useState('ALL');
@@ -27,16 +38,57 @@ const OfficialDashboard = () => {
   const [alertCount]                        = useState(0);
   const [lastUpdated, setLastUpdated]        = useState<Date | null>(null);
   const [loading, setLoading]               = useState(true);
-  const [viewMode, setViewMode]             = useState<'map' | 'ai_priority'>('map');
+  const [viewMode, setViewMode]             = useState<'map' | 'ai_priority' | 'incidents' | 'simulation' | 'model_info'>('map');
+  const [reportFilter, setReportFilter]     = useState<string>('ALL');
+  const [photoModal, setPhotoModal]         = useState<string | null>(null);
 
   const role = getStoredRole();
   const [currentScenario, setCurrentScenario] = useState(() => getActiveScenario());
 
+  const load = async () => {
+    try {
+      const [hData, rData] = await Promise.all([
+        fetchHeatmap(),
+        fetchRecentReports(),
+      ]);
+      setHeatmapData(hData);
+      setReports(rData);
+      setLastUpdated(new Date());
+    } catch {
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdateStatus = async (reportId: string, newStatus: ReportStatus) => {
+    setReports(prev => prev.map(r => r.id === reportId ? { ...r, status: newStatus } : r));
+    try {
+      await updateReportStatus(reportId, newStatus);
+      setNoticeMsg(`✅ Incident status updated to ${newStatus === 'DISMISSED' ? 'REJECTED' : newStatus}`);
+      await load();
+    } catch (err: any) {
+      setNoticeMsg(`❌ Update failed: ${err.message || 'Error'}`);
+      await load();
+    } finally {
+      setTimeout(() => setNoticeMsg(null), 3500);
+    }
+  };
+
+  const handleDeleteReport = async (reportId: string) => {
+    setReports(prev => prev.filter(r => r.id !== reportId));
+    try {
+      await deleteCitizenReport(reportId);
+      setNoticeMsg(`✅ Incident report #${reportId.substring(0, 8)} removed.`);
+      await load();
+    } catch (err: any) {
+      setNoticeMsg(`❌ Deletion failed: ${err.message || 'Error'}`);
+      await load();
+    } finally {
+      setTimeout(() => setNoticeMsg(null), 3500);
+    }
+  };
+
   useEffect(() => {
-    const load = () =>
-      fetchHeatmap()
-        .then(data => { setHeatmapData(data); setLastUpdated(new Date()); setLoading(false); })
-        .catch(() => setLoading(false));
     load();
 
     const unsub = subscribeToScenario(() => {
@@ -48,11 +100,29 @@ const OfficialDashboard = () => {
     window.addEventListener('ews-reports-updated', handleSync);
     window.addEventListener('ews-sync-completed', handleSync);
 
-    const iv = setInterval(load, 30000);
+    // Cross-tab BroadcastChannel for instant sync from citizen reports
+    let bc: BroadcastChannel | null = null;
+    if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+      bc = new BroadcastChannel('satark-reports-channel');
+      bc.onmessage = () => {
+        load();
+      };
+    }
+
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === 'satark_reports_tick') {
+        load();
+      }
+    };
+    window.addEventListener('storage', onStorage);
+
+    const iv = setInterval(load, 15000);
     return () => {
       unsub();
       window.removeEventListener('ews-reports-updated', handleSync);
       window.removeEventListener('ews-sync-completed', handleSync);
+      window.removeEventListener('storage', onStorage);
+      if (bc) bc.close();
       clearInterval(iv);
     };
   }, []);
@@ -233,6 +303,42 @@ const OfficialDashboard = () => {
             >
               🤖 AI Priority
             </button>
+            <button
+              onClick={() => { setViewMode('incidents'); load(); }}
+              style={{
+                padding: '4px 10px', borderRadius: '6px', border: 'none',
+                background: viewMode === 'incidents' ? '#0284c7' : '#2A3547',
+                color: viewMode === 'incidents' ? '#fff' : '#94a3b8',
+                fontSize: '0.74rem', fontWeight: 700, cursor: 'pointer',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              📋 Reports ({reports.length})
+            </button>
+            <button
+              onClick={() => setViewMode('simulation')}
+              style={{
+                padding: '4px 10px', borderRadius: '6px', border: 'none',
+                background: viewMode === 'simulation' ? '#6366f1' : '#2A3547',
+                color: viewMode === 'simulation' ? '#fff' : '#94a3b8',
+                fontSize: '0.74rem', fontWeight: 700, cursor: 'pointer',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              🧪 Simulation Mode
+            </button>
+            <button
+              onClick={() => setViewMode('model_info')}
+              style={{
+                padding: '4px 10px', borderRadius: '6px', border: 'none',
+                background: viewMode === 'model_info' ? '#059669' : '#2A3547',
+                color: viewMode === 'model_info' ? '#fff' : '#94a3b8',
+                fontSize: '0.74rem', fontWeight: 700, cursor: 'pointer',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              🧠 ML Registry
+            </button>
           </div>
         </div>
       </div>
@@ -247,11 +353,219 @@ const OfficialDashboard = () => {
         }}>
           <AIPriorityPanel
             regions={heatmapData}
+            reports={reports}
             onSelectRegion={(rId) => {
               setSelectedRegionId(rId);
               setViewMode('map');
             }}
+            onNavigateToReports={() => {
+              setViewMode('incidents');
+              load();
+            }}
           />
+        </div>
+      ) : viewMode === 'incidents' ? (
+        <div style={{
+          gridRow: 3, gridColumn: '1 / -1',
+          overflowY: 'auto',
+          padding: isMobile ? '12px 10px' : '20px 28px',
+          background: '#0a0f1e',
+          WebkitOverflowScrolling: 'touch'
+        }}>
+          <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+            {noticeMsg && (
+              <div style={{
+                background: noticeMsg.startsWith('✅') ? 'rgba(34, 197, 94, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                border: `1px solid ${noticeMsg.startsWith('✅') ? '#22c55e' : '#ef4444'}`,
+                color: noticeMsg.startsWith('✅') ? '#86efac' : '#fca5a5',
+                padding: '10px 16px', borderRadius: '8px', marginBottom: '16px',
+                fontSize: '0.85rem', fontWeight: 700, display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+              }}>
+                <span>{noticeMsg}</span>
+                <button onClick={() => setNoticeMsg(null)} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer' }}>✕</button>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', flexWrap: 'wrap', gap: '12px' }}>
+              <div>
+                <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  📋 Monitored Incident Ledger &amp; Citizen Reports
+                  <span style={{ fontSize: '0.75rem', background: '#0284c725', color: '#38bdf8', padding: '2px 8px', borderRadius: '12px', border: '1px solid #0284c7' }}>
+                    {reports.length} Total
+                  </span>
+                </h2>
+                <p style={{ margin: '4px 0 0 0', fontSize: '0.82rem', color: '#94a3b8' }}>
+                  Real-time crowdsourced reports and field observations synchronized across portals.
+                </p>
+              </div>
+
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', background: '#1e293b', padding: '3px', borderRadius: '8px', gap: '4px', border: '1px solid #334155' }}>
+                  {(['ALL', 'PENDING', 'DISPATCHED', 'VERIFIED', 'RESOLVED', 'DISMISSED'] as const).map(flt => (
+                    <button
+                      key={flt}
+                      onClick={() => setReportFilter(flt)}
+                      style={{
+                        padding: '4px 10px', borderRadius: '6px', border: 'none',
+                        background: reportFilter === flt ? '#0284c7' : 'transparent',
+                        color: reportFilter === flt ? '#fff' : '#94a3b8',
+                        fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer'
+                      }}
+                    >
+                      {flt === 'DISMISSED' ? 'REJECTED' : flt}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  onClick={load}
+                  style={{
+                    background: '#1e293b', border: '1px solid #334155', color: '#38bdf8',
+                    padding: '6px 12px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer'
+                  }}
+                >
+                  🔄 Refresh
+                </button>
+              </div>
+            </div>
+
+            {/* List of reports */}
+            {reports.filter(r => reportFilter === 'ALL' || (reportFilter === 'DISMISSED' ? (r.status === 'DISMISSED' || (r.status as string) === 'REJECTED') : r.status === reportFilter)).length === 0 ? (
+              <div style={{ padding: '40px 20px', textAlign: 'center', background: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', color: '#64748b' }}>
+                No reports matching filter <strong style={{ color: '#94a3b8' }}>{reportFilter === 'DISMISSED' ? 'REJECTED' : reportFilter}</strong>.
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {reports
+                  .filter(r => reportFilter === 'ALL' || (reportFilter === 'DISMISSED' ? (r.status === 'DISMISSED' || (r.status as string) === 'REJECTED') : r.status === reportFilter))
+                  .map(rep => (
+                    <div
+                      key={rep.id}
+                      style={{
+                        background: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px',
+                        padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
+                        flexWrap: 'wrap', gap: '14px',
+                        borderLeft: rep.status === 'RESOLVED' ? '4px solid #3b82f6' : rep.status === 'DISMISSED' ? '4px solid #ef4444' : rep.status === 'DISPATCHED' ? '4px solid #ea580c' : rep.status === 'VERIFIED' ? '4px solid #22c55e' : '4px solid #f59e0b'
+                      }}
+                    >
+                      <div style={{ flex: 1, minWidth: '260px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', flexWrap: 'wrap' }}>
+                          <span style={{
+                            background: rep.reporterType === 'FIELD_OFFICER' ? '#ea580c25' : '#3b82f625',
+                            color: rep.reporterType === 'FIELD_OFFICER' ? '#fb923c' : '#60a5fa',
+                            padding: '2px 8px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 800,
+                            border: `1px solid ${rep.reporterType === 'FIELD_OFFICER' ? '#ea580c40' : '#3b82f640'}`
+                          }}>
+                            {rep.reporterType === 'FIELD_OFFICER' ? '👮 FIELD OFFICER' : '👤 CITIZEN REPORT'}
+                          </span>
+                          <span style={{ fontWeight: 800, color: '#f8fafc', fontSize: '0.95rem' }}>
+                            {rep.category.replace(/_/g, ' ')}
+                          </span>
+                          <span style={{ fontSize: '0.72rem', color: '#64748b' }}>
+                            {new Date(rep.createdAt).toLocaleString()} · ID: #{rep.id.substring(0, 8)}
+                          </span>
+                        </div>
+
+                        <div style={{ fontSize: '0.88rem', color: '#e2e8f0', lineHeight: '1.5', marginBottom: '8px' }}>
+                          {rep.description}
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', fontSize: '0.75rem', color: '#94a3b8', flexWrap: 'wrap' }}>
+                          {rep.reporterName && (
+                            <span>👤 {rep.reporterName} {rep.reporterPhone ? `(${rep.reporterPhone})` : ''}</span>
+                          )}
+                          <span>📍 {rep.district || 'Meppadi / Wayanad'} ({(rep.latitude ?? rep.geoLat)?.toFixed(4) || '11.55'}, {(rep.longitude ?? rep.geoLng)?.toFixed(4) || '76.12'})</span>
+                        </div>
+
+                        {rep.photoUrl && (
+                          <div style={{ marginTop: '10px' }}>
+                            <img
+                              src={resolvePhotoUrl(rep.photoUrl) ?? rep.photoUrl}
+                              alt="Incident Evidence"
+                              onClick={() => setPhotoModal(resolvePhotoUrl(rep.photoUrl) ?? rep.photoUrl)}
+                              onError={(e) => {
+                                e.currentTarget.src = getCategoryReferenceVisual(rep.category);
+                              }}
+                              style={{ width: '90px', height: '90px', objectFit: 'cover', borderRadius: '8px', background: '#090d16', border: '1px solid #334155', cursor: 'pointer' }}
+                              title="Click to view full photo"
+                            />
+                          </div>
+                        )}
+                      </div>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '10px' }}>
+                        <span style={{
+                          background: rep.status === 'VERIFIED' ? '#22c55e25' : rep.status === 'RESOLVED' ? '#3b82f625' : rep.status === 'DISPATCHED' ? '#ea580c25' : rep.status === 'DISMISSED' ? '#ef444425' : '#f59e0b25',
+                          color: rep.status === 'VERIFIED' ? '#4ade80' : rep.status === 'RESOLVED' ? '#60a5fa' : rep.status === 'DISPATCHED' ? '#fb923c' : rep.status === 'DISMISSED' ? '#f87171' : '#fcd34d',
+                          border: `1px solid ${rep.status === 'VERIFIED' ? '#22c55e' : rep.status === 'RESOLVED' ? '#3b82f6' : rep.status === 'DISPATCHED' ? '#ea580c' : rep.status === 'DISMISSED' ? '#ef4444' : '#f59e0b'}`,
+                          padding: '4px 12px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 800
+                        }}>
+                          {rep.status === 'DISMISSED' ? 'REJECTED' : rep.status}
+                        </span>
+
+                        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                          {(['DISPATCHED', 'VERIFIED', 'RESOLVED', 'DISMISSED'] as const).map(st => (
+                            <button
+                              key={st}
+                              onClick={() => handleUpdateStatus(rep.id, st)}
+                              style={{
+                                background: rep.status === st
+                                  ? (st === 'RESOLVED' ? '#2563eb' : st === 'DISPATCHED' ? '#ea580c' : st === 'VERIFIED' ? '#16a34a' : '#dc2626')
+                                  : '#1e293b',
+                                color: rep.status === st ? '#ffffff' : '#94a3b8',
+                                border: `1px solid ${rep.status === st ? 'transparent' : '#334155'}`,
+                                borderRadius: '6px',
+                                padding: '4px 8px',
+                                fontSize: '0.7rem',
+                                fontWeight: rep.status === st ? 800 : 600,
+                                cursor: 'pointer'
+                              }}
+                            >
+                              {rep.status === st ? (st === 'DISMISSED' ? '✓ REJECTED' : `✓ ${st}`) : st === 'DISMISSED' ? 'Reject' : `Mark ${st}`}
+                            </button>
+                          ))}
+
+                          <button
+                            onClick={() => handleDeleteReport(rep.id)}
+                            style={{
+                              background: '#334155',
+                              color: '#94a3b8',
+                              border: 'none',
+                              borderRadius: '6px',
+                              padding: '4px 8px',
+                              fontSize: '0.7rem',
+                              cursor: 'pointer'
+                            }}
+                            title="Delete this incident record"
+                          >
+                            🗑️
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            )}
+          </div>
+        </div>
+      ) : viewMode === 'simulation' ? (
+        <div style={{
+          gridRow: 3, gridColumn: '1 / -1',
+          overflowY: 'auto',
+          padding: isMobile ? '10px 8px' : '20px 32px',
+          background: '#0a0f1e',
+          WebkitOverflowScrolling: 'touch'
+        }}>
+          <SimulationWorkbench />
+        </div>
+      ) : viewMode === 'model_info' ? (
+        <div style={{
+          gridRow: 3, gridColumn: '1 / -1',
+          overflowY: 'auto',
+          padding: isMobile ? '10px 8px' : '20px 32px',
+          background: '#0a0f1e',
+          WebkitOverflowScrolling: 'touch'
+        }}>
+          <ModelMonitoringPanel />
         </div>
       ) : (
         <>
@@ -337,8 +651,39 @@ const OfficialDashboard = () => {
 
       {/* ── Live ticker ── */}
       <div style={{ gridRow: 4, gridColumn: '1 / -1' }}>
-        <LiveAlertTicker />
+        <LiveAlertTicker onSelectRegion={(id) => { setSelectedRegionId(id); setViewMode('map'); }} />
       </div>
+
+      {/* ── Photo Preview Modal ── */}
+      {photoModal && (
+        <div
+          onClick={() => setPhotoModal(null)}
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)',
+            zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: '20px'
+          }}
+        >
+          <div style={{ position: 'relative', maxWidth: '90vw', maxHeight: '90vh' }}>
+            <img
+              src={photoModal}
+              alt="Full evidence"
+              style={{ maxWidth: '100%', maxHeight: '85vh', borderRadius: '8px', objectFit: 'contain' }}
+            />
+            <button
+              onClick={() => setPhotoModal(null)}
+              style={{
+                position: 'absolute', top: '-14px', right: '-14px',
+                background: '#ef4444', color: '#fff', border: 'none',
+                borderRadius: '50%', width: '32px', height: '32px',
+                cursor: 'pointer', fontWeight: 800, fontSize: '1rem'
+              }}
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
 
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>

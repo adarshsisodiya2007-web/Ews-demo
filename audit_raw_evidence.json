@@ -1,0 +1,334 @@
+{
+  "dataset": {
+    "rows": 1500,
+    "features_count": 19,
+    "features": [
+      "latitude",
+      "longitude",
+      "elevation",
+      "slope",
+      "aspect",
+      "rainfall_1h",
+      "rainfall_6h",
+      "rainfall_12h",
+      "rainfall_24h",
+      "rainfall_48h",
+      "rainfall_72h",
+      "antecedent_rainfall_3d",
+      "soil_moisture",
+      "temperature",
+      "humidity",
+      "distance_to_road_m",
+      "distance_to_river_m",
+      "historical_landslide_density",
+      "distance_to_previous_landslide_m"
+    ],
+    "target_distribution": {
+      "0": 805,
+      "1": 695
+    },
+    "missing_values": 0,
+    "exact_duplicates": 0,
+    "coord_duplicates": 0
+  },
+  "models": {
+    "lr": {
+      "accuracy": 0.8333,
+      "precision": 0.8248,
+      "recall": 0.8129,
+      "f1": 0.8188,
+      "roc_auc": 0.8888,
+      "pr_auc": 0.8745,
+      "confusion_matrix": [
+        [
+          137,
+          24
+        ],
+        [
+          26,
+          113
+        ]
+      ]
+    },
+    "rf": {
+      "accuracy": 0.82,
+      "precision": 0.8195,
+      "recall": 0.7842,
+      "f1": 0.8015,
+      "roc_auc": 0.884,
+      "pr_auc": 0.8681,
+      "confusion_matrix": [
+        [
+          137,
+          24
+        ],
+        [
+          30,
+          109
+        ]
+      ]
+    },
+    "xgb": {
+      "accuracy": 0.8233,
+      "precision": 0.8071,
+      "recall": 0.8129,
+      "f1": 0.81,
+      "roc_auc": 0.8841,
+      "pr_auc": 0.856,
+      "confusion_matrix": [
+        [
+          134,
+          27
+        ],
+        [
+          26,
+          113
+        ]
+      ]
+    }
+  },
+  "spatial_cv": {
+    "spatial_accuracies": [
+      0.8223981900452488,
+      0.8295454545454546,
+      0.8068181818181818,
+      0.8181818181818182
+    ],
+    "mean_spatial_acc": 0.8192359111476759,
+    "mean_spatial_f1": 0.8157337514955212,
+    "mean_spatial_auc": 0.8845010581370524
+  },
+  "api": {
+    "health": {
+      "status": 200,
+      "body": {
+        "status": "UP",
+        "models": {
+          "primary": "XGBoost_Landslide_v1.0.0",
+          "explainability": "SHAP_TreeExplainer",
+          "routing": "NetworkX_Dijkstra_v1.0"
+        },
+        "artifacts_loaded": true,
+        "timestamp": "2026-09-23T13:50:10.887918+00:00"
+      }
+    },
+    "model_info": {
+      "status": 200,
+      "body": {
+        "model_name": "XGBoost Landslide Susceptibility Classifier",
+        "version": "v1.0.0",
+        "dataset_samples": 1500,
+        "training_samples": 1200,
+        "test_samples": 300,
+        "features_count": 19,
+        "features": [
+          "latitude",
+          "longitude",
+          "elevation",
+          "slope",
+          "aspect",
+          "rainfall_1h",
+          "rainfall_6h",
+          "rainfall_12h",
+          "rainfall_24h",
+          "rainfall_48h",
+          "rainfall_72h",
+          "antecedent_rainfall_3d",
+          "soil_moisture",
+          "temperature",
+          "humidity",
+          "distance_to_road_m",
+          "distance_to_river_m",
+          "historical_landslide_density",
+          "distance_to_previous_landslide_m"
+        ],
+        "evaluation_metrics": {
+          "accuracy": 0.8233,
+          "precision": 0.8071,
+          "recall": 0.8129,
+          "f1_score": 0.81,
+          "roc_auc": 0.8841,
+          "pr_auc": 0.856,
+          "confusion_matrix": [
+            [
+              134,
+              27
+            ],
+            [
+              26,
+              113
+            ]
+          ]
+        },
+        "feature_importance": {
+          "rainfall_24h": 0.2261,
+          "soil_moisture": 0.1491,
+          "rainfall_48h": 0.1133,
+          "rainfall_72h": 0.0732,
+          "antecedent_rainfall_3d": 0.0459,
+          "slope": 0.0354,
+          "rainfall_12h": 0.0326,
+          "rainfall_1h": 0.0313,
+          "rainfall_6h": 0.0309,
+          "latitude": 0.0303,
+          "historical_landslide_density": 0.0303,
+          "distance_to_road_m": 0.0279,
+          "distance_to_previous_landslide_m": 0.0276,
+          "distance_to_river_m": 0.0261,
+          "longitude": 0.0253,
+          "aspect": 0.0247,
+          "temperature": 0.0241,
+          "elevation": 0.0233,
+          "humidity": 0.0229
+        },
+        "baseline_comparison": [
+          {
+            "Model": "Logistic Regression (Baseline)",
+            "Accuracy": 0.8333,
+            "Precision": 0.8248,
+            "Recall": 0.8129,
+            "F1-score": 0.8188,
+            "ROC-AUC": 0.8888,
+            "PR-AUC": 0.8745
+          },
+          {
+            "Model": "Random Forest (Baseline)",
+            "Accuracy": 0.82,
+            "Precision": 0.8195,
+            "Recall": 0.7842,
+            "F1-score": 0.8015,
+            "ROC-AUC": 0.884,
+            "PR-AUC": 0.8681
+          },
+          {
+            "Model": "XGBoost (Primary)",
+            "Accuracy": 0.8233,
+            "Precision": 0.8071,
+            "Recall": 0.8129,
+            "F1-score": 0.81,
+            "ROC-AUC": 0.8841,
+            "PR-AUC": 0.856
+          }
+        ],
+        "last_trained": "2026-09-23T09:36:14.131929+00:00",
+        "calibration_status": "Sigmoidal Logistic Probability Calibrated",
+        "shap_support": true
+      }
+    },
+    "predict_tests": {
+      "LOW": {
+        "status": 200,
+        "probability": 0.008,
+        "level": "GREEN",
+        "shap_top": {
+          "feature": "soil_moisture",
+          "feature_value": 0.15,
+          "shap_value": -0.8878,
+          "impact": "PROTECTIVE_FACTOR",
+          "explanation": "soil_moisture (0.15) reduces risk due to favorable stability (-0.888 SHAP)"
+        }
+      },
+      "MODERATE": {
+        "status": 200,
+        "probability": 0.064,
+        "level": "AMBER",
+        "shap_top": {
+          "feature": "distance_to_river_m",
+          "feature_value": 150.0,
+          "shap_value": -0.8556,
+          "impact": "PROTECTIVE_FACTOR",
+          "explanation": "distance_to_river_m (150.0) reduces risk due to favorable stability (-0.856 SHAP)"
+        }
+      },
+      "HIGH": {
+        "status": 200,
+        "probability": 0.882,
+        "level": "CRITICAL",
+        "shap_top": {
+          "feature": "distance_to_river_m",
+          "feature_value": 150.0,
+          "shap_value": -0.9939,
+          "impact": "PROTECTIVE_FACTOR",
+          "explanation": "distance_to_river_m (150.0) reduces risk due to favorable stability (-0.994 SHAP)"
+        }
+      },
+      "CRITICAL": {
+        "status": 200,
+        "probability": 0.991,
+        "level": "CRITICAL",
+        "shap_top": {
+          "feature": "rainfall_24h",
+          "feature_value": 220.0,
+          "shap_value": 1.2249,
+          "impact": "HIGH_RISK_DRIVER",
+          "explanation": "Elevated rainfall_24h (220.0) significantly increases failure probability (+1.225 SHAP)"
+        }
+      }
+    },
+    "invalid_input": 422,
+    "empty_input": {
+      "status": 200,
+      "level": "CRITICAL"
+    },
+    "extreme_input": {
+      "status": 200,
+      "level": "CRITICAL"
+    },
+    "shap_diff": {
+      "low_rain_shap": -0.597,
+      "high_rain_shap": 1.2696
+    },
+    "forecast": {
+      "status": 200,
+      "trend": "STABLE",
+      "source": "OPEN_METEO_LIVE"
+    },
+    "simulation": {
+      "status": 200,
+      "is_simulation": true,
+      "disclaimer": "SIMULATION \u2014 NOT A LIVE PREDICTION",
+      "risk_delta": 0.741
+    },
+    "sensor": {
+      "post_status": 200,
+      "get_status": 200,
+      "found": true
+    },
+    "routing": {
+      "region": "Meppadi, Wayanad",
+      "risk_score": 0.799,
+      "status": "REROUTED",
+      "primary_corridor": "Primary Mountain Arterial (BLOCKED - Active Slope Failure Zone)",
+      "safe_evacuation_route": "Safest Detour via Valley Foothill Bypass & Relief Corridor",
+      "action": "Immediate Highway Closure. Reroute all civilian transit to designated green corridor.",
+      "rerouted": true,
+      "blocked_segments": [
+        [
+          25.5748,
+          91.8813
+        ],
+        [
+          25.5938,
+          91.8993
+        ]
+      ],
+      "safe_route_geometry": [
+        [
+          25.5748,
+          91.8813
+        ],
+        [
+          25.550800000000002,
+          91.8883
+        ],
+        [
+          25.5638,
+          91.9283
+        ]
+      ],
+      "estimated_evacuation_time_min": 38,
+      "recommended_shelter": "Designated Safe Relief Shelter Complex",
+      "route_type": "SAFEST_DETOUR"
+    }
+  }
+}

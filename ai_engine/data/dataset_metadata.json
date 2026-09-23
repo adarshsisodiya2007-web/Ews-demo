@@ -1,0 +1,15 @@
+{
+  "initial_samples": 1500,
+  "clean_samples": 1500,
+  "positive_occurrences": 695,
+  "negative_occurrences": 805,
+  "positive_class_ratio": 0.4633,
+  "features_count": 19,
+  "dataset_version": "v1.0-ner-benchmark",
+  "data_sources": [
+    "Geological Survey of India (GSI) Bhooskhalan records",
+    "NASA SRTM / NASADEM Topography",
+    "Open-Meteo Historic Precipitation Grids",
+    "Geotechnical Empirical Slope Stability Anchor Calibration"
+  ]
+}

@@ -68,6 +68,11 @@ export interface CitizenReport {
   syncedAt: string | null;
   geoLat: number;
   geoLng: number;
+  latitude?: number;
+  longitude?: number;
+  reporterName?: string;
+  reporterPhone?: string;
+  district?: string;
   clientReportId?: string | null;
   beaconId?: string | null;
 }
@@ -256,5 +261,176 @@ export interface LoginResponse {
   languagePref: string;
   username: string;
   expiresAt?: string;
+}
+
+// ── ML, SHAP & Advanced Early Warning Types ────────────────────────────────────
+
+export interface ShapContribution {
+  feature: string;
+  feature_value: number;
+  shap_value: number;
+  impact: 'HIGH_RISK_DRIVER' | 'MODERATE_RISK_DRIVER' | 'PROTECTIVE_FACTOR' | 'NEUTRAL';
+  explanation: string;
+}
+
+export interface XgbPredictRiskResponse {
+  risk_probability: number;
+  risk_level: Severity;
+  action_protocol: string;
+  top_contributing_features: ShapContribution[];
+  shap_values: Record<string, number>;
+  model_version: string;
+  model_type: string;
+  timestamp: string;
+  data_quality: string;
+  prediction_status: string;
+}
+
+export interface MultiHorizonRisk {
+  location: { lat: number; lon: number; region_name: string; slope_deg: number };
+  timestamp: string;
+  current_risk: {
+    horizon: string;
+    risk_score: number;
+    risk_level: Severity;
+    projected_rain_24h_mm: number;
+    projected_soil_moisture: number;
+    action_protocol: string;
+    top_drivers: string[];
+  };
+  forecast_6h: {
+    horizon: string;
+    risk_score: number;
+    risk_level: Severity;
+    projected_rain_24h_mm: number;
+    projected_soil_moisture: number;
+    action_protocol: string;
+    top_drivers: string[];
+  };
+  forecast_12h: {
+    horizon: string;
+    risk_score: number;
+    risk_level: Severity;
+    projected_rain_24h_mm: number;
+    projected_soil_moisture: number;
+    action_protocol: string;
+    top_drivers: string[];
+  };
+  forecast_24h: {
+    horizon: string;
+    risk_score: number;
+    risk_level: Severity;
+    projected_rain_24h_mm: number;
+    projected_soil_moisture: number;
+    action_protocol: string;
+    top_drivers: string[];
+  };
+  forecast_48h: {
+    horizon: string;
+    risk_score: number;
+    risk_level: Severity;
+    projected_rain_24h_mm: number;
+    projected_soil_moisture: number;
+    action_protocol: string;
+    top_drivers: string[];
+  };
+  risk_trend: 'INCREASING' | 'STABLE' | 'DECREASING';
+  trend_description: string;
+  forecast_source: string;
+}
+
+export interface ModelInfo {
+  model_name: string;
+  version: string;
+  dataset_samples: number;
+  training_samples: number;
+  test_samples: number;
+  features_count: number;
+  features: string[];
+  evaluation_metrics: {
+    accuracy: number;
+    precision: number;
+    recall: number;
+    f1_score: number;
+    roc_auc: number;
+    pr_auc: number;
+    confusion_matrix: number[][];
+  };
+  feature_importance: Record<string, number>;
+  baseline_comparison: Array<{
+    Model: string;
+    Accuracy: number;
+    Precision: number;
+    Recall: number;
+    'F1-score': number;
+    'ROC-AUC': number;
+    'PR-AUC': number;
+  }>;
+  last_trained: string;
+  calibration_status: string;
+  shap_support: boolean;
+}
+
+export interface SimulationResult {
+  disclaimer: string;
+  is_simulation: boolean;
+  baseline: {
+    slope_deg: number;
+    rain_24h_mm: number;
+    soil_moisture: number;
+    risk_score: number;
+    risk_level: string;
+  };
+  simulated: {
+    slope_deg: number;
+    rain_24h_mm: number;
+    soil_moisture: number;
+    risk_score: number;
+    risk_level: string;
+    action_protocol: string;
+    top_factors: ShapContribution[];
+  };
+  risk_delta: number;
+  timestamp: string;
+}
+
+export interface InfrastructureImpact {
+  regionName: string;
+  severity: Severity;
+  estimatedPopulationExposed: number;
+  affectedRoadSegmentsKm: number;
+  criticalBridgesCount: number;
+  railwaySegmentsCount: number;
+  nearbyHospitals: string[];
+  nearbySchools: string[];
+  safeSheltersCount: number;
+  totalShelterCapacity: number;
+  isModelledEstimate: boolean;
+}
+
+export interface HistoricalLandslide {
+  id: string;
+  regionName: string;
+  year: number;
+  date: string;
+  lat: number;
+  lng: number;
+  severity: string;
+  casualties: number;
+  source: string;
+  notes: string;
+}
+
+export interface SensorReadingTelemetry {
+  sensor_id: string;
+  latitude: number;
+  longitude: number;
+  soil_moisture: number;
+  rainfall_rate_mm_h: number;
+  tilt_deg: number;
+  vibration_g?: number;
+  battery_pct?: number;
+  timestamp: string;
+  is_demo: boolean;
 }
 

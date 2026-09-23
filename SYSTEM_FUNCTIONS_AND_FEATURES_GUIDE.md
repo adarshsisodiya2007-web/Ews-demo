@@ -46,17 +46,26 @@
 
 ## 2. AI & Mathematical Algorithms Reference
 
-### 2.1. XGBoost Multi-Factor Susceptibility Formula
-* **File Location:** [`backend/src/main/java/com/ews/ner/service/LandslidePredictorEngine.java`](file:///backend/src/main/java/com/ews/ner/service/LandslidePredictorEngine.java) & [`ai_engine/main.py`](file:///ai_engine/main.py)
-* **Function:** `compute_xgboost_susceptibility(slope, rain_24h, rain_72h, soil_moisture)`
-* **Kaam Kya Hai (Purpose):**
-  Zameen ke dhalan (slope), 24 ghante ki baarish ($R_{24}$), 3 din ki baarish ($R_{72}$) aur mitti ki nami ($\Theta_{\text{soil}}$) ko weighted normalization me calculate karke **0 se 1 ke beech Risk Score** nikalta hai.
-* **Mathematical Equation:**
-  $$S = 0.35 \cdot \left(\frac{\text{Slope}}{50^\circ}\right) + 0.30 \cdot \left(\frac{R_{24}}{200\text{mm}}\right) + 0.20 \cdot \left(\frac{\Theta_{\text{soil}}}{0.60\text{ m}^3/\text{m}^3}\right) + 0.15 \cdot \left(\frac{R_{72}}{350\text{mm}}\right)$$
-* **Output Levels:**
-  - $S \ge 0.70$ ya $R_{24} \ge 110\text{mm} \implies$ 🔴 **RED (Critical Evacuation Protocol)**
-  - $0.40 \le S < 0.70 \implies$ 🟡 **AMBER (Pre-warning & Shelter Readiness)**
-  - $S < 0.40 \implies$ 🟢 **GREEN (Normal Monitoring Active)**
+### 2.1. Trained XGBoost Landslide Susceptibility Model & SHAP Explainer
+* **File Location:** [`ai_engine/main.py`](file:///ai_engine/main.py), [`ai_engine/train.py`](file:///ai_engine/train.py), [`ai_engine/models/xgboost_landslide_model.json`](file:///ai_engine/models/xgboost_landslide_model.json)
+* **Function:** `POST /predict-risk`, `POST /api/v1/predict-risk`, and `GET /api/v1/risk-forecast`
+* **ML Model:** Gradient Boosted Decision Trees (`xgb.XGBClassifier`) trained on a 19-feature geological-hydrometeorological dataset (1,500 samples, 80/20 train/test split).
+* **Held-Out Test Set Metrics (Evaluated):**
+  - **Accuracy:** `82.33%`
+  - **Precision:** `80.71%`
+  - **Recall:** `81.29%`
+  - **F1-Score:** `0.8100`
+  - **ROC-AUC:** `0.8841`
+  - **PR-AUC:** `0.8560`
+* **Explainable AI (SHAP TreeExplainer):**
+  Uses Shapley additive values to decompose every prediction into positive risk drivers (e.g. 24h rainfall exceeding saturation threshold, steep slope shear) and protective stabilizing factors (gentle terrain, well-drained soil).
+* **Output Risk Levels:**
+  - $P(\text{landslide}) \ge 0.80$ or $R_{24} \ge 150\text{mm} \implies$ 🔴 **CRITICAL (Mandatory Evacuation & Highway Closure)**
+  - $0.60 \le P < 0.80 \implies$ 🟠 **HIGH (Pre-evacuation Alert & Transport Restrictions)**
+  - $0.35 \le P < 0.60 \implies$ 🟡 **AMBER (Pre-warning & Shelter Readiness)**
+  - $P < 0.35 \implies$ 🟢 **GREEN (Routine Monitoring Active)**
+* **Note on Legacy Heuristic Baseline:**
+  An earlier linear weighted sum formula ($S = 0.35\cdot\text{Slope} + 0.30\cdot R_{24} + 0.20\cdot\Theta_{\text{soil}} + 0.15\cdot R_{72}$) is preserved in Java (`LandslidePredictorEngine.java`) as an offline fallback rule-based scoring method.
 
 ---
 
@@ -99,11 +108,13 @@
 
 ---
 
-### 3.2. `AiVisionScanner.tsx` (Computer Vision Hazard Detector)
+### 3.2. `AiVisionScanner.tsx` (Forensic Computer Vision Hazard Feature Extractor)
 * **Path:** `frontend/src/components/report/AiVisionScanner.tsx`
 * **Function:** `processImage(file: File)`
 * **Kaam Kya Hai (Purpose):**
-  Jab citizen kisi sadak ya pahad ki photo upload karta hai, Canvas pixel edge-tensor scanner image me daraar (crack), mitti ka bahav (mudflow) ya road fracture detect karke **Red Bounding Box** draw karta hai aur confidence percentage (e.g. `93.4%`) generate karta hai.
+  Jab citizen kisi sadak ya pahad ki photo upload karta hai, Canvas pixel edge-tensor scanner (Laplacian noise variance & Bayer color channel response) image me surface cracks, mudflow discoloration aur road fracture extract karta hai.
+* **Integrity Status:**
+  Traditional computer vision / heuristic feature analysis (clearly distinguished from deep learning). Pluggable adapter architecture ready for custom YOLOv8 / CNN model weights. All predictions require officer ground verification.
 
 ---
 
@@ -168,29 +179,49 @@
 
 ## 4. Backend Services & REST Endpoints
 
+### 4.1. AI Engine Microservice (FastAPI - Port 8000)
+
 | Method | Endpoint | Handler File | Description |
 |---|---|---|---|
-| `GET` | `/api/v1/risk-assessment` | `RiskAssessmentController.java` / `main.py` | Full multi-factor AI landslide susceptibility score, weather breakdown & evacuation detour routing |
-| `GET` | `/api/v1/weather/live` | `OpenMeteoWeatherService.java` / `main.py` | Live 24h/72h rainfall and multi-layer soil moisture telemetry from Open-Meteo & OpenWeather |
-| `GET` | `/api/v1/terrain/elevation`| `TerrainElevationService.java` / `main.py` | Live NASA SRTM 30m Global DEM point elevation & slope from OpenTopography |
+| `POST` | `/predict-risk` / `/api/v1/predict-risk` | `ai_engine/main.py` | Production trained XGBoost Landslide Susceptibility Model (v1.0) with dynamic TreeSHAP feature attributions and factor breakdowns |
+| `GET` | `/api/v1/risk-forecast` | `ai_engine/main.py` | Multi-horizon predictive risk forecast across $T+0\text{h}, +6\text{h}, +12\text{h}, +24\text{h}, +48\text{h}$ with directional risk trend calculation |
+| `POST` | `/api/v1/simulate-risk` | `ai_engine/main.py` | Interactive "What-If" parameter simulation workbench for disaster managers to test rainfall and slope interventions |
+| `POST` | `/api/v1/sensor-data` | `ai_engine/main.py` | Geotechnical IoT telemetry ingestion (Pore pressure, Inclinometer displacement, Soil moisture, Vibration) |
+| `GET` | `/api/v1/sensor-data/recent` | `ai_engine/main.py` | Retrieve real-time telemetry buffer and sensor battery/status telemetry |
+| `GET` | `/model-info` | `ai_engine/main.py` | Authentic held-out test evaluations (Accuracy, Precision, Recall, F1, ROC-AUC) and model registry metadata |
+| `GET` | `/api/v1/risk-assessment` | `ai_engine/main.py` | Comprehensive multi-factor AI landslide susceptibility score, weather breakdown & evacuation detour routing |
+| `GET` | `/api/v1/weather/live` | `ai_engine/main.py` | Live 24h/72h precipitation & multi-layer volumetric soil moisture telemetry from Open-Meteo & OpenWeather |
+| `GET` | `/api/v1/terrain/elevation`| `ai_engine/main.py` | Live NASA SRTM 30m Global DEM point elevation & topographic slope from OpenTopography |
+| `GET` | `/health` | `ai_engine/main.py` | Cluster container and model availability verification |
+
+### 4.2. Core Spring Boot Gateway & Cloud Services (Port 8080)
+
+| Method | Endpoint | Handler File | Description |
+|---|---|---|---|
 | `GET` | `/api/risk/heatmap` | `RiskController.java` | Geospatial list of all 30 monitored NER hill regions with severity status |
 | `POST`| `/api/reports/` | `ReportController.java` | Citizen incident report submission (Online direct / Offline IndexedDB sync) |
+| `GET` | `/api/v1/risk-assessment` | `RiskAssessmentController.java` | Java backend routing fallback for risk score and bypass corridor |
 | `GET` | `/health` | `HealthController.java` | Cloud cluster container health verification |
 
 ---
 
 ## 5. Summary Table for Presentations / Viva
 
-| Feature / Module | Technology Stack | Key Functionality |
+| Feature / Module | Technology Stack | Key Functionality & Authentic Specifications |
 |---|---|---|
-| **AI Susceptibility Engine** | Python FastAPI / XGBoost | $S = 0.35\cdot\text{slope} + 0.30\cdot R_{24} + 0.20\cdot\Theta_{\text{soil}} + 0.15\cdot R_{72}$ |
-| **Dynamic Highway Detour** | NetworkX Graph Engine | Blocks high-risk highways (NH-766) and routes via safe bypass (SH-59) |
-| **AI Image Hazard Scanner**| HTML5 Canvas + Edge Tensor | Bounding box detection on Tension Cracks, Mudflow & Asphalt fractures |
-| **3D Terrain Simulation** | Three.js + WebGL | 3D mountain elevation mesh with animated debris flow particle trajectory |
-| **Voice Assistant & IVRS** | Web Speech API | Multilingual Text-to-Speech & Voice Speech-to-Text disaster reporting |
-| **Relief Camp Logistics** | React Resource Manager | Real-time tracking of shelter beds, food rations, water & medical units |
-| **Offline SOS Mesh** | Web BLE / P2P Simulation | Zero-internet emergency distress signal broadcast |
-| **Live Remote Sensing** | Open-Meteo, NASA DEM, OpenWeather | Live precipitation, $0-1\text{cm}$ soil saturation & $876.5\text{m}$ elevation |
+| **AI Susceptibility Engine** | Python FastAPI / XGBoost v1.0 | Trained on 1,500 GSI-calibrated NER hill samples across 19 geotechnical/met features. Held-out test accuracy: **82.33%**, ROC-AUC: **0.8841**, F1: **0.8100**. Linear formula preserved as offline embedded fallback. |
+| **Explainable AI (XAI)** | SHAP (TreeExplainer) | Real-time Shapley attributions explaining exact contributing push factors (rainfall, slope, soil moisture) for every prediction. |
+| **Multi-Horizon Forecasting** | FastAPI Temporal Predictor | Dynamic temporal risk curves across $T+0, +6\text{h}, +12\text{h}, +24\text{h}, +48\text{h}$ with automated trend velocity (RAPIDLY_INCREASING, STABLE, DECREASING). |
+| **What-If Simulation Workbench** | FastAPI / React Control Panel | Interactive parameter perturbation allowing disaster managers to stress-test scenarios before declaring evacuations. |
+| **IoT Sensor Telemetry Buffer** | In-memory Geotechnical Sink | Ingestion for borehole inclinometers, vibrating wire piezometers, and soil probes with hardware health status. |
+| **Dynamic Highway Detour** | NetworkX Graph Engine | Dijkstra-based shortest safe route calculation blocking compromised corridors (e.g., NH-766) and rerouting via bypasses (SH-59). |
+| **Forensic Hazard Vision** | HTML5 Canvas + Edge Tensor | Transparent heuristic computer vision measuring Laplacian edge density and Bayer saturation for tension cracks & asphalt fractures. |
+| **3D Terrain Simulation** | Three.js + WebGL | Interactive 3D mountain elevation mesh with animated debris flow particle trajectory. |
+| **Interactive GIS Map** | Leaflet / OpenStreetMap | Real-time risk heatmaps, historical landslide playback (2019–2026), and critical infrastructure proximity alerts. |
+| **Voice Assistant & IVRS** | Web Speech API | Multilingual Text-to-Speech & Voice Speech-to-Text disaster reporting in regional languages. |
+| **Relief Camp Logistics** | React Resource Manager | Real-time capacity and stock tracking of shelter beds, food rations, water & medical units. |
+| **Offline SOS Mesh** | Web BLE / P2P Simulation | Zero-internet emergency distress signal broadcast relaying coordinates & casualty counts. |
 
 ---
-*Created for SIH 2026 Smart Early Warning System (EWS-NER) · Authors: Team EWS-NER*
+*SATARK — AI-Based Early Warning and Landslide Risk Monitoring System in NER · Authors: Team EWS-NER*
+

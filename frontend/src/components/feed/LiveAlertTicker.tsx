@@ -5,6 +5,7 @@ import { fetchRecentAlerts } from '../../services/api';
 
 interface TickerItem {
   id: string;
+  regionId: string;
   severity: Severity;
   regionName: string;
   score: number;
@@ -12,7 +13,11 @@ interface TickerItem {
   type: 'alert' | 'report';
 }
 
-export const LiveAlertTicker: React.FC = () => {
+interface Props {
+  onSelectRegion?: (regionId: string) => void;
+}
+
+export const LiveAlertTicker: React.FC<Props> = ({ onSelectRegion }) => {
   const [items, setItems] = useState<TickerItem[]>([]);
 
   useEffect(() => {
@@ -21,6 +26,7 @@ export const LiveAlertTicker: React.FC = () => {
         const data = await fetchRecentAlerts();
         setItems(data.map(d => ({
           id: d.id,
+          regionId: d.regionId || d.id,
           severity: d.severity,
           regionName: d.regionName,
           score: Math.round(Number(d.computedScore ?? 0)),
@@ -44,11 +50,26 @@ export const LiveAlertTicker: React.FC = () => {
     else if (item.severity === 'MODERATE') { bg = 'rgba(196,135,58,0.15)'; border = '1px solid #C4873A'; }
 
     return (
-      <div key={`${item.id}-${suffix}`} style={{
-        display: 'inline-flex', alignItems: 'center', gap: '8px',
-        background: bg, border, padding: '4px 12px', borderRadius: '16px',
-        marginRight: '16px', whiteSpace: 'nowrap'
-      }} className="mono">
+      <div
+        key={`${item.id}-${suffix}`}
+        onClick={() => onSelectRegion?.(item.regionId)}
+        style={{
+          display: 'inline-flex', alignItems: 'center', gap: '8px',
+          background: bg, border, padding: '4px 12px', borderRadius: '16px',
+          marginRight: '16px', whiteSpace: 'nowrap',
+          cursor: onSelectRegion ? 'pointer' : 'default',
+          transition: 'all 0.15s ease',
+          userSelect: 'none'
+        }}
+        onMouseEnter={(e) => {
+          if (onSelectRegion) (e.currentTarget as HTMLElement).style.filter = 'brightness(1.4)';
+        }}
+        onMouseLeave={(e) => {
+          if (onSelectRegion) (e.currentTarget as HTMLElement).style.filter = 'none';
+        }}
+        title={`Click to inspect ${item.regionName} on map & open AI risk panel`}
+        className="mono"
+      >
         <SeverityIcon severity={item.severity} />
         <span style={{ color: 'var(--color-base-000)' }}>{item.regionName}</span>
         <span style={{ color: 'var(--color-base-200)' }}>· {item.score} · {item.time}</span>

@@ -90,6 +90,8 @@ function AppContent({ permsDone, onPermComplete }: { permsDone: boolean; onPermC
         <Route path="/privacy"        element={<PrivacyDataPage />} />
         <Route path="/offline-rescue" element={<OfflineRescuePage />} />
         <Route path="/sih-dashboard"  element={<GisMapDashboard />} />
+        <Route path="/official"       element={<Navigate to="/dashboard" replace />} />
+        <Route path="/admin"          element={<Navigate to="/dashboard" replace />} />
         <Route
           path="/dashboard"
           element={

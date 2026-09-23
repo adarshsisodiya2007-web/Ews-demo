@@ -1,6 +1,6 @@
 export type AlertSeverity = 'LOW' | 'MODERATE' | 'HIGH' | 'CRITICAL';
 export type AlertStatus = 'PENDING' | 'SENT' | 'FAILED' | 'ACTIVE' | 'RESOLVED' | 'EXPIRED';
-export type AlertScope = 'EXACT_REGION' | 'DISTRICT' | 'STATE';
+export type AlertScope = 'EXACT_REGION' | 'DISTRICT' | 'STATE' | 'ALL';
 export type AlertType = 'LANDSLIDE' | 'FLOOD' | 'EARTHQUAKE' | 'OTHER';
 
 export interface ResponderAlert {

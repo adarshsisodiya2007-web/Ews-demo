@@ -119,7 +119,8 @@ export const ResponderPortal: React.FC = () => {
     setReports(prev => prev.map(r => r.id === reportId ? { ...r, status: newStatus } : r));
     try {
       await updateReportStatus(reportId, newStatus);
-      setCleanupSuccessNotice(`✅ Report status updated to ${newStatus}`);
+      const actionLabel = newStatus === 'DISMISSED' ? 'Report rejected and updated' : `Report status updated to ${newStatus}`;
+      setCleanupSuccessNotice(`✅ ${actionLabel}`);
       await loadData();
     } catch (err: any) {
       setCleanupSuccessNotice(`❌ Update failed: ${err.response?.data?.message || err.message || 'Server error'}`);
@@ -269,6 +270,7 @@ export const ResponderPortal: React.FC = () => {
       resetForm();
     } finally {
       setSubmittingReport(false);
+      loadData();
     }
   };
 
@@ -738,22 +740,22 @@ export const ResponderPortal: React.FC = () => {
 
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
                       <span style={{
-                        background: rep.status === 'VERIFIED' ? '#22c55e25' : rep.status === 'RESOLVED' ? '#3b82f625' : rep.status === 'DISPATCHED' ? '#ea580c25' : '#f59e0b25',
-                        color: rep.status === 'VERIFIED' ? '#4ade80' : rep.status === 'RESOLVED' ? '#60a5fa' : rep.status === 'DISPATCHED' ? '#fb923c' : '#fcd34d',
-                        border: `1px solid ${rep.status === 'VERIFIED' ? '#22c55e' : rep.status === 'RESOLVED' ? '#3b82f6' : rep.status === 'DISPATCHED' ? '#ea580c' : '#f59e0b'}`,
+                        background: rep.status === 'VERIFIED' ? '#22c55e25' : rep.status === 'RESOLVED' ? '#3b82f625' : rep.status === 'DISPATCHED' ? '#ea580c25' : rep.status === 'DISMISSED' ? '#ef444425' : '#f59e0b25',
+                        color: rep.status === 'VERIFIED' ? '#4ade80' : rep.status === 'RESOLVED' ? '#60a5fa' : rep.status === 'DISPATCHED' ? '#fb923c' : rep.status === 'DISMISSED' ? '#f87171' : '#fcd34d',
+                        border: `1px solid ${rep.status === 'VERIFIED' ? '#22c55e' : rep.status === 'RESOLVED' ? '#3b82f6' : rep.status === 'DISPATCHED' ? '#ea580c' : rep.status === 'DISMISSED' ? '#ef4444' : '#f59e0b'}`,
                         padding: '3px 10px', borderRadius: '12px', fontSize: '0.72rem', fontWeight: 800
                       }}>
-                        {rep.status}
+                        {rep.status === 'DISMISSED' ? 'REJECTED' : rep.status}
                       </span>
 
                       <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                        {(['DISPATCHED', 'VERIFIED', 'RESOLVED'] as const).map(st => (
+                        {(['DISPATCHED', 'VERIFIED', 'RESOLVED', 'DISMISSED'] as const).map(st => (
                           <button
                             key={st}
                             onClick={() => handleUpdateStatus(rep.id, st)}
                             style={{
                               background: rep.status === st
-                                ? (st === 'RESOLVED' ? '#2563eb' : st === 'DISPATCHED' ? '#ea580c' : '#16a34a')
+                                ? (st === 'RESOLVED' ? '#2563eb' : st === 'DISPATCHED' ? '#ea580c' : st === 'VERIFIED' ? '#16a34a' : '#dc2626')
                                 : '#1e293b',
                               color: rep.status === st ? '#ffffff' : '#94a3b8',
                               border: `1px solid ${rep.status === st ? 'transparent' : '#334155'}`,
@@ -764,7 +766,7 @@ export const ResponderPortal: React.FC = () => {
                               cursor: 'pointer'
                             }}
                           >
-                            {rep.status === st ? `✓ ${st}` : `Mark ${st}`}
+                            {rep.status === st ? (st === 'DISMISSED' ? '✓ REJECTED' : `✓ ${st}`) : st === 'DISMISSED' ? 'Reject' : `Mark ${st}`}
                           </button>
                         ))}
                       </div>

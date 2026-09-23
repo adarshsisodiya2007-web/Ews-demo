@@ -7,6 +7,27 @@ import { api } from './api';
 
 const LOCAL_ALERTS_KEY = 'satark_published_responder_alerts';
 
+const ALERT_CHANNEL_NAME = 'satark-alerts-channel';
+let alertBroadcastChannel: BroadcastChannel | null = null;
+function getAlertChannel(): BroadcastChannel | null {
+  if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+    if (!alertBroadcastChannel) {
+      alertBroadcastChannel = new BroadcastChannel(ALERT_CHANNEL_NAME);
+    }
+    return alertBroadcastChannel;
+  }
+  return null;
+}
+
+export function broadcastAlertEvent(type: 'PUBLISHED' | 'UPDATED' | 'DELETED', alertOrId: ResponderAlert | { id: string }): void {
+  try {
+    getAlertChannel()?.postMessage({ type, data: alertOrId });
+  } catch {}
+  try {
+    localStorage.setItem('satark_alert_broadcast_tick', Date.now().toString());
+  } catch {}
+}
+
 /** Get locally stored responder alerts */
 export function getLocalResponderAlerts(): ResponderAlert[] {
   try {
@@ -136,7 +157,8 @@ export async function createResponderAlert(
   const existing = getLocalResponderAlerts().filter(a => a.id !== createdAlert.id);
   saveLocalResponderAlerts([createdAlert, ...existing]);
 
-  // Dispatch global event
+  // Dispatch global and cross-tab events
+  broadcastAlertEvent('PUBLISHED', createdAlert);
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent('satark-responder-alert-published', {
       detail: createdAlert
@@ -151,22 +173,28 @@ export async function updateResponderAlert(
   id: string,
   payload: Partial<CreateAlertPayload>
 ): Promise<ResponderAlert> {
+  let updated: ResponderAlert;
   try {
     const res = await api.put<ResponderAlert>(`/api/responder/alerts/${id}`, payload);
-    const updated = res.data;
+    updated = res.data;
     const existing = getLocalResponderAlerts().map(a => a.id === id ? { ...a, ...updated } : a);
     saveLocalResponderAlerts(existing);
-    return updated;
   } catch {
     const existing = getLocalResponderAlerts();
     const target = existing.find(a => a.id === id);
     if (target) {
-      const updated = { ...target, ...payload, updatedAt: new Date().toISOString() } as ResponderAlert;
+      updated = { ...target, ...payload, updatedAt: new Date().toISOString() } as ResponderAlert;
       saveLocalResponderAlerts(existing.map(a => a.id === id ? updated : a));
-      return updated;
+    } else {
+      throw new Error('Alert not found');
     }
-    throw new Error('Alert not found');
   }
+
+  broadcastAlertEvent('UPDATED', updated);
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('satark-responder-alert-updated', { detail: updated }));
+  }
+  return updated;
 }
 
 /** Responder: resolve an alert */
@@ -190,8 +218,11 @@ export async function resolveAlert(id: string): Promise<ResponderAlert> {
   });
   saveLocalResponderAlerts(next);
 
-  if (typeof window !== 'undefined' && updatedAlert) {
-    window.dispatchEvent(new CustomEvent('satark-responder-alert-updated', { detail: updatedAlert }));
+  if (updatedAlert) {
+    broadcastAlertEvent('UPDATED', updatedAlert);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('satark-responder-alert-updated', { detail: updatedAlert }));
+    }
   }
   return updatedAlert || ({} as ResponderAlert);
 }
@@ -217,8 +248,11 @@ export async function cancelAlert(id: string): Promise<ResponderAlert> {
   });
   saveLocalResponderAlerts(next);
 
-  if (typeof window !== 'undefined' && updatedAlert) {
-    window.dispatchEvent(new CustomEvent('satark-responder-alert-updated', { detail: updatedAlert }));
+  if (updatedAlert) {
+    broadcastAlertEvent('UPDATED', updatedAlert);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('satark-responder-alert-updated', { detail: updatedAlert }));
+    }
   }
   return updatedAlert || ({} as ResponderAlert);
 }
@@ -233,6 +267,7 @@ export async function deleteAlert(id: string): Promise<void> {
   const existing = getLocalResponderAlerts().filter(a => a.id !== id);
   saveLocalResponderAlerts(existing);
 
+  broadcastAlertEvent('DELETED', { id });
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent('satark-responder-alert-deleted', { detail: { id } }));
   }
@@ -240,13 +275,12 @@ export async function deleteAlert(id: string): Promise<void> {
 
 /** Normalize location string for comparison */
 export function normalizeLocation(s: string): string {
-  return s.trim().toLowerCase().replace(/\s+/g, ' ');
+  return (s || '').trim().toLowerCase().replace(/\s+/g, ' ');
 }
 
 /**
  * Check if an alert matches the citizen's location.
- * Enforces strict EXACT_REGION isolation: if targeted to a specific region,
- * citizens of other regions NEVER receive it.
+ * Accurately correlates locationName, targetRegion, district, and regionId.
  */
 export function alertMatchesLocation(
   alert: ResponderAlert,
@@ -255,46 +289,66 @@ export function alertMatchesLocation(
   citizenState?: string,
   citizenTargetRegion?: string
 ): boolean {
-  // 1. Exact canonical SATARK region matching (PRIMARY TARGETING)
-  if (citizenTargetRegion) {
-    const alertTargetKey = normalizeLocation(alert.targetRegion || alert.locationName || '');
-    const citizenKey = normalizeLocation(citizenTargetRegion);
-
-    // Exact match on region ID (e.g. 'shillong', 'guwahati')
-    if (alertTargetKey === citizenKey) {
-      return true;
-    }
-    // Substring match e.g. "shillong" in "shillong, meghalaya"
-    if (alertTargetKey && citizenKey) {
-      if (alertTargetKey.includes(citizenKey) || citizenKey.includes(alertTargetKey)) {
-        return true;
-      }
-    }
-    // If the alert is targeted to a specific region (EXACT_REGION or targetRegion/locationName set)
-    // and it did not match this citizen's region, it MUST NOT match this citizen!
-    if (alert.scope === 'EXACT_REGION' || alert.targetRegion || alert.locationName) {
-      return false;
-    }
+  // 1. Universal emergency broadcasts match all citizens
+  const normScope = (alert.scope || '').toUpperCase();
+  if (normScope === 'ALL' || normScope === 'BROADCAST' || normScope === 'NATIONAL') {
+    return true;
   }
 
-  // 2. Exact region UUID match
+  // 2. Direct regionId match
   if (alert.regionId && citizenRegionId && alert.regionId === citizenRegionId) {
     return true;
   }
 
-  // 3. District scope match (only if scope is DISTRICT)
-  if (
-    alert.scope === 'DISTRICT' &&
-    alert.district &&
-    citizenDistrict &&
-    normalizeLocation(alert.district) === normalizeLocation(citizenDistrict)
-  ) {
+  // If no citizen location specified, receive active alerts by default
+  if (!citizenRegionId && !citizenDistrict && !citizenState && !citizenTargetRegion) {
     return true;
   }
 
-  // 4. State scope match (only if scope is STATE)
+  const alertTarget = normalizeLocation(alert.targetRegion || alert.locationName || '');
+  if (alertTarget === 'all' || alertTarget === 'all area' || alertTarget === 'other' || alertTarget === 'other area' || alertTarget.includes('universal')) {
+    return true;
+  }
+
+  const citizenCombined = normalizeLocation(`${citizenTargetRegion || ''} ${citizenDistrict || ''} ${citizenState || ''} ${citizenRegionId || ''}`);
+
+  // 3. District matching (e.g. Kamrup Metropolitan, Kamrup, East Khasi Hills, Aizawl, Wayanad, Idukki)
+  if (alert.district && citizenDistrict) {
+    const aDist = normalizeLocation(alert.district);
+    const cDist = normalizeLocation(citizenDistrict);
+    if (aDist === cDist || aDist.includes(cDist) || cDist.includes(aDist)) {
+      return true;
+    }
+  }
+
+  // 4. Target region or location name keyword matching
+  if (alertTarget) {
+    if (citizenTargetRegion) {
+      const cTarget = normalizeLocation(citizenTargetRegion);
+      if (cTarget.includes(alertTarget) || alertTarget.includes(cTarget)) {
+        return true;
+      }
+    }
+
+    if (citizenDistrict) {
+      const cDist = normalizeLocation(citizenDistrict);
+      if (cDist.includes(alertTarget) || alertTarget.includes(cDist)) {
+        return true;
+      }
+    }
+
+    // Tokenized keyword match (e.g. "guwahati", "shillong", "aizawl", "meppadi", "munnar")
+    const tokens = alertTarget.split(/[\s,_\-]+/).filter(t => t.length >= 3);
+    for (const t of tokens) {
+      if (citizenCombined.includes(t)) {
+        return true;
+      }
+    }
+  }
+
+  // 5. State scope match (if scope is STATE)
   if (
-    alert.scope === 'STATE' &&
+    normScope === 'STATE' &&
     alert.state &&
     citizenState &&
     normalizeLocation(alert.state) === normalizeLocation(citizenState)

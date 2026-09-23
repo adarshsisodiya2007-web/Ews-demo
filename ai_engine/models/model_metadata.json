@@ -1,0 +1,77 @@
+{
+  "model_name": "XGBoost Landslide Susceptibility Classifier",
+  "version": "v1.0.0",
+  "format": "xgboost_json",
+  "trained_at": "2026-09-23T09:36:14.131929+00:00",
+  "features": [
+    "latitude",
+    "longitude",
+    "elevation",
+    "slope",
+    "aspect",
+    "rainfall_1h",
+    "rainfall_6h",
+    "rainfall_12h",
+    "rainfall_24h",
+    "rainfall_48h",
+    "rainfall_72h",
+    "antecedent_rainfall_3d",
+    "soil_moisture",
+    "temperature",
+    "humidity",
+    "distance_to_road_m",
+    "distance_to_river_m",
+    "historical_landslide_density",
+    "distance_to_previous_landslide_m"
+  ],
+  "features_count": 19,
+  "training_samples": 1200,
+  "test_samples": 300,
+  "evaluation_metrics": {
+    "accuracy": 0.8233,
+    "precision": 0.8071,
+    "recall": 0.8129,
+    "f1_score": 0.81,
+    "roc_auc": 0.8841,
+    "pr_auc": 0.856,
+    "confusion_matrix": [
+      [
+        134,
+        27
+      ],
+      [
+        26,
+        113
+      ]
+    ]
+  },
+  "feature_importance": {
+    "rainfall_24h": 0.2261,
+    "soil_moisture": 0.1491,
+    "rainfall_48h": 0.1133,
+    "rainfall_72h": 0.0732,
+    "antecedent_rainfall_3d": 0.0459,
+    "slope": 0.0354,
+    "rainfall_12h": 0.0326,
+    "rainfall_1h": 0.0313,
+    "rainfall_6h": 0.0309,
+    "latitude": 0.0303,
+    "historical_landslide_density": 0.0303,
+    "distance_to_road_m": 0.0279,
+    "distance_to_previous_landslide_m": 0.0276,
+    "distance_to_river_m": 0.0261,
+    "longitude": 0.0253,
+    "aspect": 0.0247,
+    "temperature": 0.0241,
+    "elevation": 0.0233,
+    "humidity": 0.0229
+  },
+  "hyperparameters": {
+    "n_estimators": 150,
+    "max_depth": 5,
+    "learning_rate": 0.08,
+    "subsample": 0.85,
+    "colsample_bytree": 0.85,
+    "eval_metric": "logloss"
+  }
+}

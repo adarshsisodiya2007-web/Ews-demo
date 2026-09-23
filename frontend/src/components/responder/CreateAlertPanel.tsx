@@ -3,26 +3,49 @@ import { CreateAlertPayload } from '../../types/alertTypes';
 import { createResponderAlert } from '../../services/alertService';
 import { CITY_AREA_OPTIONS } from '../../services/citizenLocationService';
 
-// Canonical SATARK region labels — exactly as required
+// Canonical SATARK region labels — including universal emergency broadcast and all monitored zones
 const REGION_DISPLAY_LABELS: Record<string, string> = {
-  guwahati: 'Guwahati',
-  kamrup:   'Kamrup Rural',
-  shillong: 'Shillong',
-  imphal:   'Imphal',
-  aizawl:   'Aizawl',
-  agartala: 'Agartala',
-  other:    'Other Area',
+  all:      '📢 All Monitored Regions (Universal Broadcast)',
+  guwahati: 'Guwahati (Kamrup Metropolitan, Assam)',
+  shillong: 'Shillong (East Khasi Hills, Meghalaya)',
+  aizawl:   'Aizawl (Aizawl Slopes, Mizoram)',
+  meppadi:  'Meppadi (Wayanad, Kerala)',
+  munnar:   'Munnar (Idukki, Kerala)',
+  kamrup:   'Kamrup Rural (Assam)',
+  imphal:   'Imphal (Manipur)',
+  agartala: 'Agartala (Tripura)',
+  other:    'Other Area (Regional)',
 };
 
-// Only canonical SATARK regions, in order
-const SATARK_REGIONS = CITY_AREA_OPTIONS.filter(c => c.id in REGION_DISPLAY_LABELS);
+interface SimpleRegionOption {
+  id: string;
+  name: string;
+  district: string;
+  state: string;
+  lat: number;
+  lon: number;
+}
+
+const EXTRA_REGIONS: SimpleRegionOption[] = [
+  { id: 'all', name: 'All Monitored Regions', district: 'All Districts', state: 'All States', lat: 26.1445, lon: 91.7362 },
+  { id: 'meppadi', name: 'Meppadi, Wayanad', district: 'Wayanad', state: 'Kerala', lat: 11.5513, lon: 76.1264 },
+  { id: 'munnar', name: 'Munnar, Idukki', district: 'Idukki', state: 'Kerala', lat: 10.0889, lon: 77.0595 },
+];
+
+// All available targeting options
+const SATARK_REGIONS: SimpleRegionOption[] = [
+  EXTRA_REGIONS[0], // All Regions
+  ...CITY_AREA_OPTIONS.filter(c => c.id in REGION_DISPLAY_LABELS),
+  EXTRA_REGIONS[1], // Meppadi
+  EXTRA_REGIONS[2], // Munnar
+];
 
 interface Props {
   onAlertCreated: () => void;
 }
 
 export const CreateAlertPanel: React.FC<Props> = ({ onAlertCreated }) => {
-  const [selectedRegionId, setSelectedRegionId] = useState<string>('');
+  const [selectedRegionId, setSelectedRegionId] = useState<string>('all');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -42,19 +65,20 @@ export const CreateAlertPanel: React.FC<Props> = ({ onAlertCreated }) => {
     try {
       const now = new Date();
       const expiry = new Date(now.getTime() + 6 * 60 * 60 * 1000); // 6 hours validity
+      const isUniversal = selectedRegionId === 'all';
 
       const payload: CreateAlertPayload = {
-        title: `🚨 CRITICAL LANDSLIDE EMERGENCY: ${selectedDisplayName}`,
+        title: `🚨 CRITICAL LANDSLIDE EMERGENCY: ${selectedConfig.name}`,
         severity: 'CRITICAL',
         alertType: 'LANDSLIDE',
-        scope: 'EXACT_REGION',
-        targetRegion: selectedRegionId,
-        locationName: selectedDisplayName,
+        scope: isUniversal ? 'ALL' : 'EXACT_REGION',
+        targetRegion: isUniversal ? 'ALL' : selectedRegionId,
+        locationName: selectedConfig.name,
         district: selectedConfig.district,
         state: selectedConfig.state,
         lat: selectedConfig.lat,
         lng: selectedConfig.lon,
-        description: `IMMEDIATE EVACUATION & LIFE SAFETY ALERT: Severe landslide danger and critical slope saturation detected across ${selectedDisplayName}. Evacuate hazardous slope corridors and proceed to designated emergency shelters immediately.`,
+        description: `IMMEDIATE EVACUATION & LIFE SAFETY ALERT: Severe landslide danger and critical slope saturation detected across ${selectedConfig.name}. Evacuate hazardous slope corridors and proceed to designated emergency shelters immediately.`,
         startTime: now.toISOString(),
         expiryTime: expiry.toISOString(),
       };

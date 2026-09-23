@@ -1,0 +1,21 @@
+[
+  "latitude",
+  "longitude",
+  "elevation",
+  "slope",
+  "aspect",
+  "rainfall_1h",
+  "rainfall_6h",
+  "rainfall_12h",
+  "rainfall_24h",
+  "rainfall_48h",
+  "rainfall_72h",
+  "antecedent_rainfall_3d",
+  "soil_moisture",
+  "temperature",
+  "humidity",
+  "distance_to_road_m",
+  "distance_to_river_m",
+  "historical_landslide_density",
+  "distance_to_previous_landslide_m"
+]

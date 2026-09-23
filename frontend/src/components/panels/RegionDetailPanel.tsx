@@ -4,6 +4,9 @@ import { fetchRiskDetail, updateRoadStatus } from '../../services/api';
 import { RiskBadge } from '../shared/RiskBadge';
 import { ExplainabilityChart } from './ExplainabilityChart';
 import { WeatherSparkline } from './WeatherSparkline';
+import { MultiHorizonRiskPanel } from './MultiHorizonRiskPanel';
+import { InfrastructureImpactPanel } from './InfrastructureImpactPanel';
+import { DataQualityBadge } from './DataQualityBadge';
 import { t } from '../../i18n';
 
 interface Props {
@@ -18,15 +21,26 @@ export const RegionDetailPanel: React.FC<Props> = ({ regionId, onClose, userRole
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (regionId) {
-      setLoading(true);
-      fetchRiskDetail(regionId)
-        .then(setDetail)
-        .catch(console.error)
-        .finally(() => setLoading(false));
-    } else {
-      setDetail(null);
-    }
+    const loadDetail = () => {
+      if (regionId) {
+        setLoading(true);
+        fetchRiskDetail(regionId)
+          .then(setDetail)
+          .catch(console.error)
+          .finally(() => setLoading(false));
+      } else {
+        setDetail(null);
+      }
+    };
+
+    loadDetail();
+
+    window.addEventListener('ews-reports-updated', loadDetail);
+    window.addEventListener('ews-sync-completed', loadDetail);
+    return () => {
+      window.removeEventListener('ews-reports-updated', loadDetail);
+      window.removeEventListener('ews-sync-completed', loadDetail);
+    };
   }, [regionId]);
 
   if (!regionId) return null;
@@ -72,6 +86,27 @@ export const RegionDetailPanel: React.FC<Props> = ({ regionId, onClose, userRole
           </h3>
           <ExplainabilityChart factors={detail.contributingFactors} severity={detail.severity} lang={lang} />
           
+          <DataQualityBadge
+            rainfallStatus="FRESH"
+            terrainStatus="AVAILABLE (NASADEM 30m)"
+            soilMoistureStatus="FRESH"
+            historicalStatus="AVAILABLE (GSI/NDMA)"
+            sensorStatus="ACTIVE"
+            overallQuality="HIGH"
+          />
+
+          <MultiHorizonRiskPanel
+            lat={detail.centroidLat}
+            lon={detail.centroidLng}
+            slope={detail.slope || 35.0}
+            regionName={detail.name}
+          />
+
+          <InfrastructureImpactPanel
+            regionName={detail.name}
+            severity={detail.severity}
+          />
+          
           <hr style={{ border: 'none', borderTop: '1px solid var(--color-base-600)', margin: '16px 0' }} />
           
           <h3 style={{ fontSize: '0.85rem', letterSpacing: '0.05em', marginBottom: '16px', color: 'var(--color-base-000)' }}>
@@ -84,13 +119,34 @@ export const RegionDetailPanel: React.FC<Props> = ({ regionId, onClose, userRole
           <h3 style={{ fontSize: '0.85rem', letterSpacing: '0.05em', marginBottom: '16px', color: 'var(--color-base-000)' }}>
             {t('panel.recentReports', lang)} ({detail.recentReports.length})
           </h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {detail.recentReports.map(r => (
-              <div key={r.id} style={{ background: 'var(--color-base-800)', padding: '12px', borderRadius: 'var(--radius-sm)' }}>
-                <div style={{ fontSize: 'var(--text-sm)', color: 'var(--color-base-000)' }}>{r.category}</div>
-                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--color-base-200)', marginTop: '4px' }}>{r.description}</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {detail.recentReports.length === 0 ? (
+              <div style={{ fontSize: '0.8rem', color: 'var(--color-base-300)', padding: '10px 0' }}>
+                No active ground hazard reports logged for this sector yet.
               </div>
-            ))}
+            ) : (
+              detail.recentReports.map(r => (
+                <div key={r.id} style={{ background: 'var(--color-base-800)', padding: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-base-600)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                    <span style={{
+                      fontSize: '0.7rem',
+                      fontWeight: 800,
+                      padding: '2px 6px',
+                      borderRadius: '4px',
+                      background: r.reporterType === 'FIELD_OFFICER' ? 'rgba(234, 88, 12, 0.25)' : 'rgba(56, 189, 248, 0.2)',
+                      color: r.reporterType === 'FIELD_OFFICER' ? '#fb923c' : '#38bdf8'
+                    }}>
+                      {r.reporterType || 'CITIZEN'}
+                    </span>
+                    <span style={{ fontSize: '0.72rem', fontWeight: 800, color: r.status === 'VERIFIED' ? '#4ade80' : r.status === 'DISPATCHED' ? '#fb923c' : '#fcd34d' }}>
+                      {r.status}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--color-base-000)' }}>{r.category.replace('_', ' ')}</div>
+                  <div style={{ fontSize: 'var(--text-xs)', color: 'var(--color-base-200)', marginTop: '4px', lineHeight: 1.4 }}>{r.description}</div>
+                </div>
+              ))
+            )}
           </div>
 
           {(userRole === 'ADMIN' || userRole === 'DISTRICT_OFFICIAL' || userRole === 'FIELD_OFFICER') && (

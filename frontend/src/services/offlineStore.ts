@@ -8,8 +8,11 @@ import {
   PendingRoadStatusItem,
   CachedRecord,
   RiskAssessmentResponse,
-  SyncStatus
+  SyncStatus,
+  ReportStatus,
+  ReportCategory
 } from '../types';
+import { MOCK_REPORTS } from './mockData';
 
 const DB_NAME = 'ews-offline-db';
 const DB_VERSION = 2;
@@ -122,7 +125,24 @@ export const queueReport = async (
   };
 
   await db.put('pending-reports', item);
+
+  // Also register in cached-incidents so that Monitored Incident Ledger displays it immediately
+  const newIncident: CitizenReport = {
+    id: clientReportId,
+    reporterType: payload.reporterType || 'CITIZEN',
+    category: (payload.category || 'OTHER') as ReportCategory,
+    description: payload.description || '',
+    photoUrl: payload.photoUrl || null,
+    status: 'PENDING',
+    createdAt: new Date().toISOString(),
+    syncedAt: null,
+    geoLat: typeof payload.geoLat === 'number' ? payload.geoLat : 11.5513,
+    geoLng: typeof payload.geoLng === 'number' ? payload.geoLng : 76.1264,
+  };
+  await addOrUpdateCachedIncident(newIncident).catch(() => {});
+
   window.dispatchEvent(new CustomEvent('ews-queue-change', { detail: { type: 'report', item } }));
+  window.dispatchEvent(new CustomEvent('ews-reports-updated'));
   return item;
 };
 
@@ -262,6 +282,46 @@ export const removeCachedIncident = async (id: string): Promise<void> => {
 export const clearCachedIncidents = async (): Promise<void> => {
   const db = await getDB();
   await db.put('cached-incidents', { key: 'all', data: [], timestamp: Date.now() });
+};
+
+export const addOrUpdateCachedIncident = async (report: CitizenReport): Promise<void> => {
+  const cached = await getCachedIncidents();
+  let list = cached?.data ? [...cached.data] : [];
+  if (list.length === 0) {
+    list = [...MOCK_REPORTS.slice(0, 4)];
+  }
+  const idx = list.findIndex(r => r.id === report.id);
+  if (idx >= 0) {
+    list[idx] = { ...list[idx], ...report };
+  } else {
+    list.unshift(report);
+  }
+  await cacheIncidents(list);
+  window.dispatchEvent(new CustomEvent('ews-reports-updated'));
+};
+
+export const updateCachedIncidentStatus = async (id: string, status: ReportStatus): Promise<CitizenReport | null> => {
+  const cached = await getCachedIncidents();
+  let list = cached?.data ? [...cached.data] : [];
+  if (list.length === 0) {
+    list = [...MOCK_REPORTS.slice(0, 4)];
+  }
+  const idx = list.findIndex(r => r.id === id);
+  let updated: CitizenReport | null = null;
+  if (idx >= 0) {
+    list[idx] = { ...list[idx], status };
+    updated = list[idx];
+  } else {
+    const mock = MOCK_REPORTS.find(r => r.id === id);
+    if (mock) {
+      mock.status = status;
+      updated = { ...mock, status };
+      list.unshift(updated);
+    }
+  }
+  await cacheIncidents(list);
+  window.dispatchEvent(new CustomEvent('ews-reports-updated'));
+  return updated;
 };
 
 const DELETED_INCIDENTS_KEY = 'satark_deleted_incident_ids';

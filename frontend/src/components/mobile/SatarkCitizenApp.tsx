@@ -1712,7 +1712,7 @@ export const SatarkCitizenApp: React.FC<Props> = ({ onSwitchToOfficer }) => {
                 <div>72h Rain: <strong>{riskData.weather.rain_72h_mm} mm</strong></div>
                 <div>Soil Moisture: <strong>{typeof riskData.weather.soil_moisture === 'number' ? (riskData.weather.soil_moisture > 1 ? `${riskData.weather.soil_moisture}%` : `${Math.round(riskData.weather.soil_moisture * 100)}%`) : 'N/A'}</strong></div>
                 <div>Slope Angle: <strong>{selectedZone.slope}°</strong></div>
-                <div>NASADEM Elevation: <strong>{riskData.terrain_elevation?.available && typeof riskData.terrain_elevation.elevationMeters === 'number' ? `${riskData.terrain_elevation.elevationMeters.toFixed(1)} m` : 'NASADEM elevation unavailable'}</strong></div>
+                <div>Terrain Elevation: <strong>{riskData.terrain_elevation?.available && typeof riskData.terrain_elevation.elevationMeters === 'number' ? `${riskData.terrain_elevation.elevationMeters.toFixed(1)} m` : 'Elevation unavailable'}</strong></div>
                 <div>Corridor: <strong>{riskData.evacuation_plan?.primary_corridor?.split('(')[0]?.trim() || 'Active'}</strong></div>
               </div>
             )}

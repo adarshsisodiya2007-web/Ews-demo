@@ -75,6 +75,7 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({ initialTab = 'over
     regionId: selectedZone?.id,
     district: selectedZone?.district,
     state: selectedZone?.state,
+    targetRegion: selectedZone?.name,
     enabled: true,
   });
 
@@ -803,8 +804,8 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({ initialTab = 'over
                   label: t.elevation,
                   value: data?.terrain_elevation?.available && typeof data.terrain_elevation.elevationMeters === 'number'
                     ? `${data.terrain_elevation.elevationMeters.toFixed(1)} m`
-                    : 'NASADEM elevation unavailable',
-                  sub: 'OpenTopography NASADEM 30m',
+                    : 'Elevation unavailable',
+                  sub: data?.terrain_elevation?.source || 'Open-Meteo NASA SRTM 30m',
                   color: theme === 'dark' ? '#38bdf8' : '#0284c7'
                 },
               ].map(({ icon, label, value, sub, color }) => (
@@ -871,7 +872,7 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({ initialTab = 'over
                 marginBottom: '16px',
                 fontSize: '0.8rem'
               }}>
-                <div><strong>Terrain:</strong> Slope {selectedZone.slope}° · {data?.terrain_elevation?.available && typeof data.terrain_elevation.elevationMeters === 'number' ? `${data.terrain_elevation.elevationMeters.toFixed(1)}m` : 'NASADEM elevation unavailable'} NASADEM</div>
+                <div><strong>Terrain:</strong> Slope {selectedZone.slope}° · {data?.terrain_elevation?.available && typeof data.terrain_elevation.elevationMeters === 'number' ? `${data.terrain_elevation.elevationMeters.toFixed(1)}m` : 'Elevation unavailable'} (NASA SRTM DEM)</div>
                 <div><strong>Hydro-Met:</strong> 24h: {data?.weather?.rain_24h_mm ?? 0}mm | 72h: {data?.weather?.rain_72h_mm ?? 0}mm</div>
                 <div><strong>Primary Corridor:</strong> {data?.evacuation_plan?.primary_corridor?.split('(')[0]?.trim() || 'Highway Corridor'}</div>
                 <div><strong>Designated Shelter:</strong> {data?.evacuation_plan?.nearest_verified_shelter || 'District Relief Camp'}</div>

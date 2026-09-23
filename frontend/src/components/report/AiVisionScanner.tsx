@@ -140,7 +140,7 @@ export const AiVisionScanner: React.FC<Props> = ({ onScanComplete }) => {
               color: '#38bdf8', fontWeight: 700
             }}>
               <div style={{ fontSize: '2rem', animation: 'spin 1s linear infinite', marginBottom: '8px' }}>⚙️</div>
-              <div>Running YOLOv8 Hazard Scanner + Sensor Authenticity Analysis…</div>
+              <div>Running Forensic Edge Variance &amp; Surface Analysis…</div>
               <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
             </div>
           )}
@@ -158,13 +158,13 @@ export const AiVisionScanner: React.FC<Props> = ({ onScanComplete }) => {
           }}>
             <div style={{ flex: '1 1 240px' }}>
               <div style={{ fontSize: '0.72rem', fontWeight: 800, color: '#f87171', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                1. AI Hazard Detection
+                1. Computer Vision Feature Extraction (Laplacian Edge &amp; Color Tensor)
               </div>
               <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#f8fafc', marginTop: '2px' }}>
                 {analysis.hazard.label}
               </div>
               <div style={{ fontSize: '0.78rem', color: '#cbd5e1', marginTop: '4px' }}>
-                Recommended: <strong>{analysis.hazard.recommendedAction}</strong>
+                Recommended: <strong>{analysis.hazard.recommendedAction}</strong> (Subject to Officer Ground Verification)
               </div>
             </div>
             <div style={{ textAlign: 'right' }}>
